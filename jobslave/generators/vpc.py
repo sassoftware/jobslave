@@ -16,9 +16,7 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
     @bootable_image.timeMe
     def createVHD(self, hdImage, filebase):
         diskType = self.getBuildData('vhdDiskType')
-        if diskType == 'dynamic':
-            vhd.makeDynamic(hdImage, filebase + '.vhd')
-        elif diskType == 'fixed':
+        if diskType == 'fixed':
             vhd.makeFlat(hdImage)
             os.rename(hdImage, filebase + '.vhd')
         elif diskType == 'difference':
@@ -26,6 +24,8 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
             os.chmod(filebase + '-base.vhd', 0400)
             vhd.makeDifference(filebase + '-base.vhd', filebase + '.vhd',
                                self.basefilename + '-base.vhd')
+        else:
+            vhd.makeDynamic(hdImage, filebase + '.vhd')
 
     @bootable_image.timeMe
     def createVMC(self, fileBase):
