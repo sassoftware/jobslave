@@ -19,7 +19,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 (cylinders, constants.heads, constants.sectors,
                  self.adapter, hdImage, outfile)
         else:
-            #cylinders = size / (constants.scsiSectors * constants.scsiHeads)
             cylinders = (size / constants.cylindersize) * \
                 (constants.heads * constants.sectors) / \
                 (constants.scsiHeads * constants.scsiSectors)
