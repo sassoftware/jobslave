@@ -1,0 +1,81 @@
+#
+# Copyright (c) 2005-2007 rPath, Inc.
+#
+# All Rights Reserved
+#
+
+import sys
+
+validBuildTypes = {
+    'BOOTABLE_IMAGE'   : 0,
+    'INSTALLABLE_ISO'  : 1,
+    'STUB_IMAGE'       : 2,
+    'RAW_FS_IMAGE'     : 3,
+    'NETBOOT_IMAGE'    : 4,
+    'TARBALL'          : 5,
+    'LIVE_ISO'         : 6,
+    'RAW_HD_IMAGE'     : 7,
+    'VMWARE_IMAGE'     : 8,
+    'VMWARE_ESX_IMAGE' : 9,
+    'VIRTUAL_PC_IMAGE' : 10,
+    'XEN_OVA'          : 11,
+    }
+
+TYPES = validBuildTypes.values()
+
+# add all the defined image types directly to the module so that the standard
+# approach of "buildtypes.IMAGE_TYPE" will result in the expected enum
+sys.modules[__name__].__dict__.update(validBuildTypes)
+
+deprecatedBuildTypes = {
+    'QEMU_IMAGE' : RAW_HD_IMAGE
+    }
+
+
+#BOOTABLE_IMAGE Should never get stored in the DB and therefore doesn't need a name
+
+# NOTA BENE. If you want to put in special characters (e.g. a copyright or
+# registered trademark) in typeNames{,Short,Marketing}, please use the
+# equivalent ISO-LATIN-1 escape (e.g. \xae for registered trademark).
+
+typeNames = {
+    NETBOOT_IMAGE:      "Netboot Image",
+    INSTALLABLE_ISO:    "Installable CD/DVD",
+    RAW_FS_IMAGE:       "Raw Filesystem Image",
+    STUB_IMAGE:         "Stub Image",
+    RAW_HD_IMAGE:       "Raw Hard Disk Image",
+    VMWARE_IMAGE:       "VMware\xae Player Image",
+    VMWARE_ESX_IMAGE:   "VMware\xae ESX Server Image",
+    LIVE_ISO:           "Demo CD/DVD (Live CD/DVD)",
+    TARBALL:            "Compressed Tar File",
+    VIRTUAL_PC_IMAGE:   "Microsoft\xae Virtual Server",
+    XEN_OVA:            "Xen Enterprise XVA",
+}
+
+typeNamesShort = {
+    NETBOOT_IMAGE:      "Netboot",
+    INSTALLABLE_ISO:    "Inst CD/DVD",
+    RAW_FS_IMAGE:       "Raw FS",
+    STUB_IMAGE:         "Stub",
+    RAW_HD_IMAGE:       "HDD",
+    VMWARE_IMAGE:       "VMware\xae",
+    VMWARE_ESX_IMAGE:   "VMware\xae ESX",
+    LIVE_ISO:           "Demo CD/DVD",
+    TARBALL:            "Tar",
+    VIRTUAL_PC_IMAGE:   "Virtual Server",
+    XEN_OVA:            "XVA",
+}
+
+typeNamesMarketing = {
+    NETBOOT_IMAGE:      "Netboot Image",
+    INSTALLABLE_ISO:    "Installable CD/DVD",
+    RAW_FS_IMAGE:       "Mountable Filesystem",
+    STUB_IMAGE:         "Stub Image",
+    RAW_HD_IMAGE:       "Parallels, QEMU (Raw Hard Disk)",
+    VMWARE_IMAGE:       "VMware\xae Virtual Appliance",
+    VMWARE_ESX_IMAGE:   "VMware\xae ESX Server Virtual Appliance",
+    LIVE_ISO:           "Demo CD/DVD (Live CD/DVD)",
+    TARBALL:            "TAR File",
+    VIRTUAL_PC_IMAGE:   "Microsoft\xae Virtual Server",
+    XEN_OVA:            "Xen Enterprise XVA",
+}
