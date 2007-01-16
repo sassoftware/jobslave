@@ -10,9 +10,12 @@ import urllib
 import weakref
 import StringIO
 
+import logging
+
 from conary import conarycfg
 from conary import conaryclient
-from conary.lib import util
+from conary.lib import util, log
+import subprocess
 from conary import versions
 
 from conary.deps import deps
@@ -25,6 +28,39 @@ class NoConfigFile(Exception):
 
     def __str__(self):
         return "Unable to access configuration file: %s" % self._path
+
+class LogHandler(logging.Handler):
+    def __init__(self, jobId, response):
+        self.jobId = jobId
+        self.response = weakref.ref(response)
+        logging.Handler.__init__(self)
+
+    def emit(self, record):
+        try:
+            self.response().jobLog(jobId, record.getMessage())
+        except:
+            print >> sys.stderr, "Warning: log message was lost:", \
+                record.getMessage()
+            sys.stderr.flush()
+
+def logPipe(l, p):
+    running = True
+    while running:
+        try:
+            line = p.next()
+            l(line)
+        except StopIteration:
+            running = False
+
+def system(command):
+    log.info(command)
+    p = subprocess.Popen(command, shell = True,
+                         stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    p.wait()
+    logPipe(log.info, p.stdout)
+    logPipe(log.error, p.stderr)
+
+os.system = system
 
 class Generator:
     configObject = None
@@ -41,6 +77,12 @@ class Generator:
         self.cc = conaryclient.ConaryClient(self.conarycfg)
         self.nc = self.cc.getRepos()
 
+        rootLogger = logging.getLogger('')
+        for handler in rootLogger.handlers[:]:
+            rootLogger.removeHandler(handler)
+        rootLogger.addHandler(LogHandler(self.jobId, response))
+        log.setVerbosity(logging.INFO)
+
     def getJobData(self, key):
         return self.jobData.get('jobData', {}).get(key)
 
@@ -56,9 +98,9 @@ class Generator:
     def write(self):
         raise NotImplementedError
 
-    def status(self, msg):
+    def status(self, msg, level = 'running'):
         try:
-            self.response().jobStatus(self.jobId, 'running', msg)
+            self.response().jobStatus(self.jobId, level, msg)
         except Exception, e:
             print >> sys.stderr, "Error logging status to MCP:", e
 
