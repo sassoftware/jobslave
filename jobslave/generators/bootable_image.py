@@ -124,14 +124,6 @@ def timeMe(func):
         return returner
     return wrapper
 
-def outputfilesize(func):
-    def wrapper(self, *args, **kwargs):
-        returner = func(self, *args, **kwargs)
-        st = os.stat(self.outfile)
-        log.debug("size of %s after %s: %d bytes" % (self.outfile, func.__name__, st.st_size))
-        return returner
-    return wrapper
-
 def copyfile(source, target):
     if not os.path.exists(target):
         return util.copyfile(source, target)
@@ -220,33 +212,7 @@ class InstallCallback(UpdateCallback):
 
 
 class BootableImage(ImageGenerator):
-    @outputfilesize
     @timeMe
-    def prepareDiskImage(self):
-        #create the disk file this will blank the file if it exists.
-        ofile = open(self.outfile, 'wb', 0644)
-        ofile.seek(self.imagesize-1)
-        ofile.write('\x00')
-        ofile.close()
-
-        #Do the partition table
-        self.cylinders = self.imagesize / self.imgcfg.cylindersize
-        cmd = '/sbin/sfdisk -C %d -S %d -H %d %s' % (self.cylinders, self.imgcfg.sectors, self.imgcfg.heads, self.outfile)
-        input = "0 %d L *\n" % self.cylinders
-
-        if not self.imgcfg.debug:
-            cmd += " >& /dev/null"
-        sfdisk = util.popen(cmd, 'w')
-        sfdisk.write(input)
-        retval = sfdisk.close()
-
-    def _writefstab(self):
-        util.copyfile(os.path.join(self.imgcfg.dataDir, 'fstab'), os.path.join(self.fakeroot, 'etc', 'fstab'))
-        if not self.swapSize:
-            # remove any reference to swap if swapSize is 0
-            util.execute('sed -i "s/.*swap.*//" %s' % \
-                         os.path.join(self.fakeroot, 'etc', 'fstab'))
-
     def setupGrub(self, fakeRoot):
         if not os.path.exists(os.path.join(fakeRoot, 'sbin', 'grub')):
             log.info("grub not found. skipping setup.")
@@ -291,68 +257,6 @@ class BootableImage(ImageGenerator):
                   'boot/grub', 'tmp', 'proc', 'sys', 'root', 'var'):
             util.mkdirChain(os.path.join(fakeRoot, d))
 
-    @timeMe
-    def setupConaryClient(self, fakeRoot):
-        self.conarycfg.threaded = True
-
-        self.conarycfg.root = fakeRoot
-        self.conarycfg.dbPath = '/var/lib/conarydb'
-        self.conarycfg.installLabelPath = None
-        self.readConaryRc(self.conarycfg)
-        self.conarycfg.configLine('pinTroves kernel.*')
-
-        self.cc = conaryclient.ConaryClient(self.conarycfg)
-
-    @timeMe
-    def updateGroupChangeSet(self, callback):
-        itemList = [(self.baseTrove, (None, None), (self.baseversion, self.baseFlavor), True)]
-        log.info("itemList: %s" % str(itemList))
-
-        repos = self.cc.getRepos()
-        parentGroup = repos.getTroves([(self.baseTrove, versions.VersionFromString(self.baseversion), self.baseFlavor)])[0]
-
-        uJob, _ = self.cc.updateChangeSet(itemList,
-            resolveDeps = False, split = True, callback = callback)
-        return uJob
-
-    @timeMe
-    def applyUpdate(self, uJob, callback, tagScript, fakeRoot):
-        self.cc.applyUpdate(uJob, tagScript=os.path.join(fakeRoot,
-                                                         'root', tagScript),
-                            autoPinList=self.conarycfg.pinTroves)
-
-    @timeMe
-    def updateKernelChangeSet(self, callback):
-        #Install the Kernel
-        try:
-            # since sync = True, this will sync up to the kernel requested by the group.
-            if self.baseFlavor.stronglySatisfies(deps.parseFlavor('use: xen')):
-                kernel, version, flavor = parseTroveSpec('kernel:runtime')
-            else:
-                kernel, version, flavor = parseTroveSpec('kernel:runtime[!kernel.smp is: %s]' % self.arch)
-
-            itemList = [(kernel, (None, None), (version, flavor), True)]
-            uJob, suggMap = self.cc.updateChangeSet( \
-                itemList, sync = True, split = True,
-                resolveDeps = False)
-        except errors.TroveNotFound:
-            raise jobslave_error.KernelTroveRequired
-        return uJob
-
-    @timeMe
-    def installKernel(self, fakeRoot, callback = None):
-        if self.findFile(os.path.join(fakeRoot, 'boot'), 'vmlinuz.*'):
-            log.info("kernel detected. skipping updateKernelChangeSet")
-            return
-        try:
-            kuJob = self.updateKernelChangeSet(callback)
-        except conaryclient.NoNewTrovesError:
-            log.info("strongly-included kernel found--no new kernel trove to sync")
-        except jobslave_error.KernelTroveRequired:
-            log.info("no kernel found at all. skipping.")
-        else:
-            self.applyUpdate(kuJob, callback, 'conary-kernel-tag-script',
-                             fakeRoot)
 
     @timeMe
     def fileSystemOddsNEnds(self, fakeRoot, swapSize):
@@ -386,208 +290,6 @@ class BootableImage(ImageGenerator):
             cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % os.path.join(fakeRoot, 'etc', 'inittab')
             util.execute(cmd)
 
-    @timeMe
-    def createFileSystem(self, basedir = os.getcwd()):
-        #This file isn't needed outside this function, and is cleaned up when it exits
-        fd, file = tempfile.mkstemp('', 'mint-MDI-cFS-', basedir)
-        os.close(fd)
-        del fd
-        try:
-            #How much space do we need?
-            fd = os.popen('/usr/bin/du -B1 --max-depth=0 %s' % self.fakeroot, 'r')
-            size = int(fd.read().strip().split()[0])
-            size += self.freespace + constants.partitionOffset
-            # account for inodes and extra space for tag scripts and swap space
-            # inodes are 8%.
-            # super user reserved blocks are 5% of total
-            # swap defaults to 128MB
-            # tag scripts swag is 20MB
-            size = int(ceil((size + 20 * 1024 * 1024 + self.swapSize) / 0.87))
-            padding = self.imgcfg.cylindersize - (size % self.imgcfg.cylindersize)
-            if self.imgcfg.cylindersize == padding:
-                padding = 0
-            self.imagesize = size + padding
-            self.MakeE3FsImage(file)
-            self.prepareDiskImage()
-            self.WriteBack(file)
-        finally:
-            os.unlink(file)
-
-    @timeMe
-    def createSparseFile(self, size=10240):
-        # size is defined in terms of megabytes
-        fd, tmpFile = tempfile.mkstemp()
-        os.close(fd)
-        os.system('dd if=/dev/zero of=%s count=1 seek=%d bs=1M >/dev/null' % \
-                  (tmpFile, size))
-        return tmpFile
-
-    @timeMe
-    def estimateSize(self, fileName):
-        "find real size of contents of sparse file by ignoring trailing nulls."
-        # this function will fail if the file truly has trailing nulls.
-        f = os.popen('du --block-size=1 %s' % fileName)
-        upperSize = int(f.read().strip().split()[0])
-        f.close()
-        f = open(fileName)
-        # iteratively back up in 1MB chunks until it appears to be within file
-        lowerSize = max(upperSize - 1024 * 1024, 0)
-        while lowerSize:
-            f.seek(lowerSize)
-            c = f.read(1)
-            if c == chr(0) or c == '':
-                lowerSize = max(lowerSize - 1024 * 1024, 0)
-            else:
-                break
-        try:
-            while True:
-                estimatedSize = lowerSize + (upperSize - lowerSize) / 2
-                sizeDiff = upperSize - estimatedSize
-                f.seek(estimatedSize)
-                buf = f.read(sizeDiff)
-                if buf == len(buf) * chr(0):
-                    # we are past the end of the file
-                    upperSize = estimatedSize
-                else:
-                    if sizeDiff == 1:
-                        estimatedSize = upperSize
-                        break
-                    # we're not pointing at the end of the file
-                    lowerSize = estimatedSize
-        finally:
-            f.close()
-        # size is in bytes
-        return estimatedSize
-
-    @timeMe
-    def copySparse(self, src, dest):
-        # overcome the apparent size of a sparse file. this would fail if there
-        # were holes in the src file, but there shouldn't be any.
-        f = os.popen('file %s' % src)
-        fileType = f.read()
-        f.close()
-        if 'gzip compressed data' in fileType:
-            # per RFC 1952: GZIP file format specification version 4.3
-            # the last 8 bytes of gzip file are 32 bit CRC and 32 bit orig len.
-            # for estimateSize to fail horribly, the uncompressed tarball would
-            # need to be an exact multiple of 4GB and an all-zero CRC.
-            # however gzip will complain if we truncate inadverdently.
-            # HACK: we add 8 bytes to the esitmated size to virtually nullify
-            # the chance of losing real data. gzip ignores trailing zeroes
-            # this has a side effect of making gzip -l report orig size as 0
-            size = self.estimateSize(src) + 8
-            util.execute('head -c %d %s > %s' % (size, src, dest))
-            return size
-        else:
-            fd = os.popen('/usr/bin/isosize %s' % src)
-            size = int(fd.read().strip().split()[0])
-            fd.close()
-            size = size // 2048 + bool(size % 2048)
-            # use dd to limit size. no python libs seem to do this correctly
-            os.system('dd if=%s of=%s count=%d ibs=2048' % (src, dest, size))
-            return size * 2048
-
-    @timeMe
-    def makeBootBlock(self):
-        if not self.makeBootable:
-            return
-        if not os.path.exists(os.path.join(self.fakeroot, 'sbin', 'grub')):
-            log.info("grub not found. skipping execution.")
-            return
-        #install boot manager
-        cmd = '%s --device-map=/dev/null --batch' % os.path.join(self.fakeroot, 'sbin', 'grub')
-        input = """
-device  (hd0)   %s
-root    (hd0,0)
-setup   (hd0)
-quit
-""" % self.outfile
-
-        if not self.imgcfg.debug:
-            cmd += " > /dev/null"
-        uml = util.popen(cmd, 'w')
-        uml.write(input)
-        retval = uml.close()
-
-    @timeMe
-    def stripBootBlock(self):
-        tempName = self.outfile + "nonstrip"
-        # move outfile out of the way, then copy it back, minus boot block.
-        os.rename(self.outfile, tempName)
-        blocks = constants.partitionOffset / 512
-        os.system('dd if=%s of=%s skip=%d ibs=512' % \
-                  (tempName, self.outfile, blocks))
-        os.unlink(tempName)
-
-    @timeMe
-    def compressImage(self, filename):
-        outfile = filename + '.gz'
-        cmd = '/bin/gzip -c %s > %s' % (filename, outfile)
-        util.execute(cmd)
-        return outfile
-
-    @timeMe
-    def moveToFinal(self, filelist, finaldir):
-        returnlist = []
-        util.mkdirChain(finaldir)
-        pardir = os.path.sep.join(finaldir.split(os.path.sep)[:-1])
-        isogenUid = os.geteuid()
-        apacheGid = pwd.getpwnam('apache')[3]
-        # add the group writeable bit and assign group ownership to apache
-        os.chown(finaldir, isogenUid, apacheGid)
-        os.chmod(finaldir, os.stat(finaldir)[0] & 0777 | 0020)
-        os.chown(pardir, isogenUid, apacheGid)
-        os.chmod(pardir, os.stat(pardir)[0] & 0777 | 0020)
-        for file, name in filelist:
-            base, ext = os.path.basename(file).split(os.path.extsep, 1)
-            newfile = os.path.join(finaldir, self.basefilename + "." + ext)
-            log.info("Move %s to %s" % (file, newfile))
-
-            import gencslist
-            gencslist._linkOrCopyFile(file, newfile)
-            os.unlink(file)
-            os.chown(newfile, isogenUid, apacheGid)
-            os.chmod(newfile, os.stat(newfile)[0] & 0777 | 0020)
-            returnlist.append((newfile, name,))
-        return returnlist
-
-    def createFileTree(self):
-        #Create the output file:
-        fd, self.outfile = tempfile.mkstemp('.img', 'raw_hd')
-        os.close(fd)
-        os.chmod(self.outfile, 0644)
-
-        callback = InstallCallback(self.status)
-
-        self.setupConaryClient()
-        self.status('Creating temporary root')
-        self.createTemporaryRoot()
-
-        self.status('Installing software')
-        self.populateTemporaryRoot(callback)
-
-        self.status('Populating configuration files')
-        self.fileSystemOddsNEnds()
-
-    def createImage(self, target = 'ext3'):
-        self.status('Creating root file system')
-        self.createFileSystem(self.cfg.imagesPath)
-
-        self.status('Running tag-scripts')
-        self.runTagScripts(target = target)
-
-        if self.makeBootable:
-            self.status('Installing bootloader')
-            self.makeBootBlock()
-        else:
-            # don't try and strip boot blocks from iso images.
-            if target in ('ext3', 'ext2'):
-                self.stripBootBlock()
-
-        #As soon as that's done, we can delete the fakeroot to free up space
-        util.rmtree(self.fakeroot)
-        self.fakeroot = None
-
     def __init__(self, jobData, response):
         ImageGenerator.__init__(self, jobData, response)
 
@@ -595,6 +297,7 @@ quit
         log.info('building trove: (%s, %s, %s)' % \
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
+    @timeMe
     def getTroveSize(self):
         NVF = self.nc.findTrove(None,
                                 (self.baseTrove,
@@ -610,6 +313,7 @@ quit
         # override this function as appropriate
         return self.getTroveSize()
 
+    @timeMe
     def makeBlankDisk(self, image, size):
         if os.path.exists(image):
             util.rmtree(image)
@@ -634,6 +338,7 @@ quit
             if 'dev' in locals():
                 util.execute('losetup -d %s' % dev)
 
+    @timeMe
     def makeBlankFS(self, image, size):
         if os.path.exists(image):
             util.rmtree(image)
@@ -643,6 +348,7 @@ quit
         util.execute('mke2fs -L / -F %s' % image)
         util.execute('tune2fs -i 0 -c 0 -j %s' % image)
 
+    @timeMe
     def loop(self, image, offset = 0):
         p = os.popen('losetup -f')
         dev = p.read().strip()
@@ -652,12 +358,14 @@ quit
         util.execute('sync')
         return dev
 
+    @timeMe
     def getKernelFlavor(self):
         flavor = ''
         if not self.baseFlavor.stronglySatisfies(deps.parseFlavor('use: xen')):
             flavor = '!kernel.smp is: %s' % self.arch
         return flavor
 
+    @timeMe
     def addScsiModules(self, dest):
         filePath = os.path.join(dest, 'etc', 'modprobe.conf')
         f = open(filePath, 'a')
@@ -667,8 +375,8 @@ quit
                            'alias scsi_hostadapter1 mptspi')))
         f.close()
 
+    @timeMe
     def installFileTree(self, dest):
-        #self.setupConaryClient(dest)
         self.createTemporaryRoot(dest)
         self.fileSystemOddsNEnds(dest, self.swapSize)
         fd, cfgPath = tempfile.mkstemp()
@@ -705,6 +413,7 @@ quit
         # remove template kernel entry
         os.system('grubby --remove-kernel=/boot/vmlinuz-template --config-file=%s' % os.path.join(dest, 'boot', 'grub', 'grub.conf'))
 
+    @timeMe
     def installGrub(self, fakeRoot, image):
         grubPath = os.path.join(fakeRoot, 'sbin', 'grub')
         if not os.path.exists(grubPath):
@@ -715,8 +424,11 @@ quit
         p.write('device (hd0) %s\n' % image)
         p.write('root (hd0,0)\n')
         p.write('setup (hd0)\n')
-        return p.close()
+        res = p.close()
+        if res:
+            raise RuntimeError('Received error code: %d from grub' % res)
 
+    @timeMe
     def gzip(self, imageFile):
         outFile = imageFile + '.gz'
         util.execute('gzip -c %s > %s' % (imageFile, outFile))
