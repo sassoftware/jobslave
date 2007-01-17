@@ -183,7 +183,7 @@ class LiveIso(bootable_image.BootableImage):
         os.mkdir(os.path.join(liveDir, 'initrd'))
 
         # for fuse-based copy on write
-        os.mkdir(os.path.join(fileTree, 'readwriteroot'))
+        util.mkdirChain(os.path.join(fileTree, 'readwriteroot'))
 
         self.mkinitrd(liveDir, fileTree)
 
