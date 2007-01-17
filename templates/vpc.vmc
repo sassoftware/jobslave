@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!-- Microsoft Virtual Machine Options and Settings -->
+<preferences>
+	<version type="string">2.0</version>
+	<alerts>
+		<notifications>
+			<no_boot_disk type="boolean">true</no_boot_disk>
+		</notifications>
+	</alerts>
+	<hardware>
+		<memory>
+			<ram_size type="integer">128</ram_size>
+		</memory>
+		<pci_bus>
+			<ethernet_adapter>
+				<controller_count type="integer">1</controller_count>
+				<ethernet_controller id="0">
+					<virtual_network>
+						<id type="bytes">B413A3928EAB11DB82BAFFB778A70C80</id>
+						<name type="string">3Com 3C905TX-based Ethernet Adapter (Generic)</name>
+					</virtual_network>
+				</ethernet_controller>
+			</ethernet_adapter>
+			<video_adapter>
+				<vram_size type="integer">8</vram_size>
+			</video_adapter>
+			<ide_adapter>
+				<ide_controller id="1">
+					<location id="0">
+						<drive_type type="integer">2</drive_type>
+						<pathname>
+							<absolute type="string" />
+							<relative type="string" />
+						</pathname>
+					</location>
+				</ide_controller>
+				<ide_controller id="0">
+					<location id="0">
+						<drive_type type="integer">1</drive_type>
+						<pathname>
+							<relative type="string">@DISK_FILENAME@</relative>
+						</pathname>
+						<undo_pathname>
+							<absolute type="string" />
+							<relative type="string" />
+						</undo_pathname>
+					</location>
+				</ide_controller>
+			</ide_adapter>
+		</pci_bus>
+		<standard>
+			<name type="string">Virtual PC 2004</name>
+			<version type="string">0001.0000.0000</version>
+		</standard>
+		<super_io>
+			<floppy id="0">
+				<pathname>
+					<absolute type="string" />
+					<relative type="string" />
+				</pathname>
+			</floppy>
+			<floppy>
+				<auto_detect type="boolean">true</auto_detect>
+			</floppy>
+			<parallel_port>
+				<port_type type="integer">0</port_type>
+			</parallel_port>
+			<serial_port>
+				<connect_immediately type="boolean">false</connect_immediately>
+			</serial_port>
+		</super_io>
+	</hardware>
+	<integration>
+		<microsoft>
+			<mouse>
+				<allow type="boolean">true</allow>
+			</mouse>
+			<video>
+				<user_selected>
+					<depth type="integer">16</depth>
+					<height type="integer">480</height>
+					<width type="integer">640</width>
+				</user_selected>
+			</video>
+		</microsoft>
+	</integration>
+	<properties>
+		<creator>
+			<build type="string">@MINT_VERSION@</build>
+			<name type="string">rBuilder</name>
+		</creator>
+	</properties>
+	<settings>
+		<configuration>
+			<saved_state>
+				<path>
+					<absolute type="string" />
+					<relative type="string" />
+				</path>
+			</saved_state>
+		</configuration>
+		<shutdown>
+			<prompt type="boolean">true</prompt>
+			<quit>
+				<action type="integer">4</action>
+				<was_running type="boolean">false</was_running>
+			</quit>
+			<save>
+				<enable type="boolean">true</enable>
+			</save>
+			<shutdown>
+				<enable type="boolean">true</enable>
+			</shutdown>
+			<turn_off>
+				<enable type="boolean">true</enable>
+			</turn_off>
+			<last_shutdown>
+				<choice type="integer">2</choice>
+				<commit type="boolean">true</commit>
+			</last_shutdown>
+		</shutdown>
+		<sound>
+			<sound_adapter>
+				<enable type="boolean">true</enable>
+			</sound_adapter>
+		</sound>
+		<startup>
+			<automatic>
+				<type type="integer">2</type>
+			</automatic>
+		</startup>
+		<undo_drives>
+			<enabled type="boolean">false</enabled>
+			<purposely_kept type="boolean">false</purposely_kept>
+			<use_default type="boolean">true</use_default>
+		</undo_drives>
+		<video>
+			<disable_resize type="boolean">false</disable_resize>
+			<full_screen type="boolean">false</full_screen>
+			<mode>
+				<full_screen>
+					<startup type="boolean">false</startup>
+				</full_screen>
+			</mode>
+			<resolutions>
+				<standard_only type="boolean">false</standard_only>
+			</resolutions>
+			<height type="integer">400</height>
+			<left_position type="integer">56</left_position>
+			<max_height type="integer">400</max_height>
+			<max_width type="integer">640</max_width>
+			<top_position type="integer">66</top_position>
+			<width type="integer">640</width>
+		</video>
+	</settings>
+</preferences>

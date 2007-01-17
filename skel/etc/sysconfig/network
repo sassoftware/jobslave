@@ -1,0 +1,4 @@
+#Installed by rBuilder
+NETWORKING=yes
+HOSTNAME=localhost.localdomain
+

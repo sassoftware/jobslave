@@ -1,0 +1,17 @@
+# Disk DescriptorFile
+version=1
+CID=fffffffe
+parentCID=ffffffff
+createType="@CREATE_TYPE@"
+
+# Extent description
+RW @EXTENTS@ @EXT_TYPE@ "@FILENAME@-flat.vmdk" 0
+
+# The Disk Data Base
+#DDB
+
+ddb.virtualHWVersion = "4"
+ddb.geometry.cylinders = "@CYLINDERS@"
+ddb.geometry.heads = "128"
+ddb.geometry.sectors = "32"
+ddb.adapterType = "@ADAPTER@"
