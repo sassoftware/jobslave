@@ -8,28 +8,36 @@
 import os
 
 # jobslave imports
-from jobslave.generators import bootable_image
+from jobslave.generators import bootable_image, constants
 
 # conary imports
 from conary.lib import util
 
 class NetbootImage(bootable_image.BootableImage):
     def write(self):
-        basePath = os.path.join(os.path.sep, 'tmp', self.basefilename)
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        basePath = os.path.join(topDir, self.basefilename)
         if os.path.exists(basePath):
             util.rmtree(basePath)
         util.mkdirChain(basePath)
-        cpioImage = basePath + '.cpio'
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        cpioImage = os.path.join(outputDir, self.basefilename + '.initrd')
         cwd = os.getcwd()
         try:
             self.installFileTree(basePath)
             os.chdir(basePath)
-            util.execute('cpio -o | gzip -9 > %s' % cpioImage)
-            kernel = self.findFile(os.path.join(self.fakeroot, 'boot'),
+            util.execute('find . -depth | cpio -o | gzip > %s' % cpioImage)
+            kernel = self.findFile(os.path.join(basePath, 'boot'),
                                    'vmlinuz.*')
-            # FIXME: deliver cpio and kernel
+            outputKernel = os.path.join(outputDir, os.path.basename(kernel))
+            util.copyfile(kernel, outputKernel)
+            # FIXME: using a name such as vmlinuz-2.6.17.14-0.4.x86.i686.cmov
+            # may not be the best convention
+            self.postOutput(((cpioImage, 'initrd'),
+                             (outputKernel, 'kernel')))
         finally:
-            util.rmtree(basePath, ignore_errors = True)
+            util.rmtree(topDir, ignore_errors = True)
             try:
                 os.chdir(cwd)
             except:
