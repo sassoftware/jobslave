@@ -9,8 +9,6 @@ dataManifest = ['templates', 'skel', 'pixmaps', 'config']
 
 import os, sys
 
-# force production of source distribution only.
-sys.argv = [sys.argv[0], 'sdist']
 from jobslave import constants
 from conary.lib import util
 
