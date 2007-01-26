@@ -4,20 +4,33 @@
 # All rights reserved
 #
 
+import os
 import time
 import simplejson
+import httplib
+import signal
 
-from jobslave import jobhandler
+from jobslave import jobhandler, imgserver
+from jobslave.generators import constants
 
 from mcp import client, queue, response
 
-from conary.lib import cfgtypes
+from conary.lib import cfgtypes, util
 
 PROTOCOL_VERSIONS = set([1])
 
 def controlMethod(func):
     func._controlMethod = True
     return func
+
+filterArgs = lambda d, *args: dict([x for x in d.iteritems() \
+                                        if x[0] not in args])
+
+def getIP():
+    p = os.popen("""ifconfig `route | grep "^default" | sed "s/.* //"` | grep "inet addr" | awk -F: '{print $2}' | sed 's/ .*//'""")
+    data = p.read().strip()
+    p.close()
+    return data
 
 def protocols(protocolList):
     if type(protocolList) in (int, long):
@@ -38,6 +51,7 @@ class SlaveConfig(client.MCPClientConfig):
     jobQueueName = (cfgtypes.CfgString, None)
     nodeName = (cfgtypes.CfgString, None)
     TTL = (cfgtypes.CfgInt, 300)
+    imageTimeout = (cfgtypes.CfgInt, 600)
 
 class JobSlave(object):
     def __init__(self, cfg):
@@ -55,6 +69,13 @@ class JobSlave(object):
         self.response = response.MCPResponse(self.cfg.nodeName, cfg)
         self.timeIdle = time.time()
         self.jobHandler = None
+        self.outstandingJobs = {}
+        self.imageIdle = 0
+        self.imageServer = imgserver.getServer(constants.finishedDir)
+        self.baseUrl = 'http://%s:%d/' % (getIP(), self.imageServer.server_port)
+        self.takingJobs = True
+        signal.signal(signal.SIGTERM, self.disconnect)
+        signal.signal(signal.SIGINT, self.disconnect)
 
     def run(self):
         self.running = True
@@ -67,9 +88,16 @@ class JobSlave(object):
         finally:
             self.disconnect()
 
-    def disconnect(self):
+    def disconnect(self, *args):
+        # variable args accepted so this can be used as a signal handler as well
         if self.jobHandler:
-            self.jobHandler.join()
+            self.jobHandler.kill()
+        self.imageServer.running = False
+        self.imageServer.join()
+        for jobId, UUID in self.outstandingJobs.iteritems():
+            self.response.jobStatus(jobId, 'failed', 'Image not delivered')
+            util.rmtree(os.path.join(constants.finishedDir, UUID),
+                        ignore_errors = True)
         mcpClient = client.MCPClient(cfg)
         mcpClient.stopSlave(self.cfg.nodeName, delayed = False)
         self.jobQueue.disconnect()
@@ -102,25 +130,28 @@ class JobSlave(object):
                         "Control method %s does not exist" % action)
             dataStr = self.controlTopic.read()
 
+    def servingImages(self):
+        (time.time() - self.imageIdle) < self.cfg.imageTimeout
+
     def checkJobQueue(self):
         # this function is designed to ensure that TTL checks can block
         # the jobQueue from picking up a job when it's time to die. be careful
         # to ensure this is honored when refactoring.
-        takeJob = False
+        if (self.timeIdle is not None) and \
+                (time.time() - self.timeIdle) > self.cfg.TTL:
+            self.takingJobs = False
         if self.jobHandler and not self.jobHandler.isAlive():
             self.timeIdle = time.time()
             self.jobHandler = None
-            takeJob = True
-        if (self.timeIdle is not None) and \
-                (time.time() - self.timeIdle) > self.cfg.TTL:
+            if self.takingJobs:
+                self.jobQueue.incrementLimit()
+        if not (self.takingJobs or self.servingImages()):
             self.running = False
-        elif takeJob:
-            self.jobQueue.incrementLimit()
         # we're obligated to take a job if there is one.
         dataStr = self.jobQueue.read()
         if dataStr:
             data = simplejson.loads(dataStr)
-            self.jobHandler = jobhandler.getHandler(data, self.response)
+            self.jobHandler = jobhandler.getHandler(data, self)
             if self.jobHandler:
                 self.jobHandler.start()
                 self.timeIdle = None
@@ -135,16 +166,37 @@ class JobSlave(object):
     def sendSlaveStatus(self):
         self.response.slaveStatus(self.cfg.nodeName,
                                   self.jobHandler and 'running' or 'idle',
-                                  self.cfg.jobQueueName)
+                                  self.cfg.jobQueueName.replace('job', ''))
+
+    def sendJobStatus(self):
+        if self.jobHandler:
+            self.jobHandler.status()
 
     def handleStopJob(self, jobId):
         # ensure the jobId matches the jobId we're actually servicing to prevent
         # race conditions from killing the wrong job.
-        pass
+        if jobId in self.outstandingJobs:
+            util.rmtree(os.path.join(constants.finishedDir,
+                                     self.outstandingJobs[jobId][1]),
+                        ignore_errors = True)
+            del self.outstandingJobs[jobId]
+            self.response.jobStatus(jobId, 'finished', 'Job Finished')
+        if self.jobHandler:
+            handlerJobId = self.jobHandler.jobId
+            if jobId == handlerJobId:
+                self.jobHandler.kill()
+        else:
+            self.response.jobStatus(jobId, 'failed', 'No Job')
 
-    # these two items might need to end up in the image building object
-    #jobLog
-    #jobStatus
+    def postJobOutput(self, jobId, dest, UUID, files):
+        self.imageIdle = time.time()
+        self.outstandingJobs[jobId] = UUID
+        urls = []
+        for path, name in files:
+            urls.append((path.replace(constants.finishedDir, self.baseUrl),
+                         name))
+        # send a request to the url to come get the files
+        self.response.postJobOutput(jobId, dest, urls)
 
     @controlMethod
     def checkVersion(self, protocols):
@@ -158,17 +210,21 @@ class JobSlave(object):
     @controlMethod
     @protocols((1,))
     def status(self):
-        self.sendJobStatus()
+        self.sendSlaveStatus()
 
     @controlMethod
     @protocols((1,))
-    def stopJob(jobId):
-        self.handleStopJob()
+    def stopJob(self, jobId):
+        self.handleStopJob(jobId)
+
+    @controlMethod
+    @protocols((1,))
+    def receivedJob(self, jobId):
+        self.handleReceivedJob(jobId)
 
 
 if __name__ == '__main__':
     cfg = SlaveConfig()
-    cfg.nodeName = 'testMaster:testSlave'
-    cfg.jobQueueName = 'job1.0.3-0.5-14:x86'
+    cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
     slave = JobSlave(cfg)
     slave.run()
