@@ -30,12 +30,14 @@ class RawFsImage(raw_hd_image.RawHdImage):
 
     def write(self):
         size = self.getImageSize()
-        image = os.path.join(os.path.sep, 'tmp', self.basefilename + '.ext3')
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        image = os.path.join(topDir, self.basefilename + '.ext3')
+        finalImage = os.path.join(outputDir, self.basefilename + '.ext3.gz')
         try:
             self.makeFSImage(image, size)
-            outFile = self.gzip(image)
-            import epdb
-            epdb.st()
-            # FIXME: deliver the final image somewhere
+            outFile = self.gzip(image, finalImage)
+            self.postOutput(((finalImage, 'Raw Filesystem Image'),))
         finally:
-            util.rmtree(image, ignore_errors = True)
+            util.rmtree(topDir, ignore_errors = True)
