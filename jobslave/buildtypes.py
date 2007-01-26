@@ -19,6 +19,8 @@ validBuildTypes = {
     'VMWARE_ESX_IMAGE' : 9,
     'VIRTUAL_PC_IMAGE' : 10,
     'XEN_OVA'          : 11,
+    'VIRTUAL_IRON'     : 12,
+    'PARALLELS'        : 13,
     }
 
 TYPES = validBuildTypes.values()
@@ -50,6 +52,8 @@ typeNames = {
     TARBALL:            "Compressed Tar File",
     VIRTUAL_PC_IMAGE:   "Microsoft\xae Virtual Server",
     XEN_OVA:            "Xen Enterprise XVA",
+    VIRTUAL_IRON:       "Virtual Iron Virtual Appliance",
+    PARALLELS:          "Parallels Virtual Appliance",
 }
 
 typeNamesShort = {
@@ -64,6 +68,8 @@ typeNamesShort = {
     TARBALL:            "Tar",
     VIRTUAL_PC_IMAGE:   "Virtual Server",
     XEN_OVA:            "XVA",
+    VIRTUAL_IRON:       "Virtual Iron",
+    PARALLELS:          "Parallels",
 }
 
 typeNamesMarketing = {
@@ -78,4 +84,6 @@ typeNamesMarketing = {
     TARBALL:            "TAR File",
     VIRTUAL_PC_IMAGE:   "Microsoft\xae Virtual Server",
     XEN_OVA:            "Xen Enterprise XVA",
+    VIRTUAL_IRON:       "Virtual Iron Virtual Appliance",
+    PARALLELS:          "Parallels Virtual Appliance",
 }
