@@ -245,7 +245,7 @@ class InstallableIso(ImageGenerator):
             os.unlink(tmpTar)
 
         self.convertSplash(topdir, tmpPath)
-        self.writeConaryRc(tmpPath, cclient)
+        self.writeConaryRc(os.path.join(tmpPath, 'conaryrc'), cclient)
 
         # extract constants.py from the stage2.img template and override the BETANAG flag
         # this would be better if constants.py could load a secondary constants.py
@@ -269,7 +269,7 @@ class InstallableIso(ImageGenerator):
         showMediaCheck = self.getBuildData('showMediaCheck')
         isogenUid = os.geteuid()
         apacheGid = pwd.getpwnam('apache')[3]
-        outputDir = os.path.normpath(os.path.join(os.path.sep, 'tmp', self.jobData['project']['hostname'], str(self.jobId)))
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         # add the group writeable bit and assign group ownership to apache
         os.chmod(outputDir, os.stat(outputDir)[0] & 0777 | 0020)
@@ -351,7 +351,6 @@ class InstallableIso(ImageGenerator):
                     if e.errno != 1:
                         raise
                 isoList += ( (outF, f), )
-        # FIXME: deliver final images
         return isoList
 
     def setupKickstart(self, topdir):
@@ -437,10 +436,7 @@ class InstallableIso(ImageGenerator):
 
             return templateDir
         finally:
-            try:
-                util.rmtree(tmpDir)
-            except:
-                pass
+            util.rmtree(tmpDir, ignore_errors = True)
 
     def prepareTemplates(self, topdir):
         templateDir = self._getTemplatePath() + "/unified"
@@ -588,7 +584,9 @@ class InstallableIso(ImageGenerator):
         splitdistro.splitDistro(topdir, self.troveName, maxIsoSize)
         isoList = self.buildIsos(topdir)
 
+        # notify client that images are ready
+        self.postOutput(isoList)
+
         # clean up
         self.status("Cleaning up...")
         util.rmtree(os.path.normpath(os.path.join(topdir, "..")))
-        return isoList
