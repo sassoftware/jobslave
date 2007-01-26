@@ -22,9 +22,9 @@ class RawFsImage(raw_hd_image.RawHdImage):
         mountPoint = tempfile.mkdtemp()
         try:
             self.makeBlankFS(image, size)
-            util.execute('sudo mount -o loop %s %s' % (image, mountPoint))
+            util.execute('mount -o loop %s %s' % (image, mountPoint))
             self.installFileTree(mountPoint)
-            util.execute('sudo umount %s' % mountPoint)
+            util.execute('umount %s' % mountPoint)
         finally:
             util.rmtree(mountPoint, ignore_errors = True)
 
