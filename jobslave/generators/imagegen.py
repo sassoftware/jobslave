@@ -6,11 +6,13 @@
 
 import os
 import sys
+import signal
 import urllib
 import weakref
 import StringIO
 
 import logging
+import threading
 
 from conary import conarycfg
 from conary import conaryclient
@@ -19,6 +21,8 @@ import subprocess
 from conary import versions
 
 from conary.deps import deps
+
+from jobslave.generators import constants
 
 MSG_INTERVAL = 5
 
@@ -37,8 +41,8 @@ class LogHandler(logging.Handler):
 
     def emit(self, record):
         try:
-            self.response().jobLog(jobId, record.getMessage())
-        except:
+            self.response().jobLog(self.jobId, record.getMessage())
+        except Exception, e:
             print >> sys.stderr, "Warning: log message was lost:", \
                 record.getMessage()
             sys.stderr.flush()
@@ -62,13 +66,21 @@ def system(command):
 
 os.system = system
 
-class Generator:
+class Generator(threading.Thread):
     configObject = None
 
-    def __init__(self, jobData, response):
+    def __init__(self, jobData, parent):
+        self.pid = None
         self.jobData = jobData
-        self.response = weakref.ref(response)
-        self.jobId = jobData['UUID']
+        self.response = weakref.ref(parent.response)
+        self.parent = weakref.ref(parent)
+
+        # coerce to str if possible due to conary not handling unicode well
+        self.jobId = str(jobData['UUID'])
+        self.UUID = \
+            ''.join([hex(ord(os.urandom(1)))[2:] for x in range(16)]).upper()
+
+        self.status('initializing')
 
         self.conarycfg = conarycfg.ConaryConfiguration(False)
         cfgData = StringIO.StringIO(jobData['project']['conaryCfg'])
@@ -80,14 +92,52 @@ class Generator:
         rootLogger = logging.getLogger('')
         for handler in rootLogger.handlers[:]:
             rootLogger.removeHandler(handler)
-        rootLogger.addHandler(LogHandler(self.jobId, response))
+        rootLogger.addHandler(LogHandler(self.jobId, parent.response))
         log.setVerbosity(logging.INFO)
+
+        self.doneStatus = 'finished'
+        self.doneStatusMessage = 'Finished'
+
+        threading.Thread.__init__(self)
 
     def getJobData(self, key):
         return self.jobData.get('jobData', {}).get(key)
 
     def getBuildData(self, key):
-        return self.jobData.get('data', {}).get(key)
+        val = self.jobData.get('data', {}).get(key)
+        if val is None:
+            serialVersion = \
+                self.jobData.get('serialVersion')
+            if serialVersion == 1:
+                defaults = \
+                    {'autoResolve': False,
+                     'maxIsoSize': '681574400',
+                     'bugsUrl': 'http://issues.rpath.com/',
+                     'natNetworking': False,
+                     'vhdDiskType': 'dynamic',
+                     'anacondaCustomTrove': '',
+                     'stringArg': '',
+                     'mediaTemplateTrove': '',
+                     'baseFileName': '',
+                     'vmSnapshots': False,
+                     'swapSize': 128,
+                     'betaNag': False,
+                     'anacondaTemplatesTrove': '',
+                     'enumArg': '2',
+                     'vmMemory': 256,
+                     'installLabelPath': '',
+                     'intArg': 0,
+                     'freespace': 250,
+                     'boolArg': False,
+                     'mirrorUrl': '',
+                     'zisofs': True,
+                     'diskAdapter': 'lsilogic',
+                     'unionfs': False,
+                     'showMediaCheck': False}
+            else:
+                defaults = {}
+            val = defaults.get(key)
+        return val
 
     def readConaryRc(self, cfg):
         conarycfgFile = os.path.join('etc', 'conaryrc')
@@ -98,12 +148,74 @@ class Generator:
     def write(self):
         raise NotImplementedError
 
-    def status(self, msg, level = 'running'):
+    def status(self, msg = None, status = 'running'):
+        if msg:
+            self._lastStatus = msg, status
+        else:
+            msg, status = self._lastStatus
+
         try:
-            self.response().jobStatus(self.jobId, level, msg)
-        except Exception, e:
+            self.response().jobStatus(self.jobId, status, msg)
+        except:
             print >> sys.stderr, "Error logging status to MCP:", e
 
+    def postOutput(self, fileList):
+        self.doneStatus = 'built'
+        self.doneStatusMessage = 'Done building image(s)'
+        parent = self.parent and self.parent()
+        if parent:
+            parent.postJobOutput(self.jobId, self.jobData['outputQueue'],
+                                 self.UUID, fileList)
+        else:
+            log.error("couldn't post output")
+
+    def run(self):
+        self.pid = os.fork()
+        if not self.pid:
+            # become session leader for clean job ending.
+            os.setsid()
+            try:
+                try:
+                    self.status('starting')
+                    self.write()
+                except:
+                    exc, e, bt = sys.exc_info()
+                    # exceptions should *never* cross this point, so it's always
+                    # an internal server error
+                    self.status('Internal Server Error', status = 'failed')
+                    import traceback
+                    log.error(traceback.format_exc(bt))
+                    log.error(str(e))
+                    log.error('Failed job: %s' % self.jobId)
+                    raise
+                else:
+                    self.status(self.doneStatusMessage,
+                                status = self.doneStatus)
+                    log.info('Finished job: %s' % self.jobId)
+            # place sys.exit handlers in their own exception handling layer
+            # to ensure that under no circumstances can it escape
+            except:
+                sys.exit(1)
+            else:
+                sys.exit(0)
+        os.waitpid(self.pid, 0)
+
+    def kill(self):
+        if self.pid:
+            try:
+                # this might be considered fairly dangerous since this command
+                # is executed as superuser, but chances of hitting the wrong pid
+                # are astronomically small.
+                os.kill(self.pid, signal.SIGTERM)
+            except OSError, e:
+                # errno 3 is "no such process"
+                if e.errno != 3:
+                    raise
+        self.join()
+        self.status('Job Killed', status = 'failed')
+        log.error('Job killed: %s' % self.jobId)
+        util.rmtree(os.path.join(constants.finishedDir, self.UUID),
+                    ignore_errors = True)
 
 class ImageGenerator(Generator):
     def __init__(self, *args, **kwargs):
@@ -118,7 +230,7 @@ class ImageGenerator(Generator):
         self.baseVersion = ver.asString()
 
         #Thaw the flavor string
-        self.baseFlavor = deps.ThawFlavor(flavorStr)
+        self.baseFlavor = deps.ThawFlavor(str(flavorStr))
 
         try:
             self.arch = \
@@ -146,8 +258,8 @@ class ImageGenerator(Generator):
 
     def writeConaryRc(self, tmpPath, cclient):
         # write the conaryrc file
-        util.mkdirChain(tmpPath)
-        conaryrcFile = open(os.path.join(tmpPath, "conaryrc"), "w")
+        util.mkdirChain(os.path.split(tmpPath)[0])
+        conaryrcFile = open(tmpPath, "w")
         ilp = self.getBuildData("installLabelPath")
         if not ilp: # allow a BuildData ILP to override the group label path
             ilp = self._getLabelPath( \
