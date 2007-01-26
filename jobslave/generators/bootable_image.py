@@ -14,7 +14,6 @@ import pwd
 import stat
 import time
 import tempfile
-import zipfile
 
 # mint imports
 from jobslave import buildtypes, jobslave_error
@@ -279,7 +278,6 @@ class BootableImage(ImageGenerator):
             util.execute('sed -i "s/.*swap.*//" %s' % \
                              os.path.join(fakeRoot, 'etc', 'fstab'))
         else:
-            #swap = open(os.path.join(fakeRoot, 'var', 'swap'), 'w')
             cmd = 'dd if=/dev/zero of=%s count=%d bs=%d; /sbin/mkswap %s' % \
                 (os.path.join(fakeRoot, 'var', 'swap'), swapSize / 512, 512,
                  os.path.join(fakeRoot, 'var', 'swap'))
@@ -290,10 +288,10 @@ class BootableImage(ImageGenerator):
             cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % os.path.join(fakeRoot, 'etc', 'inittab')
             util.execute(cmd)
 
-    def __init__(self, jobData, response):
-        ImageGenerator.__init__(self, jobData, response)
+    def __init__(self, *args, **kwargs):
+        ImageGenerator.__init__(self, *args, **kwargs)
+        self.scsiModules = False
 
-        #log.info('generating image with tmpdir %s', self.fakeroot)
         log.info('building trove: (%s, %s, %s)' % \
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
@@ -317,6 +315,7 @@ class BootableImage(ImageGenerator):
     def makeBlankDisk(self, image, size):
         if os.path.exists(image):
             util.rmtree(image)
+        util.mkdirChain(os.path.split(image)[0])
         util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=512' % \
                       (image, (size / 512) - 1))
 
@@ -342,6 +341,7 @@ class BootableImage(ImageGenerator):
     def makeBlankFS(self, image, size):
         if os.path.exists(image):
             util.rmtree(image)
+        util.mkdirChain(os.path.split(image)[0])
         util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=512' % \
                       (image, (size / 512) - 1))
 
@@ -377,14 +377,15 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def installFileTree(self, dest):
+        self.status('Installing image contents')
         self.createTemporaryRoot(dest)
         self.fileSystemOddsNEnds(dest, self.swapSize)
         fd, cfgPath = tempfile.mkstemp()
         try:
             os.close(fd)
             self.saveConaryRC(cfgPath)
-            util.execute('mount -t proc none %s/proc' % dest)
-            util.execute('mount -t sysfs none %s/sys' % dest)
+            util.execute('mount -t proc none %s' % os.path.join(dest, 'proc'))
+            util.execute('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
             util.execute( \
                 ("conary update '%s=%s[%s]' --root %s --config-file %s "
                  "--replace-files") % \
@@ -393,18 +394,22 @@ class BootableImage(ImageGenerator):
 
             #copy the files needed by grub and set up the links
             self.setupGrub(dest)
-            self.addScsiModules(dest)
+            if self.scsiModules:
+                self.addScsiModules(dest)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
-                util.execute(("conary sync 'kernel:runtime[%s]' --root %s "
+                util.execute(("conary update --sync-to-parents "
+                              "'kernel:runtime[%s]' --root %s "
                               "--config-file %s") % \
                                  (self.getKernelFlavor(), dest, cfgPath))
             else:
                 log.info('Kernel detected, skipping.')
         finally:
-            util.execute('umount %s/proc' % dest)
-            util.execute('umount %s/sys' % dest)
+            util.execute('umount %s' % os.path.join(dest, 'proc'))
+            util.execute('umount %s' % os.path.join(dest, 'sys'))
             os.unlink(cfgPath)
 
+        util.execute('rm -rf %s' % os.path.join( \
+                dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
         # remove root password
         os.system("chroot %s /usr/bin/authconfig --kickstart --enablemd5 --enableshadow --disablecache" % dest)
@@ -424,35 +429,20 @@ class BootableImage(ImageGenerator):
         p.write('device (hd0) %s\n' % image)
         p.write('root (hd0,0)\n')
         p.write('setup (hd0)\n')
-        res = p.close()
-        if res:
-            raise RuntimeError('Received error code: %d from grub' % res)
 
     @timeMe
-    def gzip(self, imageFile):
-        outFile = imageFile + '.gz'
-        util.execute('gzip -c %s > %s' % (imageFile, outFile))
-        return outFile
-
-    @timeMe
-    def zip(self, baseDir, outfile, extraArgs = ''):
-        cwd = os.getcwd()
-        try:
-            dirPath, dirName = os.path.split(baseDir)
-            os.chdir(dirPath)
-            files = os.listdir(baseDir)
-            for f in files:
-                if f.endswith('.vmx'):
-                    os.chmod(os.path.join(baseDir, f), 0755)
-                else:
-                    os.chmod(os.path.join(baseDir, f), 0600)
-            util.execute('zip -rD%s %s %s' % (extraArgs, outfile, dirName))
-        finally:
-            try:
-                os.chdir(cwd)
-            except OSError, e:
-                if e.errno == 2:
-                    pass
+    def gzip(self, source, dest = None):
+        if os.path.isdir(source):
+            if not dest:
+                dest = source + '.tgz'
+            parDir, targetDir = os.path.split(source)
+            util.execute('tar -czv -C %s %s > %s' % (parDir, targetDir, dest))
+            pass
+        else:
+            if not dest:
+                dest = source + '.gz'
+            util.execute('gzip -c %s > %s' % (source, dest))
+        return dest
 
     def write(self):
         raise NotImplementedError
