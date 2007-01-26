@@ -17,7 +17,7 @@ from conary.lib import util, log
 
 class XenOVA(raw_fs_image.RawFsImage):
     templateName = 'ova.xml.in'
-    suffix = '.xva.zip'
+    suffix = '.xva.tar'
 
     @bootable_image.timeMe
     def createXVA(self, outfile, size):
@@ -41,14 +41,17 @@ class XenOVA(raw_fs_image.RawFsImage):
         ofile.close()
 
     def write(self):
-        baseDir = os.path.join(os.path.sep, 'tmp', self.basefilename)
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        baseDir = os.path.join(topDir, self.basefilename)
         util.rmtree(baseDir, ignore_errors = True)
-        os.mkdir(baseDir)
+        util.mkdirChain(baseDir)
         ovaPath = os.path.join(baseDir, 'ova.xml')
         chunkPrefix = os.path.join(baseDir, 'sda', 'chunk-')
         os.mkdir(os.path.split(chunkPrefix)[0])
         imagePath = baseDir + '.ext3'
-        deliverable = baseDir + self.suffix
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        deliverable = os.path.join(outputDir, self.basefilename + self.suffix)
         try:
             size = self.getImageSize()
             self.makeFSImage(imagePath, size)
@@ -57,10 +60,9 @@ class XenOVA(raw_fs_image.RawFsImage):
             util.execute('split -b 1000000000 -a 8 -d %s "%s"' % \
                              (imagePath, chunkPrefix))
             util.execute('for a in "%s*"; do gzip $a; done' % chunkPrefix)
-            self.zip(baseDir, deliverable, extraArgs = '0')
-            # FIXME: deliver final image
-            import epdb
-            epdb.st()
+            tarBase, tarTarget = os.path.split(baseDir)
+            util.execute('tar -cv -C %s %s > %s' % \
+                             (tarBase, tarTarget, deliverable))
+            self.postOutput(((deliverable, 'Xen OVA'),))
         finally:
-            util.rmtree(baseDir, ignore_errors = True)
-            util.rmtree(imagePath, ignore_errors = True)
+            util.rmtree(topDir, ignore_errors = True)
