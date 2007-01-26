@@ -5,7 +5,7 @@
 #
 
 # dataManifest is a list of relative paths to include in the data tarball
-dataManifest = ['templates', 'skel', 'pixmaps']
+dataManifest = ['templates', 'skel', 'pixmaps', 'config']
 
 import os, sys
 
