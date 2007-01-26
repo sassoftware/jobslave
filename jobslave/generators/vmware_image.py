@@ -54,34 +54,41 @@ class VMwareImage(raw_hd_image.RawHdImage):
         ofile.write(filecontents)
         ofile.close()
 
+    def setModes(self, baseDir):
+        files = os.listdir(baseDir)
+        for f in files:
+            if f.endswith('.vmx'):
+                os.chmod(os.path.join(baseDir, f), 0755)
+            else:
+                os.chmod(os.path.join(baseDir, f), 0600)
+
     def write(self):
-        image = os.path.join(os.path.sep, 'tmp', self.basefilename + '.hdd')
-        outputDir = os.path.join(os.path.sep, 'tmp', self.basefilename)
-        outputFile = outputDir + self.suffix
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        image = os.path.join(topDir, self.basefilename + '.hdd')
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        workingDir = os.path.join(topDir, self.basefilename)
+        outputFile = os.path.join(outputDir, self.basefilename + self.suffix)
         try:
             size = self.getImageSize()
             self.makeHDImage(image, size)
             self.status('Creating %s Image' % self.productName)
-            if os.path.exists(outputDir):
-                util.rmtree(outputDir)
-            os.mkdir(outputDir)
-            vmdkPath = os.path.join(outputDir, self.basefilename + '.vmdk')
-            vmxPath = os.path.join(outputDir, self.basefilename + '.vmx')
+            if os.path.exists(workingDir):
+                util.rmtree(workingDir)
+            util.mkdirChain(workingDir)
+            vmdkPath = os.path.join(workingDir, self.basefilename + '.vmdk')
+            vmxPath = os.path.join(workingDir, self.basefilename + '.vmx')
 
             # passing size simply to avoid recalculation, since that incurs
             # network traffic
             self.createVMDK(image, vmdkPath, size)
 
             self.createVMX(vmxPath)
-            self.zip(outputDir, outputFile)
-            import epdb
-            epdb.st()
-            # FIXME: deliver final image
+            self.setModes(workingDir)
+            self.gzip(workingDir, outputFile)
+            self.postOutput(((outputFile, self.productName + 'image'),))
         finally:
-            util.rmtree(image, ignore_errors = True)
-            util.rmtree(outputDir, ignore_errors = True)
-            util.rmtree(outputFile, ignore_errors = True)
-
+            util.rmtree(topDir, ignore_errors = True)
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
@@ -92,8 +99,10 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.vmMemory = self.getBuildData('vmMemory')
         self.templateName = 'vmwareplayer.vmx'
         self.productName = "VMware Player"
-        self.suffix = '.vmware.zip'
+        self.suffix = '.vmware.tgz'
 
+        if self.adapter == 'lsilogic':
+            self.scsiModules = True
 
 class VMwareESXImage(VMwareImage):
     def __init__(self, *args, **kwargs):
@@ -103,7 +112,8 @@ class VMwareESXImage(VMwareImage):
         self.createType = 'vmfs'
         self.templateName = 'vmwareesx.vmx'
         self.productName = "VMware ESX Server"
-        self.suffix = '.esx.zip'
+        self.suffix = '.esx.tgz'
+        self.scsiModules = True
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
