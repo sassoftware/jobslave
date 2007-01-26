@@ -17,6 +17,9 @@ partitionOffset = 512
 
 import os
 
+finishedDir          = os.path.join(os.path.sep, 'srv', 'jobslave',
+                                    'finished-images')
+
 #directory containing file tree with fstab and other hooks
 skelDir         = os.path.join(os.path.sep, 'srv', 'jobslave', 'skel')
 
