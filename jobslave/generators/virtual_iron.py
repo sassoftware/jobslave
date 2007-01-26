@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006 rPath, Inc.
+# Copyright (c) 2006-2007 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -18,3 +18,4 @@ class VirtualIronVHD(vpc.VirtualPCImage):
     def __init__(self, *args, **kwargs):
         vpc.VirtualPCImage.__init__(self, *args, **kwargs)
         self.suffix = '.vhd.zip'
+        self.productName = 'Virtual Iron'
