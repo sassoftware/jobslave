@@ -46,18 +46,17 @@ class RawHdImage(bootable_image.BootableImage):
             # simply a failsafe to ensure image is unmounted
             util.execute('mount | grep %s && umount %s || true' % \
                              (mountPoint, mountPoint))
-            try:
-                os.rmdir(mountPoint)
-            except:
-                # intentionally block errors. this is merely a cleanup attempt
-                # it's actually worse to block other errors
-                pass
+            util.rmtree(mountPoint, ignore_errors = True)
 
     def write(self):
-        image = os.path.join(os.path.sep, 'tmp', self.basefilename + '.hdd')
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        image = os.path.join(topDir, self.basefilename + '.hdd')
+        finalImage = os.path.join(outputDir, self.basefilename + '.hdd.gz')
         try:
             self.makeHDImage(image)
-            outFile = self.gzip(image)
+            outFile = self.gzip(image, finalImage)
+            self.postOutput(((finalImage, 'Raw Hard Disk Image'),))
         finally:
-            util.rmtree(image, ignore_errors = True)
-        # FIXME: deliver the final image somewhere
+            util.rmtree(topDir, ignore_errors = True)
