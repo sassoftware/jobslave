@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006 rPath, Inc.
+# Copyright (c) 2006-2007 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -49,32 +49,32 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
         ofile.close()
 
     def write(self):
-        image = os.path.join(os.path.sep, 'tmp', self.basefilename + '.hdd')
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        image = os.path.join(topDir, self.basefilename + '.hdd')
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        outputFile = os.path.join(outputDir, self.basefilename + self.suffix)
         try:
             self.makeHDImage(image)
 
-            self.status('Creating Microsoft Virtual PC Image')
-            outputDir = os.path.join(os.path.sep, 'tmp', self.basefilename)
-            outputFile = outputDir + self.suffix
-            if os.path.exists(outputDir):
-                util.rmtree(outputDir)
-            os.mkdir(outputDir)
+            self.status('Creating %s Image' % self.productName)
+            workingDir = os.path.join(topDir, self.basefilename)
+            if os.path.exists(workingDir):
+                util.rmtree(workingDir)
+            util.mkdirChain(workingDir)
 
             # pass just the basename, these functions handle the proper suffix
-            self.createVHD(image, os.path.join(outputDir, self.basefilename))
-            self.createVMC(os.path.join(outputDir, self.basefilename))
+            self.createVHD(image, os.path.join(workingDir, self.basefilename))
+            self.createVMC(os.path.join(workingDir, self.basefilename))
 
             self.status('Compressing Microsoft Virtual PC Image')
-            self.zip(outputDir, outputFile)
-            import epdb
-            epdb.st()
-            # FIXME: deliver output file
+            self.gzip(workingDir, outputFile)
+            self.postOutput(((outputFile, 'Virtual Server'),))
         finally:
-            util.rmtree(image, ignore_errors = True)
-            util.rmtree(outputDir, ignore_errors = True)
-            util.rmtree(outputFile, ignore_errors = True)
+            util.rmtree(topDir, ignore_errors = True)
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
         self.templateName = 'vpc.vmc'
         self.suffix = '.vpc.zip'
+        self.productName = 'Microsoft Virtual Server'
