@@ -8,7 +8,7 @@
 import os
 
 # jobslave imports
-from jobslave.generators import bootable_image
+from jobslave.generators import bootable_image, constants
 
 from conary.lib import util
 from jobslave import buildtypes
@@ -18,20 +18,23 @@ class Tarball(bootable_image.BootableImage):
     fileType = buildtypes.typeNames[buildtypes.TARBALL]
 
     def write(self):
-        basePath = os.path.join(os.path.sep, 'tmp', self.basefilename)
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        basePath = os.path.join(topDir, self.basefilename)
         if os.path.exists(basePath):
             util.rmtree(basePath)
         util.mkdirChain(basePath)
-        tarball = basePath + '.tgz'
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        tarball = os.path.join(outputDir, self.basefilename + '.tgz')
         cwd = os.getcwd()
         try:
             self.installFileTree(basePath)
             os.chdir(basePath)
-            util.execute('tar -C %s -cpPs --to-stdout ./ | gzip -9 > %s' % \
+            util.execute('tar -C %s -cpPs --to-stdout ./ | gzip > %s' % \
                              (basePath, tarball))
-            # FIXME: deliver tarball
+            self.postOutput(((tarball, 'Tar File'),))
         finally:
-            util.rmtree(basePath, ignore_errors = True)
+            util.rmtree(topDir, ignore_errors = True)
             try:
                 os.chdir(cwd)
             except:
