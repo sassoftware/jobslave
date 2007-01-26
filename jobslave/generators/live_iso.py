@@ -172,7 +172,7 @@ class LiveIso(bootable_image.BootableImage):
             zippedImg = os.path.join(liveDir, 'initrd.img')
             util.execute('e2fsimage -v -d %s -u 0 -g 0 -f %s -s 8000' % \
                          (initrdDir, nonZipped))
-            util.execute('gzip -9 < %s > %s' % (nonZipped, zippedImg))
+            util.execute('gzip < %s > %s' % (nonZipped, zippedImg))
             os.unlink(nonZipped)
         finally:
             util.rmtree(initrdDir, ignore_errors = True)
@@ -230,13 +230,15 @@ class LiveIso(bootable_image.BootableImage):
 
 
     def write(self):
-        fileTree = os.path.join(os.path.sep, 'tmp', self.basefilename + '_base')
-        zFileTree = os.path.join(os.path.sep, 'tmp',
-                                 self.basefilename + '_zbase')
-        liveDir = os.path.join(os.path.sep, 'tmp', self.basefilename + '_live')
-        os.mkdir(liveDir)
+        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        fileTree = os.path.join(topDir, self.basefilename + '_base')
+        zFileTree = os.path.join(topDir, self.basefilename + '_zbase')
+        liveDir = os.path.join(topDir, self.basefilename + '_live')
+        util.mkdirChain(liveDir)
         innerIsoImage = os.path.join(liveDir, 'livecd.img')
-        finalIsoImage = os.path.join(os.path.sep, 'tmp', self.basefilename + '.iso')
+        outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(outputDir)
+        finalIsoImage = os.path.join(outputDir, self.basefilename + '.iso')
         zippedIsoImage = finalIsoImage + '.gz'
         try:
             # instantiate contents of actual distro
@@ -263,22 +265,16 @@ class LiveIso(bootable_image.BootableImage):
             os.chmod(finalIsoImage, 0755)
 
             # If the inner image wasn't compressed, compress the final image
-            delieveryImage = finalIsoImage
+            deliveryImage = finalIsoImage
             if not self.zisofs:
-                util.execute('gzip -9 < %s > %s' % (finalIsoImage, zippedIsoImage))
+                util.execute('gzip < %s > %s' % (finalIsoImage, zippedIsoImage))
                 os.chmod(zippedIsoImage, 0755)
                 deliveryImage = zippedIsoImage
 
-            #FIXME: delivery the final image, pointed to by "deliveryImage"
-            import epdb
-            epdb.st()
+            # FIXME: make the name of cd or dvd based on disc size
+            self.postOutput(((deliveryImage, 'Demo CD/DVD'),))
         finally:
-            util.rmtree(liveDir, ignore_errors = True)
-            util.rmtree(fileTree, ignore_errors = True)
-            util.rmtree(zFileTree, ignore_errors = True)
-            util.rmtree(innerIsoImage, ignore_errors = True)
-            util.rmtree(finalIsoImage, ignore_errors = True)
-            util.rmtree(zippedIsoImage, ignore_errors = True)
+            util.rmtree(topDir, ignore_errors = True)
 
     def __init__(self, *args, **kwargs):
         res = bootable_image.BootableImage.__init__(self, *args, **kwargs)
