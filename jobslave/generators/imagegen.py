@@ -159,25 +159,44 @@ class Generator(threading.Thread):
         except:
             print >> sys.stderr, "Error logging status to MCP:", e
 
+    def recordOutput(self):
+        # this function runs in parent process space to record that a build had
+        # output that needs to be tracked
+        parent = self.parent and self.parent()
+        if parent:
+            parent.recordJobOutput(self.jobId, self.UUID)
+        else:
+            log.error("couldn't record output")
+
     def postOutput(self, fileList):
+        # this function runs in the child process to actually post the output
+        # of a build.
+
+        # it doesn't matter what we send, just not ''
+        os.write(self.parentPipe, 'post')
         self.doneStatus = 'built'
         self.doneStatusMessage = 'Done building image(s)'
         parent = self.parent and self.parent()
         if parent:
             parent.postJobOutput(self.jobId, self.jobData['outputQueue'],
-                                 self.UUID, fileList)
+                                 fileList)
         else:
             log.error("couldn't post output")
 
     def run(self):
+        # use a pipe to communicate if a job posted build data
+        inF, outF = os.pipe()
         self.pid = os.fork()
         if not self.pid:
             # become session leader for clean job ending.
             os.setsid()
             try:
                 try:
+                    os.close(inF)
+                    self.parentPipe = outF
                     self.status('starting')
                     self.write()
+                    os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()
                     # exceptions should *never* cross this point, so it's always
@@ -198,6 +217,14 @@ class Generator(threading.Thread):
                 sys.exit(1)
             else:
                 sys.exit(0)
+        os.close(outF)
+        data = os.read(inF, 255)
+        if data:
+            self.recordOutput()
+        else:
+            util.rmtree(os.path.join(constants.finsihedDir, self.UUID),
+                        ignore_errors = True)
+        os.close(inF)
         os.waitpid(self.pid, 0)
 
     def kill(self):
