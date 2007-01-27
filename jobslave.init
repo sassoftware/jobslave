@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# jobslave:  Starts the rBuilder Job Slave.
+#
+# chkconfig: - 24 15
+# description: Build and cookj service daemon.
+# processname: jobslave
+# config: /usr/bin
+
+#
+# Copyright (c) 2007 rPath, Inc.
+#
+# All rights reserved
+#
+
+LONGNAME="rBuilder Job Slave"
+
+start() {
+    echo -n "Starting $LONGNAME:"
+    daemon /usr/bin/jobslave
+    echo ""
+}
+
+stop() {
+    echo -n "Stopping $LONGNAME:"
+
+    daemon /usr/bin/jobslave -k
+    if [ "$1" = "--wait" ]; then
+        echo -n "Waiting for $LONGNAME server to terminate..."
+        while [ -f "$LOCKFILE" ]; do sleep 1; done
+        echo "done."
+    fi
+}
+
+status() {
+    ps -A | grep jobslave && res="running" || res="not running"
+    echo "$LONGNAME is $res"
+}
+
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  restart)
+        stop --wait
+        start
+        ;;
+  status)
+        status
+        ;;
+  *)
+    echo "Usage: `basename $0` {start|stop|restart|status}"
+    ;;
+esac
