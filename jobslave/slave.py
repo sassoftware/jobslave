@@ -4,7 +4,7 @@
 # All rights reserved
 #
 
-import os
+import os, sys
 import time
 import simplejson
 import httplib
@@ -181,16 +181,18 @@ class JobSlave(object):
                         ignore_errors = True)
             del self.outstandingJobs[jobId]
             self.response.jobStatus(jobId, 'finished', 'Job Finished')
-        if self.jobHandler:
+        elif self.jobHandler:
             handlerJobId = self.jobHandler.jobId
             if jobId == handlerJobId:
                 self.jobHandler.kill()
         else:
             self.response.jobStatus(jobId, 'failed', 'No Job')
 
-    def postJobOutput(self, jobId, dest, UUID, files):
+    def recordJobOutput(self, jobId, UUID):
         self.imageIdle = time.time()
         self.outstandingJobs[jobId] = UUID
+
+    def postJobOutput(self, jobId, dest, files):
         urls = []
         for path, name in files:
             urls.append((path.replace(constants.finishedDir, self.baseUrl),
@@ -227,3 +229,40 @@ def main():
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
     slave = JobSlave(cfg)
     slave.run()
+
+def runDaemon():
+    return main()
+    pidFile = os.path.join(os.path.sep, 'var', 'run', 'jobslave.pid')
+    if os.path.exists(pidFile):
+        f = open(pidFile)
+        pid = f.read()
+        f.close()
+        statPath = os.path.join(os.path.sep, 'proc', pid, 'stat')
+        if os.path.exists(statPath):
+            f = open(statPath)
+            name = f.read().split()[1][1:-1]
+            if name == 'jobslave':
+                print >> sys.stderr, "Job Slave already running as: %s" % pid
+                sys.stderr.flush()
+                sys.exit(-1)
+            else:
+                # pidfile doesn't point to a job slave
+                os.unlink(pidFile)
+        else:
+            # pidfile is stale
+            os.unlink(pidFile)
+    pid = os.fork()
+    if not pid:
+        os.setsid()
+        devNull = os.open(os.devnull, os.O_RDWR)
+        os.dup2(devNull, sys.stdout.fileno())
+        os.dup2(devNull, sys.stderr.fileno())
+        os.dup2(devNull, sys.stdin.fileno())
+        os.close(devNull)
+        pid = os.fork()
+        if not pid:
+            f = open(pidFile, 'w')
+            f.write(str(os.getpid()))
+            f.close()
+            main()
+            os.unlink(pidFile)
