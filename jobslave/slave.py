@@ -74,8 +74,9 @@ class JobSlave(object):
         self.imageServer = imgserver.getServer(constants.finishedDir)
         self.baseUrl = 'http://%s:%d/' % (getIP(), self.imageServer.server_port)
         self.takingJobs = True
-        signal.signal(signal.SIGTERM, self.disconnect)
-        signal.signal(signal.SIGINT, self.disconnect)
+
+    def catchSignal(self, *args):
+        self.running = False
 
     def run(self):
         self.running = True
@@ -88,8 +89,7 @@ class JobSlave(object):
         finally:
             self.disconnect()
 
-    def disconnect(self, *args):
-        # variable args accepted so this can be used as a signal handler as well
+    def disconnect(self):
         if self.jobHandler:
             self.jobHandler.kill()
         self.imageServer.running = False
@@ -98,7 +98,7 @@ class JobSlave(object):
             self.response.jobStatus(jobId, 'failed', 'Image not delivered')
             util.rmtree(os.path.join(constants.finishedDir, UUID),
                         ignore_errors = True)
-        mcpClient = client.MCPClient(cfg)
+        mcpClient = client.MCPClient(self.cfg)
         mcpClient.stopSlave(self.cfg.nodeName, delayed = False)
         self.jobQueue.disconnect()
         self.controlTopic.disconnect()
@@ -222,8 +222,7 @@ class JobSlave(object):
     def receivedJob(self, jobId):
         self.handleReceivedJob(jobId)
 
-
-if __name__ == '__main__':
+def main():
     cfg = SlaveConfig()
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
     slave = JobSlave(cfg)
