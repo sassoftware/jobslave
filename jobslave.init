@@ -17,27 +17,24 @@
 . /etc/init.d/functions
 
 LONGNAME="rBuilder Job Slave"
+PIDFILE='/var/run/jobslave.pid'
+DAEMON='/usr/bin/jobslave'
 
 start() {
     echo -n "Starting $LONGNAME:"
-    daemon /usr/bin/jobslave
+    daemon $DAEMON
     echo ""
 }
 
 stop() {
     echo -n "Stopping $LONGNAME:"
-
-    daemon /usr/bin/jobslave -k
+    killproc $DAEMON
+    echo ""
     if [ "$1" = "--wait" ]; then
         echo -n "Waiting for $LONGNAME server to terminate..."
-        while [ -f "$LOCKFILE" ]; do sleep 1; done
+        while [ -f "$PIDFILE" ]; do sleep 1; done
         echo "done."
     fi
-}
-
-status() {
-    ps -A | grep jobslave && res="running" || res="not running"
-    echo "$LONGNAME is $res"
 }
 
 case "$1" in
@@ -52,7 +49,7 @@ case "$1" in
         start
         ;;
   status)
-        status
+        status $DAEMON
         ;;
   *)
     echo "Usage: `basename $0` {start|stop|restart|status}"
