@@ -13,6 +13,9 @@
 # All rights reserved
 #
 
+# Source function library
+. /etc/init.d/functions
+
 LONGNAME="rBuilder Job Slave"
 
 start() {
