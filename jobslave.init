@@ -3,7 +3,7 @@
 # jobslave:  Starts the rBuilder Job Slave.
 #
 # chkconfig: - 24 15
-# description: Build and cookj service daemon.
+# description: Build and cook service daemon.
 # processname: jobslave
 # config: /usr/bin
 
