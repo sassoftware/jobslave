@@ -74,6 +74,8 @@ class JobSlave(object):
         self.imageServer = imgserver.getServer(constants.finishedDir)
         self.baseUrl = 'http://%s:%d/' % (getIP(), self.imageServer.server_port)
         self.takingJobs = True
+        signal.signal(signal.SIGTERM, self.catchSignal)
+        signal.signal(signal.SIGINT, self.catchSignal)
 
     def catchSignal(self, *args):
         self.running = False
