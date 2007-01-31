@@ -85,6 +85,12 @@ class Generator(threading.Thread):
         self.conarycfg = conarycfg.ConaryConfiguration(False)
         cfgData = StringIO.StringIO(jobData['project']['conaryCfg'])
         self.conarycfg.readObject(cfgData, cfgData)
+        self.conarycfg.configLine(\
+            'entitlementDirectory /srv/jobslave/entitlements')
+
+        # FIXME: place in mechanism to get proxyUrl once it's enabled in conary
+        #if parent.cfg.proxy:
+        #    self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
 
         self.cc = conaryclient.ConaryClient(self.conarycfg)
         self.nc = self.cc.getRepos()
