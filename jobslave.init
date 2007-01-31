@@ -16,12 +16,18 @@
 # Source function library
 . /etc/init.d/functions
 
+. /etc/sysconfig/slave_runtime
+
 LONGNAME="rBuilder Job Slave"
 PIDFILE='/var/run/jobslave.pid'
 DAEMON='/usr/bin/jobslave'
 
 start() {
     echo -n "Starting $LONGNAME:"
+    for mnt in anaconda_templates finished-images build
+    do
+        mount -t nfs $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
+    done
     daemon $DAEMON
     echo ""
 }
