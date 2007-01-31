@@ -52,6 +52,7 @@ class SlaveConfig(client.MCPClientConfig):
     nodeName = (cfgtypes.CfgString, None)
     TTL = (cfgtypes.CfgInt, 300)
     imageTimeout = (cfgtypes.CfgInt, 600)
+    proxy = (cfgtypes.CfgString, None)
 
 class JobSlave(object):
     def __init__(self, cfg):
