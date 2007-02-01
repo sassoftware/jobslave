@@ -163,7 +163,7 @@ class Generator(threading.Thread):
         try:
             self.response().jobStatus(self.jobId, status, msg)
         except:
-            print >> sys.stderr, "Error logging status to MCP:", e
+            print >> sys.stderr, "Error logging status to MCP:", msg
 
     def recordOutput(self):
         # this function runs in parent process space to record that a build had
