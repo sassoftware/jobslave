@@ -228,7 +228,7 @@ class Generator(threading.Thread):
         if data:
             self.recordOutput()
         else:
-            util.rmtree(os.path.join(constants.finsihedDir, self.UUID),
+            util.rmtree(os.path.join(constants.finishedDir, self.UUID),
                         ignore_errors = True)
         os.close(inF)
         os.waitpid(self.pid, 0)
