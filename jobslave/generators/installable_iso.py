@@ -520,7 +520,7 @@ class InstallableIso(ImageGenerator):
         self.callback = Callback(self.status)
 
         # set up the topdir
-        topdir = os.path.join(os.path.sep, 'tmp', self.jobId, "unified")
+        topdir = os.path.join(constants.tmpDir, self.jobId, "unified")
         util.mkdirChain(topdir)
 
         self._setupTrove()
