@@ -32,7 +32,7 @@ class RawHdImage(bootable_image.BootableImage):
     def makeHDImage(self, image, size = None):
         if not size:
             size = self.getImageSize()
-        mountPoint = tempfile.mkdtemp()
+        mountPoint = tempfile.mkdtemp(dir=constants.tmpDir)
         try:
             self.makeBlankDisk(image, size)
 

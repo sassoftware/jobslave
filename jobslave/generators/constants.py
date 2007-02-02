@@ -29,6 +29,8 @@ fallbackDir     = os.path.join(os.path.sep, 'srv', 'jobslave', 'fallback')
 # directory to get direct image templates from, eg vmx files
 templateDir = os.path.join(os.path.sep, 'srv', 'jobslave', 'templates')
 
+# temporary directory
+tmpDir = os.path.join(os.path.sep, 'srv', 'jobslave', 'tmp')
 
 scriptPath            = '/usr/share/jobslave/scripts/'
 cachePath             = '/srv/jobslave/changesets/'

@@ -19,7 +19,7 @@ class RawFsImage(raw_hd_image.RawHdImage):
     def makeFSImage(self, image, size = None):
         if not size:
             size = self.getImageSize()
-        mountPoint = tempfile.mkdtemp()
+        mountPoint = tempfile.mkdtemp(dir=constants.tmpDir)
         try:
             self.makeBlankFS(image, size)
             util.execute('mount -o loop %s %s' % (image, mountPoint))

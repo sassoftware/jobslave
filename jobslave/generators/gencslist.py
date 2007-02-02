@@ -12,6 +12,8 @@ import string
 import sys
 import tempfile
 
+from jobslave.generators import constants
+
 from conary import conarycfg
 from conary import conaryclient
 from conary import dbstore
@@ -591,7 +593,7 @@ def writeSqldb(cs, path, cfgFile = None):
             return rc
     trove.Trove = Trove
     try:
-        tmpdir = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp(dir=constants.tmpDir)
 
         if len(cs.primaryTroveList) != 1:
             raise RuntimeError, 'more than one top-level group is not supported'

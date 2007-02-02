@@ -380,7 +380,7 @@ class BootableImage(ImageGenerator):
         self.status('Installing image contents')
         self.createTemporaryRoot(dest)
         self.fileSystemOddsNEnds(dest, self.swapSize)
-        fd, cfgPath = tempfile.mkstemp()
+        fd, cfgPath = tempfile.mkstemp(dir=constants.tmpDir)
         try:
             os.close(fd)
             self.saveConaryRC(cfgPath)

@@ -184,19 +184,19 @@ class InstallableIso(ImageGenerator):
         # write the product.img cramfs
         baseDir = os.path.join(topdir, self.productDir, 'base')
         productPath = os.path.join(baseDir, "product.img")
-        tmpPath = tempfile.mkdtemp()
+        tmpPath = tempfile.mkdtemp(dir=constants.tmpDir)
 
         self.writeBuildStamp(tmpPath)
 
         # extract anaconda-images from repository, if exists
-        tmpRoot = tempfile.mkdtemp()
+        tmpRoot = tempfile.mkdtemp(dir=constants.tmpDir)
         util.mkdirChain(os.path.join(tmpRoot, 'usr', 'share', 'anaconda',
                                      'pixmaps'))
         cclient = self.getConaryClient(tmpRoot, arch)
         cclient.setUpdateCallback(self.callback)
 
         print >> sys.stderr, "generating anaconda artwork."
-        autoGenPath = tempfile.mkdtemp()
+        autoGenPath = tempfile.mkdtemp(dir=constants.tmpDir)
         ai = AnacondaImages( \
             self.jobData['name'],
             indir = constants.anacondaImagesPath,
@@ -249,7 +249,7 @@ class InstallableIso(ImageGenerator):
 
         # extract constants.py from the stage2.img template and override the BETANAG flag
         # this would be better if constants.py could load a secondary constants.py
-        stage2Path = tempfile.mkdtemp()
+        stage2Path = tempfile.mkdtemp(dir=constants.tmpDir)
         call('/sbin/fsck.cramfs', topdir + '/rPath/base/stage2.img', '-x', stage2Path)
         call('cp', stage2Path + '/usr/lib/anaconda/constants.py', tmpPath)
 
@@ -397,7 +397,7 @@ class InstallableIso(ImageGenerator):
             ret = func(*cmds)
 
     def _getTemplatePath(self):
-        tmpDir = tempfile.mkdtemp()
+        tmpDir = tempfile.mkdtemp(dir=constants.tmpDir)
         try:
             print >> sys.stderr, "finding anaconda-templates for " + self.arch
             cclient = self.getConaryClient( \
@@ -459,7 +459,7 @@ class InstallableIso(ImageGenerator):
         return csdir
 
     def extractMediaTemplate(self, topdir):
-        tmpRoot = tempfile.mkdtemp()
+        tmpRoot = tempfile.mkdtemp(dir=constants.tmpDir)
         try:
             client = self.getConaryClient(\
                 tmpRoot, getArchFlavor(self.baseFlavor).freeze())
@@ -488,7 +488,7 @@ class InstallableIso(ImageGenerator):
         for path in (os.path.join(csdir, x) for x in os.listdir(csdir)):
             existingChangesets.add(path)
 
-        tmpRoot = tempfile.mkdtemp()
+        tmpRoot = tempfile.mkdtemp(dir=constants.tmpDir)
         client = self.getConaryClient(\
             tmpRoot, getArchFlavor(self.baseFlavor).freeze())
         trvList = client.repos.findTrove(client.cfg.installLabelPath[0],\
@@ -546,7 +546,7 @@ class InstallableIso(ImageGenerator):
         # write the sqldb file
         baseDir = os.path.join(topdir, self.productDir, 'base')
         sqldbPath = os.path.join(baseDir, 'sqldb')
-        tmpFd, tmpCfgPath = tempfile.mkstemp()
+        tmpFd, tmpCfgPath = tempfile.mkstemp(dir=constants.tmpDir)
         try:
             os.close(tmpFd)
             gencslist.writeSqldb(groupcs, sqldbPath, cfgFile = tmpCfgPath)

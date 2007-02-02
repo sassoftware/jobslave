@@ -180,7 +180,7 @@ def splitDistro(unified, baseTrove, maxisosize = 650 * 1024 * 1024,
     # prepare a dummy disc ahead of time to precalc the initial size correctly
     # the fact that media-template is completely custom has the unlimited
     # power to make this extremely messy through other calculation methods.
-    tmpDisc = tempfile.mkdtemp()
+    tmpDisc = tempfile.mkdtemp(dir=constants.tmpDir)
     preparedir(unified, tmpDisc, csdir)
     allContentSize = spaceused(tmpDisc, isoblocksize)
     util.rmtree(tmpDisc)

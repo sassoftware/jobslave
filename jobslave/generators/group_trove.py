@@ -67,7 +67,7 @@ class GroupTroveCook(Generator):
         ret = None
         e = None
         try:
-            path = tempfile.mkdtemp()
+            path = tempfile.mkdtemp(dir=constants.tmpDir)
             recipe = self.jobData['recipe']
             sourceName = recipeName + ":source"
             flavor = deps.ThawFlavor(self.getJobData("arch"))
