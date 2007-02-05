@@ -75,8 +75,17 @@ class Generator(threading.Thread):
         self.response = weakref.ref(parent.response)
         self.parent = weakref.ref(parent)
 
+        # FIXME: once conary handles unicode better, remove these items
         # coerce to str if possible due to conary not handling unicode well
+        for key, val in jobData.iteritems():
+            if type(val) is unicode:
+                jobData[key] = str(val)
         self.jobId = str(jobData['UUID'])
+        #self.jobData['project']['name'] = str(self.jobData['project']['name'])
+        #self.jobData['project']['label'] = str(self.jobData['project']['label'])
+        #self.jobData['troveName'] = str(self.jobData['troveName'])
+        # end str coercions
+
         self.UUID = \
             ''.join([hex(ord(os.urandom(1)))[2:] for x in range(16)]).upper()
 
