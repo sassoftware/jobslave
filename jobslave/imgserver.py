@@ -7,6 +7,8 @@ import posixpath
 import urllib
 import socket
 
+TIMEOUT = 3
+
 class ServerStopped(Exception):
     pass
 
@@ -39,7 +41,7 @@ class ImageServer(threading.Thread, SocketServer.ThreadingMixIn, BaseHTTPServer.
         BaseHTTPServer.HTTPServer.__init__(self, *args, **kwargs)
         self.running = True
         self.lock = threading.RLock()
-        self.socket.settimeout(3)
+        self.socket.settimeout(TIMEOUT)
 
     def get_request(self):
         #conn, addr = self.socket.accept()
