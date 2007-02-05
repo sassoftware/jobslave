@@ -611,7 +611,7 @@ def writeSqldb(cs, path, cfgFile = None):
         # to re-enable, delete
         # ---8<--- from HERE 
         shutil.copyfile(tmpdir + '/sqldb', path)
-        shutil.rmtree(tmpdir)
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
         return
         # ---8<--- to HERE
