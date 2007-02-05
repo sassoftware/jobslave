@@ -284,7 +284,7 @@ class InstallableIso(ImageGenerator):
             isoNameTemplate = self.basefilename + '-'
         else:
             isoNameTemplate = "%s-%s-%s-" % \
-                (self.jobData['peoject']['hostname'],
+                (self.jobData['project']['hostname'],
                  upstream(self.troveVersion),
                  self.arch)
         sourceDir = os.path.normpath(topdir + "/../")
@@ -313,7 +313,7 @@ class InstallableIso(ImageGenerator):
                 call("mkisofs", "-o", outputDir + "/" + outputIsoName,
                      "-R", "-J", "-V", volumeId, "-T", ".")
 
-            isoList.append((outputIsoName, "%s Disc %s" % (self.jobData['name'], discNum)))
+            isoList.append((outputIsoName, "%s Disc %s" % (self.jobData['project']['name'], discNum)))
 
         isoList = [ (os.path.join(outputDir, iso[0]), iso[1]) for iso in isoList ]
         # this for loop re-identifies any iso greater than 700MB as a DVD
