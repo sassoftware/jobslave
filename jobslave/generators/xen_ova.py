@@ -29,7 +29,7 @@ class XenOVA(raw_fs_image.RawFsImage):
         template = infile.read()
         infile.close()
 
-        template = template.replace('@TITLE@', self.jobData['name'])
+        template = template.replace('@TITLE@', self.jobData['project']['name'])
         template = template.replace('@DESCRIPTION@',
             'Created by rPath rBuilder')
         template = template.replace('@MEMORY@', str(self.getBuildData('vmMemory') * 1024 * 1024))
