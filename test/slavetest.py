@@ -10,19 +10,32 @@ testsuite.setup()
 
 import jobslave_helper
 from jobslave import buildtypes
+from jobslave import slave
 
 class SlaveTest(jobslave_helper.JobSlaveHelper):
-    def testSlave(self):
-        from jobslave import jobhandler
-        import epdb
-        epdb.st()
+    def setUp(self):
+        jobslave_helper.JobSlaveHelper.setUp(self)
+        self.slaveCfg = slave.SlaveConfig()
+        self.slaveCfg.configLine('TTL 0')
+        self.slaveCfg.configLine('imageTimeout 0')
+        self.slaveCfg.configLine('namespace test')
+        self.slaveCfg.configLine('nodeName TestSlave')
+        self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
+        self.jobSlave = slave.JobSlave(self.slaveCfg)
 
-    def getHandler(self, buildType):
-        return jobhandler.getHandler({'buildType' : buildType}, '')
+    def tearDown(self):
+        self.jobSlave.imageServer.stop()
+        jobslave_helper.JobSlaveHelper.tearDown(self)
 
-    def testGetInstallableISO(self):
-        handler = self.getHandler(buildtypes.INSTALLABLE_ISO)
-        assert handler, "Failed to get Installable ISO"
+    def testEmptyControlTopic(self):
+        self.jobSlave.controlTopic.connection.insertMessage('')
+        self.jobSlave.checkControlTopic()
+        self.failIf(self.jobSlave.controlTopic.inbound != [],
+                    "Control topic was no read")
+
+    def testEmptyJobQueue(self):
+        self.jobSlave.checkJobQueue()
+
 
 if __name__ == "__main__":
     testsuite.main()

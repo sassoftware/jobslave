@@ -127,6 +127,8 @@ def setup():
     import jobslave_helper
     import stomp
     stomp.Connection = jobslave_helper.DummyConnection
+    from jobslave import imgserver
+    imgserver.TIMEOUT = 0.01
     #end MCP specific tweaks
 
     _setupPath = testPath

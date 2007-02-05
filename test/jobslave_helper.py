@@ -64,7 +64,6 @@ class JobSlaveHelper(testhelp.TestCase):
                           'hostname' : 'foo',
                           'label': 'foo.rpath.local@rpl:devel',
                           'conaryCfg': ''},
-             'name' : 'Foo',
              'UUID' : 'mint.rpath.local-build-25',
              'troveName' : 'group-core',
              'troveVersion' : '/conary.rpath.com@rpl:1/0:1.0.1-1-1',
