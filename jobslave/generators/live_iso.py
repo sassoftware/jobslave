@@ -82,7 +82,7 @@ class LiveIso(bootable_image.BootableImage):
         return not fallback
 
     def getVolName(self):
-        name = self.jobData['name']
+        name = self.jobData['project']['name']
         # srcub all non alphanumeric characters. we use this in a system call.
         # limit name to 32 chars--max volumne name for iso-9660
         return ''.join([x.isalnum() and x or '_' for x in name][:32])
