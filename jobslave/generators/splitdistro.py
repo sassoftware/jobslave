@@ -9,6 +9,7 @@ import os, sys
 import tempfile
 
 from jobslave.generators.gencslist import _linkOrCopyFile
+from jobslave.generators import constants
 
 import conary
 from conary.lib import util
