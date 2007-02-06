@@ -28,6 +28,7 @@ start() {
     do
         mount -t nfs -o wsize=4196,rsize=4096,tcp,intr,hard,bg $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
     done
+    modprobe loop max_loop=256
     daemon $DAEMON
     echo ""
 }
