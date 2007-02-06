@@ -30,7 +30,7 @@ class RawFsImage(raw_hd_image.RawHdImage):
 
     def write(self):
         size = self.getImageSize()
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         image = os.path.join(topDir, self.basefilename + '.ext3')
