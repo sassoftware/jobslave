@@ -177,7 +177,7 @@ class InstallableIso(ImageGenerator):
         print >> bsFile, self.getBuildData("bugsUrl")
         print >> bsFile, "%s %s %s" % (self.baseTrove,
                                        self.jobData['troveVersion'],
-                                       self.baseFlavor)
+                                       self.baseFlavor.freeze())
         bsFile.close()
 
     def writeProductImage(self, topdir, arch):
