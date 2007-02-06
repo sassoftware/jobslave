@@ -57,6 +57,46 @@ def troveInGroup(self, trvItems, name, version, flavor):
                 return True
         return False
 
+def getRecipe(jobData):
+        recipe = ""
+        name = ''.join((string.capwords(
+            ' '.join(jobData['recipeName'].split('-')))).split(' '))
+        indent = 4 * " "
+
+        recipe += "class " + name + "(GroupRecipe):\n"
+        recipe += indent + "name = '%s'\n" % jobData['recipeName']
+        recipe += indent + "version = '%s'\n\n" % jobData['upstreamVersion']
+        recipe += indent + "autoResolve = %s\n\n" % \
+                  str(jobData['autoResolve'])
+        recipe += indent + 'def setup(r):\n'
+
+        indent = 8 * " "
+        recipeLabels = jobData['labelPath']
+        recipe += indent + "r.setLabelPath(%s)\n" % \
+                  str(recipeLabels).split('[')[1].split(']')[0]
+
+        removedComponents = jobData['removedComponents']
+        if removedComponents:
+            recipe += indent + "r.removeComponents(('" + \
+                      "', '".join(removedComponents) + "'))\n"
+
+        for trv in jobData['troveItems']:
+            ver = trv['versionLock'] and trv['trvVersion'] or trv['trvLabel']
+
+            # XXX HACK to use the "fancy-flavored" group troves from
+            # conary.rpath.com
+            if trv['trvName'].startswith('group-') and \
+                   trv['trvLabel'].startswith('conary.rpath.com@'):
+                recipe += indent + "if Arch.x86_64:\n"
+                recipe += (12 * " ") + "r.add('" + trv['trvName'] + "', '" + \
+                          ver + "', 'is:x86(i486,i586,i686) x86_64', " + \
+                          "groupName = '" + trv['subGroup'] +"')\n"
+                recipe += indent + "else:\n" + (4 * " ")
+            recipe += indent + "r.add('" + trv['trvName'] + "', '" + ver \
+                      + "', '" + trv['trvFlavor'] + "', groupName = '" + \
+                      trv['subGroup'] +"')\n"
+        return recipe
+
 class GroupTroveCook(Generator):
     def write(self):
         self.status("Cooking group")
@@ -68,7 +108,7 @@ class GroupTroveCook(Generator):
         e = None
         try:
             path = tempfile.mkdtemp(dir=constants.tmpDir)
-            recipe = self.jobData['recipe']
+            recipe = getRecipe(self.jobData)
             sourceName = recipeName + ":source"
             flavor = deps.ThawFlavor(self.getJobData("arch"))
 
