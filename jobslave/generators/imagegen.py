@@ -33,19 +33,30 @@ class NoConfigFile(Exception):
     def __str__(self):
         return "Unable to access configuration file: %s" % self._path
 
+import time
 class LogHandler(logging.Handler):
     def __init__(self, jobId, response):
         self.jobId = jobId
         self.response = weakref.ref(response)
+        self._msgs = ''
+        self.lastSent = 0
         logging.Handler.__init__(self)
 
-    def emit(self, record):
+    def flush(self):
+        self.lastSent = time.time()
         try:
-            self.response().jobLog(self.jobId, record.getMessage())
+            msgs = self._msgs
+            self._msgs = ''
+            self.response().jobLog(self.jobId, msgs)
         except Exception, e:
-            print >> sys.stderr, "Warning: log message was lost:", \
-                record.getMessage()
+            print >> sys.stderr, "Warning: log message was lost:", self._msgs
             sys.stderr.flush()
+
+    def emit(self, record):
+        self._msgs += record.getMessage() + '\n'
+        if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
+            self.flush()
+
 
 def logPipe(l, p):
     running = True
@@ -107,7 +118,8 @@ class Generator(threading.Thread):
         rootLogger = logging.getLogger('')
         for handler in rootLogger.handlers[:]:
             rootLogger.removeHandler(handler)
-        rootLogger.addHandler(LogHandler(self.jobId, parent.response))
+        self.logger = LogHandler(self.jobId, parent.response)
+        rootLogger.addHandler(self.logger)
         log.setVerbosity(logging.INFO)
 
         self.doneStatus = 'finished'
@@ -216,6 +228,7 @@ class Generator(threading.Thread):
                     exc, e, bt = sys.exc_info()
                     # exceptions should *never* cross this point, so it's always
                     # an internal server error
+                    self.logger.flush()
                     self.status('Internal Server Error', status = 'failed')
                     import traceback
                     log.error(traceback.format_exc(bt))
@@ -223,6 +236,7 @@ class Generator(threading.Thread):
                     log.error('Failed job: %s' % self.jobId)
                     raise
                 else:
+                    self.logger.flush()
                     self.status(self.doneStatusMessage,
                                 status = self.doneStatus)
                     log.info('Finished job: %s' % self.jobId)
