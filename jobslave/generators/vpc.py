@@ -49,7 +49,7 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
         ofile.close()
 
     def write(self):
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         image = os.path.join(topDir, self.basefilename + '.hdd')
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)

@@ -49,7 +49,7 @@ class RawHdImage(bootable_image.BootableImage):
             util.rmtree(mountPoint, ignore_errors = True)
 
     def write(self):
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         image = os.path.join(topDir, self.basefilename + '.hdd')

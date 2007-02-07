@@ -18,7 +18,7 @@ class ParallelsImage(raw_hd_image.RawHdImage):
         pass
 
     def write(self):
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         outputDir = os.path.join(topDir, self.basefilename)
         outputFile = outputDir + self.suffix
         image = outputDir + '.hdd'

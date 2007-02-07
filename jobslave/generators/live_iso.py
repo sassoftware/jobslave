@@ -88,7 +88,7 @@ class LiveIso(bootable_image.BootableImage):
         return ''.join([x.isalnum() and x or '_' for x in name][:32])
 
     def mkinitrd(self, liveDir, fakeRoot):
-        initrdDir = os.path.join(os.path.sep, 'tmp', self.basefilename + '_initrd')
+        initrdDir = os.path.join(constants.tmpDir, self.basefilename + '_initrd')
         util.mkdirChain(initrdDir)
         try:
             macros = {'modules' : 'echo Inserting Kernel Modules',
@@ -230,7 +230,7 @@ class LiveIso(bootable_image.BootableImage):
 
 
     def write(self):
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         fileTree = os.path.join(topDir, self.basefilename + '_base')
         zFileTree = os.path.join(topDir, self.basefilename + '_zbase')
         liveDir = os.path.join(topDir, self.basefilename + '_live')

@@ -15,7 +15,7 @@ from conary.lib import util
 
 class NetbootImage(bootable_image.BootableImage):
     def write(self):
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         basePath = os.path.join(topDir, self.basefilename)
         if os.path.exists(basePath):
             util.rmtree(basePath)

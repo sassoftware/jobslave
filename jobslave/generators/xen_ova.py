@@ -41,7 +41,7 @@ class XenOVA(raw_fs_image.RawFsImage):
         ofile.close()
 
     def write(self):
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         baseDir = os.path.join(topDir, self.basefilename)
         util.rmtree(baseDir, ignore_errors = True)
         util.mkdirChain(baseDir)

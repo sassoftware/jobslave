@@ -5,11 +5,12 @@
 #
 import os.path
 
+from jobslave.generators import constants
 from jobslave.generators.imagegen import ImageGenerator
 
 class StubImage(ImageGenerator):
     def write(self):
-        f = os.path.join(os.path.sep, 'tmp', "stub.iso")
+        f = os.path.join(constants.tmpDir, "stub.iso")
 
         buildId = self.jobId
         stubContent = self.getBuildData('stringArg')

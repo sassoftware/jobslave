@@ -63,7 +63,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 os.chmod(os.path.join(baseDir, f), 0600)
 
     def write(self):
-        topDir = os.path.join(os.path.sep, 'tmp', self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.jobId)
         image = os.path.join(topDir, self.basefilename + '.hdd')
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
