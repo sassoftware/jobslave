@@ -24,7 +24,7 @@ DAEMON='/usr/bin/jobslave'
 
 start() {
     echo -n "Starting $LONGNAME:"
-    for mnt in anaconda_templates finished-images tmp
+    for mnt in anaconda-templates finished-images tmp
     do
         mount -t nfs -o wsize=4196,rsize=4096,tcp,intr,hard,bg $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
     done
