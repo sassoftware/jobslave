@@ -425,10 +425,15 @@ class BootableImage(ImageGenerator):
             log.info("grub not found. skipping execution.")
             return
 
-        p = os.popen('%s --device-map=/dev/null --batch' % grubPath, 'w')
-        p.write('device (hd0) %s\n' % image)
-        p.write('root (hd0,0)\n')
-        p.write('setup (hd0)\n')
+        os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
+                   '%s --batch') % (image, grubPath))
+        #os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
+        #           '%s --device-map=/dev/null --batch') % (image, grubPath))
+
+        #p = os.popen('%s --device-map=/dev/null --batch' % grubPath, 'w')
+        #p.write('device (hd0) %s\n' % image)
+        #p.write('root (hd0,0)\n')
+        #p.write('setup (hd0)\n')
 
     @timeMe
     def gzip(self, source, dest = None):

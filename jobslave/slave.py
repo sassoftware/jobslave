@@ -82,6 +82,7 @@ class JobSlave(object):
         self.running = False
 
     def run(self):
+        print "Listening for jobs:", self.cfg.jobQueueName
         self.running = True
         self.sendSlaveStatus()
         try:
