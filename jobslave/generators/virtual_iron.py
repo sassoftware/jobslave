@@ -17,5 +17,5 @@ class VirtualIronVHD(vpc.VirtualPCImage):
 
     def __init__(self, *args, **kwargs):
         vpc.VirtualPCImage.__init__(self, *args, **kwargs)
-        self.suffix = '.vhd.zip'
+        self.suffix = '.vhd.tgz'
         self.productName = 'Virtual Iron'
