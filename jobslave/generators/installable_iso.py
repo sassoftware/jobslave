@@ -267,16 +267,10 @@ class InstallableIso(ImageGenerator):
 
     def buildIsos(self, topdir):
         showMediaCheck = self.getBuildData('showMediaCheck')
-        isogenUid = os.geteuid()
-        apacheGid = pwd.getpwnam('apache')[3]
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
-        # add the group writeable bit and assign group ownership to apache
+        # add the group writeable bit
         os.chmod(outputDir, os.stat(outputDir)[0] & 0777 | 0020)
-        os.chown(outputDir, isogenUid, apacheGid)
-        parDir = os.path.normpath(os.path.join(outputDir, '..'))
-        os.chmod(parDir, os.stat(parDir)[0] & 0777 | 0020)
-        os.chown(parDir, isogenUid, apacheGid)
 
         isoList = []
 
@@ -336,8 +330,6 @@ class InstallableIso(ImageGenerator):
                     cmd.append('--supported-iso')
                 cmd.append(iso)
                 call(*cmd)
-                # and hand off ownership to apache
-                os.chown(iso, isogenUid, apacheGid)
 
         # add the netboot images
         for f in ('boot.iso', 'diskboot.img'):
@@ -345,11 +337,6 @@ class InstallableIso(ImageGenerator):
             outF = os.path.join(outputDir, f)
             if os.path.exists(inF):
                 gencslist._linkOrCopyFile(inF, outF)
-                try:
-                    os.chown(outF, isogenUid, apacheGid)
-                except OSError, e:
-                    if e.errno != 1:
-                        raise
                 isoList += ( (outF, f), )
         return isoList
 
