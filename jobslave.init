@@ -26,7 +26,7 @@ start() {
     echo -n "Starting $LONGNAME:"
     for mnt in anaconda-templates finished-images tmp
     do
-        mount -t nfs -o wsize=4196,rsize=4096,tcp,intr,hard,bg $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
+        mount -t nfs -o wsize=4096,rsize=4096,tcp,hard $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
     done
     modprobe loop max_loop=256
     daemon $DAEMON
