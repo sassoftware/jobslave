@@ -108,9 +108,8 @@ class Generator(threading.Thread):
         self.conarycfg.configLine(\
             'entitlementDirectory /srv/jobslave/entitlements')
 
-        # FIXME: place in mechanism to get proxyUrl once it's enabled in conary
-        #if parent.cfg.proxy:
-        #    self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
+        if parent.cfg.proxy:
+            self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
 
         self.cc = conaryclient.ConaryClient(self.conarycfg)
         self.nc = self.cc.getRepos()
@@ -262,7 +261,7 @@ class Generator(threading.Thread):
                 # this might be considered fairly dangerous since this command
                 # is executed as superuser, but chances of hitting the wrong pid
                 # are astronomically small.
-                os.kill(self.pid, signal.SIGTERM)
+                os.kill(self.pid, signal.SIGKILL)
             except OSError, e:
                 # errno 3 is "no such process"
                 if e.errno != 3:
