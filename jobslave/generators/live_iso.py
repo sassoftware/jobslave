@@ -243,6 +243,8 @@ class LiveIso(bootable_image.BootableImage):
         try:
             # instantiate contents of actual distro
             self.installFileTree(fileTree)
+            # Symlink /proc/mounts to /etc/mtab
+            os.system('ln -s %s %s' % (os.path.join(os.path.sep, 'proc', 'mounts'), os.path.join(dest, 'etc', 'mtab')))
             activeTree = fileTree
             extraArgs = ''
 
