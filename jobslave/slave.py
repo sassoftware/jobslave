@@ -235,7 +235,6 @@ def main():
     slave.run()
 
 def runDaemon():
-    return main()
     pidFile = os.path.join(os.path.sep, 'var', 'run', 'jobslave.pid')
     if os.path.exists(pidFile):
         f = open(pidFile)
