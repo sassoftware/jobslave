@@ -235,7 +235,6 @@ def main():
     slave.run()
 
 def runDaemon():
-    return main()
     pidFile = os.path.join(os.path.sep, 'var', 'run', 'jobslave.pid')
     if os.path.exists(pidFile):
         f = open(pidFile)
@@ -258,11 +257,11 @@ def runDaemon():
     pid = os.fork()
     if not pid:
         os.setsid()
-        #devNull = os.open(os.devnull, os.O_RDWR)
-        #os.dup2(devNull, sys.stdout.fileno())
-        #os.dup2(devNull, sys.stderr.fileno())
-        #os.dup2(devNull, sys.stdin.fileno())
-        #os.close(devNull)
+        devNull = os.open(os.devnull, os.O_RDWR)
+        os.dup2(devNull, sys.stdout.fileno())
+        os.dup2(devNull, sys.stderr.fileno())
+        os.dup2(devNull, sys.stdin.fileno())
+        os.close(devNull)
         pid = os.fork()
         if not pid:
             f = open(pidFile, 'w')
