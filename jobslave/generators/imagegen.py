@@ -57,25 +57,19 @@ class LogHandler(logging.Handler):
         if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
             self.flush()
 
-
-def logPipe(l, p):
-    running = True
-    while running:
-        try:
-            line = p.next()
-            l(line)
-        except StopIteration:
-            running = False
-
 def system(command):
     log.info(command)
     p = subprocess.Popen(command, shell = True,
                          stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    p.wait()
-    logPipe(log.info, p.stdout)
-    logPipe(log.error, p.stderr)
+    while p.poll() is None:
+        d = p.stdout.readline()
+        if d:
+            log.info(d)
+        d = p.stdout.readline()
+        if d:
+            log.error(d)
 
-os.system = system
+#os.system = system
 
 class Generator(threading.Thread):
     configObject = None
@@ -105,7 +99,9 @@ class Generator(threading.Thread):
         self.conarycfg = conarycfg.ConaryConfiguration(False)
         cfgData = StringIO.StringIO(jobData['project']['conaryCfg'])
         self.conarycfg.readObject(cfgData, cfgData)
-        self.conarycfg.configLine(\
+
+        self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
+        self.conarycfg.configLine( \
             'entitlementDirectory /srv/jobslave/entitlements')
 
         if parent.cfg.proxy:
