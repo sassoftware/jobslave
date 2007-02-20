@@ -258,10 +258,14 @@ def runDaemon():
     if not pid:
         os.setsid()
         devNull = os.open(os.devnull, os.O_RDWR)
-        os.dup2(devNull, sys.stdout.fileno())
-        os.dup2(devNull, sys.stderr.fileno())
+        stdout = os.open('/tmp/stdout', os.WRONLY)
+        stderr = os.open('/tmp/stdout', os.WRONLY)
+        os.dup2(stdout, sys.stdout.fileno())
+        os.dup2(stderr, sys.stderr.fileno())
         os.dup2(devNull, sys.stdin.fileno())
         os.close(devNull)
+        os.close(stdout)
+        os.close(stderr)
         pid = os.fork()
         if not pid:
             f = open(pidFile, 'w')
