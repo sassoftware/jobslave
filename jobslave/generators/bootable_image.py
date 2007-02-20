@@ -386,14 +386,14 @@ class BootableImage(ImageGenerator):
             self.saveConaryRC(cfgPath)
             util.execute('mount -t proc none %s' % os.path.join(dest, 'proc'))
             util.execute('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
+            #copy the files needed by grub and set up the links
+            self.setupGrub(dest)
             util.execute( \
                 ("conary update '%s=%s[%s]' --root %s --config-file %s "
                  "--replace-files") % \
                     (self.baseTrove, self.baseVersion,
                      str(self.baseFlavor), dest, cfgPath))
 
-            #copy the files needed by grub and set up the links
-            self.setupGrub(dest)
             if self.scsiModules:
                 self.addScsiModules(dest)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
