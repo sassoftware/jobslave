@@ -259,11 +259,14 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def fileSystemOddsNEnds(self, fakeRoot, swapSize):
-        xorg = os.path.isfile(os.path.join(fakeRoot, 'usr', 'bin', 'X11', 'X'))
+        rnl5 = False
+        for svc in ('xdm', 'gdm', 'kdm'):
+            rnl5 |= os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc))
+
         gpm = os.path.isfile(os.path.join(fakeRoot, 'usr', 'sbin', 'gpm'))
 
         exceptFiles = []
-        if not xorg:
+        if not rnl5:
             exceptFiles.append(os.path.join(os.path.sep, 'etc', 'X11.*'))
         if not gpm:
             exceptFiles.append(os.path.join(os.path.sep,
@@ -283,7 +286,7 @@ class BootableImage(ImageGenerator):
                  os.path.join(fakeRoot, 'var', 'swap'))
             util.execute(cmd)
 
-        if xorg:
+        if rnl5:
             #tweak the inittab to start at level 5
             cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % os.path.join(fakeRoot, 'etc', 'inittab')
             util.execute(cmd)
