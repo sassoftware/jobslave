@@ -106,6 +106,7 @@ class JobSlave(object):
         mcpClient.stopSlave(self.cfg.nodeName, delayed = False)
         self.jobQueue.disconnect()
         self.controlTopic.disconnect()
+        self.response.response.disconnect()
         del self.response
         # redundant protection: attempt to power off the machine in case
         # stop slave command does not get to master right away.
