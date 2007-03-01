@@ -462,7 +462,7 @@ class LocalRepository(netserver.NetworkRepositoryServer):
     def __init__(self, serverName, dbpath):
         cfg = netserver.ServerConfig()
         cfg.repositoryDB = ('sqlite', dbpath + '/sqldb')
-        cfg.tmpDir = '/tmp'
+        cfg.tmpDir = constants.tmpDir
         cfg.serverName = serverName
         cfg.contentsDir = dbpath + '/contents/'
         util.mkdirChain(dbpath)
