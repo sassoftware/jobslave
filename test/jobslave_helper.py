@@ -7,7 +7,10 @@
 
 import os, sys
 import testhelp
-from jobslave import jobhandler
+
+import threading
+
+from jobslave import jobhandler, slave
 
 class DummyConnection(object):
     def __init__(self, *args, **kwargs):
@@ -55,7 +58,30 @@ class DummyConnection(object):
 class DummyResponse(object):
     response = DummyConnection()
 
+class ThreadedJobSlave(slave.JobSlave, threading.Thread):
+    def __init__(self, *args, **kwargs):
+        threading.Thread.__init__(self)
+        slave.JobSlave.__init__(self, *args, **kwargs)
+
+    def disconnect(self):
+        self.imageServer.running = False
+
 class JobSlaveHelper(testhelp.TestCase):
+    def setUp(self):
+        testhelp.TestCase.setUp(self)
+
+        self.slaveCfg = slave.SlaveConfig()
+        self.slaveCfg.configLine('TTL 0')
+        self.slaveCfg.configLine('imageTimeout 0')
+        self.slaveCfg.configLine('namespace test')
+        self.slaveCfg.configLine('nodeName testMaster:testSlave')
+        self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
+        self.jobSlave = ThreadedJobSlave(self.slaveCfg)
+
+    def tearDown(self):
+        self.jobSlave.imageServer.stop()
+        testhelp.TestCase.tearDown(self)
+
     def getHandler(self, buildType):
         return jobhandler.getHandler( \
             {'serialVersion': 1,
@@ -71,7 +97,7 @@ class JobSlaveHelper(testhelp.TestCase):
              'data' : {'jsversion': '3.0.0'},
              'outputQueue': 'test',
              'buildType' : buildType},
-            DummyResponse())
+            self.jobSlave)
 
     def supressOutput(self, func, *args, **kwargs):
         oldErr = os.dup(sys.stderr.fileno())
