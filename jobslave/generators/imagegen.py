@@ -24,6 +24,8 @@ from conary.deps import deps
 
 from jobslave.generators import constants
 
+from mcp import jobstatus
+
 MSG_INTERVAL = 5
 
 class NoConfigFile(Exception):
@@ -170,7 +172,7 @@ class Generator(threading.Thread):
     def write(self):
         raise NotImplementedError
 
-    def status(self, msg = None, status = 'running'):
+    def status(self, msg = None, status = jobstatus.RUNNING):
         if msg:
             self._lastStatus = msg, status
         else:
