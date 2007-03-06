@@ -13,7 +13,7 @@ import signal
 from jobslave import jobhandler, imgserver
 from jobslave.generators import constants
 
-from mcp import client, queue, response
+from mcp import client, queue, response, jobstatus
 
 from conary.lib import cfgtypes, util
 
@@ -99,7 +99,7 @@ class JobSlave(object):
         self.imageServer.running = False
         self.imageServer.join()
         for jobId, UUID in self.outstandingJobs.iteritems():
-            self.response.jobStatus(jobId, 'failed', 'Image not delivered')
+            self.response.jobStatus(jobId, jobstatus.FAILED, 'Image not delivered')
             util.rmtree(os.path.join(constants.finishedDir, UUID),
                         ignore_errors = True)
         mcpClient = client.MCPClient(self.cfg)
@@ -161,7 +161,7 @@ class JobSlave(object):
                 self.jobHandler.start()
                 self.timeIdle = None
             else:
-                self.response.jobStatus(data['UUID'], 'failed',
+                self.response.jobStatus(data['UUID'], jobstatus.FAILED,
                                         'Unsupported Output type')
 
     def getBestProtocol(self, protocols):
@@ -185,13 +185,13 @@ class JobSlave(object):
                                      self.outstandingJobs[jobId][1]),
                         ignore_errors = True)
             del self.outstandingJobs[jobId]
-            self.response.jobStatus(jobId, 'finished', 'Job Finished')
+            self.response.jobStatus(jobId, jobstatus.FINISHED, 'Job Finished')
         elif self.jobHandler:
             handlerJobId = self.jobHandler.jobId
             if jobId == handlerJobId:
                 self.jobHandler.kill()
         else:
-            self.response.jobStatus(jobId, 'failed', 'No Job')
+            self.response.jobStatus(jobId, jobstatus.FAILED, 'No Job')
 
     def recordJobOutput(self, jobId, UUID):
         self.imageIdle = time.time()
