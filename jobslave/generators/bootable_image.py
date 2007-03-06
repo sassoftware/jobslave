@@ -291,6 +291,11 @@ class BootableImage(ImageGenerator):
             cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % os.path.join(fakeRoot, 'etc', 'inittab')
             util.execute(cmd)
 
+        # copy timezone data into /etc/localtime
+        if not os.path.exists(os.path.join(fakeRoot, 'etc', 'localtime')):
+            os.copy(os.path.join('usr', 'share', 'zoneinfo', 'UTC'),
+                    os.path.join('etc', 'localtime'))
+
     def __init__(self, *args, **kwargs):
         ImageGenerator.__init__(self, *args, **kwargs)
         self.scsiModules = False
