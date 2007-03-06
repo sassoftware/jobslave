@@ -382,30 +382,41 @@ class BootableImage(ImageGenerator):
     def installFileTree(self, dest):
         self.status('Installing image contents')
         self.createTemporaryRoot(dest)
-        self.fileSystemOddsNEnds(dest, self.swapSize)
         fd, cfgPath = tempfile.mkstemp(dir=constants.tmpDir)
         try:
             os.close(fd)
             self.saveConaryRC(cfgPath)
             util.execute('mount -t proc none %s' % os.path.join(dest, 'proc'))
             util.execute('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
-            #copy the files needed by grub and set up the links
-            self.setupGrub(dest)
             util.execute( \
                 ("conary update '%s=%s[%s]' --root %s --config-file %s "
-                 "--replace-files") % \
+                 "--replace-files --tag-script=%s") % \
                     (self.baseTrove, self.baseVersion,
-                     str(self.baseFlavor), dest, cfgPath))
+                     str(self.baseFlavor), dest, cfgPath,
+                     os.path.join(dest, 'root', 'conary-tag-script.in')))
 
-            if self.scsiModules:
-                self.addScsiModules(dest)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
                 util.execute(("conary update --sync-to-parents "
                               "'kernel:runtime[%s]' --root %s "
-                              "--config-file %s") % \
-                                 (self.getKernelFlavor(), dest, cfgPath))
+                              "--config-file %s --tag-script=%s") % \
+                                 (self.getKernelFlavor(), dest, cfgPath,
+                                  os.path.join(dest, 'root',
+                                               'conary-tag-script-kernel')))
             else:
                 log.info('Kernel detected, skipping.')
+            self.fileSystemOddsNEnds(dest, self.swapSize)
+            if self.scsiModules:
+                self.addScsiModules(dest)
+            self.setupGrub(dest)
+            outScript = os.path.join(dest, 'root', 'conary-tag-script')
+            inScript = outScript + '.in'
+            os.system('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
+            os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
+            for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
+                tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
+                if os.path.exists(util.joinPaths(dest, tagPath)):
+                    util.execute("chroot %s bash -c 'sh -x %s > %s 2>&1'" % \
+                                     (dest, tagPath, tagPath + '.output'))
         finally:
             util.execute('umount %s' % os.path.join(dest, 'proc'))
             util.execute('umount %s' % os.path.join(dest, 'sys'))
@@ -428,15 +439,22 @@ class BootableImage(ImageGenerator):
             log.info("grub not found. skipping execution.")
             return
 
-        os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
-                   '%s --batch') % (image, grubPath))
+        os.system('mount --bind /dev/ %s' % os.path.join(fakeRoot, 'dev'))
+        dev = self.loop(image)
+        try:
+            p = os.popen('chroot %s /sbin/grub --device-map=/dev/null --batch' \
+                             % fakeRoot, 'w')
+            p.write('device (hd0) %s\n' % dev)
+            p.write('root (hd0,0)\n')
+            p.write('setup (hd0)\n')
+
+            #os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
+            #           '%s --batch') % (image, grubPath))
+        finally:
+            os.system('umount %s' % os.path.join(fakeRoot, 'dev'))
+            os.system('losetup -d %s' % dev)
         #os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
         #           '%s --device-map=/dev/null --batch') % (image, grubPath))
-
-        #p = os.popen('%s --device-map=/dev/null --batch' % grubPath, 'w')
-        #p.write('device (hd0) %s\n' % image)
-        #p.write('root (hd0,0)\n')
-        #p.write('setup (hd0)\n')
 
     @timeMe
     def gzip(self, source, dest = None):
