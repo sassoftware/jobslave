@@ -13,7 +13,7 @@ import signal
 from jobslave import jobhandler, imgserver
 from jobslave.generators import constants
 
-from mcp import client, queue, response, jobstatus
+from mcp import client, queue, response, jobstatus, slavestatus
 
 from conary.lib import cfgtypes, util
 
@@ -170,7 +170,9 @@ class JobSlave(object):
 
     def sendSlaveStatus(self):
         self.response.slaveStatus(self.cfg.nodeName,
-                                  self.jobHandler and 'running' or 'idle',
+                                  self.jobHandler \
+                                      and slavestatus.ACTIVE \
+                                      or slavestatus.IDLE,
                                   self.cfg.jobQueueName.replace('job', ''))
 
     def sendJobStatus(self):
