@@ -119,7 +119,7 @@ class Generator(threading.Thread):
         rootLogger.addHandler(self.logger)
         log.setVerbosity(logging.INFO)
 
-        self.doneStatus = 'finished'
+        self.doneStatus = jobstatus.FINISHED
         self.doneStatusMessage = 'Finished'
 
         threading.Thread.__init__(self)
@@ -198,7 +198,7 @@ class Generator(threading.Thread):
 
         # it doesn't matter what we send, just not ''
         os.write(self.parentPipe, 'post')
-        self.doneStatus = 'built'
+        self.doneStatus = jobstatus.BUILT
         self.doneStatusMessage = 'Done building image(s)'
         parent = self.parent and self.parent()
         if parent:
@@ -226,7 +226,7 @@ class Generator(threading.Thread):
                     # exceptions should *never* cross this point, so it's always
                     # an internal server error
                     self.logger.flush()
-                    self.status('Internal Server Error', status = 'failed')
+                    self.status('Internal Server Error', status = jobstatus.FAILED)
                     import traceback
                     log.error(traceback.format_exc(bt))
                     log.error(str(e))
@@ -265,7 +265,7 @@ class Generator(threading.Thread):
                 if e.errno != 3:
                     raise
         self.join()
-        self.status('Job Killed', status = 'failed')
+        self.status('Job Killed', status = jobstatus.FAILED)
         log.error('Job killed: %s' % self.jobId)
         util.rmtree(os.path.join(constants.finishedDir, self.UUID),
                     ignore_errors = True)
