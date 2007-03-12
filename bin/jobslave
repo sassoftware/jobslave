@@ -7,4 +7,4 @@
 #
 
 from jobslave import slave
-slave.runDaemon()
+slave.main()
