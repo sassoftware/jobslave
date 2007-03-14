@@ -292,9 +292,9 @@ class BootableImage(ImageGenerator):
             util.execute(cmd)
 
         # copy timezone data into /etc/localtime
-        if os.path.exists(os.path.join(self.fakeroot, 'usr', 'share', 'zoneinfo', 'UTC')):
-            copyfile(os.path.join(self.fakeroot, 'usr', 'share', 'zoneinfo', 'UTC'),
-                     os.path.join(self.fakeroot, 'etc', 'localtime'))
+        if os.path.exists(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC')):
+            copyfile(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC'),
+                     os.path.join(fakeRoot, 'etc', 'localtime'))
 
     def __init__(self, *args, **kwargs):
         ImageGenerator.__init__(self, *args, **kwargs)
