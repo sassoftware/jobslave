@@ -153,7 +153,7 @@ class LiveIso(bootable_image.BootableImage):
     losetup --ro /dev/loop0 /cdrom/livecd.img
     mount -o defaults --ro -t iso9660 /dev/loop0 /sysroot1
     mount -o defaults -t tmpfs /dev/shm /sysroot2
-    mount -o dirs=sysroot2=rw:sysroot1=ro,delete=whiteout -t unionfs none /sysroot
+    mount -o dirs=sysroot2=rw:sysroot1=ro -t unionfs none /sysroot
     """
             else:
                 macros['mountCmd'] = """
