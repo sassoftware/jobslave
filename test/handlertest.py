@@ -57,6 +57,10 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
                                      buildtypes.XEN_OVA)
         assert handler, "Failed to get Xen Enterprise Image"
 
+    def testGetAMI(self):
+        handler = self.supressOutput(self.getHandler,
+                                     buildtypes.AMI)
+        assert handler, "Failed to get AMI"
 
 if __name__ == "__main__":
     testsuite.main()
