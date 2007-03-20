@@ -111,7 +111,7 @@ class GroupTroveCook(Generator):
             path = tempfile.mkdtemp(dir=constants.tmpDir)
             recipe = getRecipe(self.jobData)
             sourceName = recipeName + ":source"
-            flavor = deps.ThawFlavor(self.getJobData("arch"))
+            flavor = deps.ThawFlavor(self.getCookData("arch"))
 
             cfg = self.conarycfg
             cfg.configLine('user * mintauth mintpass')

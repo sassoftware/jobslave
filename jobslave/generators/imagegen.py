@@ -124,8 +124,8 @@ class Generator(threading.Thread):
 
         threading.Thread.__init__(self)
 
-    def getJobData(self, key):
-        return self.jobData.get('jobData', {}).get(key)
+    def getCookData(self, key):
+        return self.jobData.get('data', {}).get(key)
 
     def getBuildData(self, key):
         val = self.jobData.get('data', {}).get(key)
