@@ -237,12 +237,13 @@ class Generator(threading.Thread):
                     self.status(self.doneStatusMessage,
                                 status = self.doneStatus)
                     log.info('Finished job: %s' % self.jobId)
-            # place sys.exit handlers in their own exception handling layer
+            # place exit handlers in their own exception handling layer
             # to ensure that under no circumstances can it escape
+            # use os._exit to force ending now.
             except:
-                sys.exit(1)
+                os._exit(1)
             else:
-                sys.exit(0)
+                os._exit(0)
         os.close(outF)
         data = os.read(inF, 255)
         if data:
