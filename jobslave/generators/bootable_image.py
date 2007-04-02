@@ -324,36 +324,39 @@ class BootableImage(ImageGenerator):
         if os.path.exists(image):
             util.rmtree(image)
         util.mkdirChain(os.path.split(image)[0])
-        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=512' % \
-                      (image, (size / 512) - 1))
+        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
+                      (image, (size / 4096) - 1))
 
         cylinders = size / constants.cylindersize
-        cmd = '/sbin/sfdisk -C %d -S %d -H %d %s' % \
+        cmd = '/sbin/sfdisk -C %d -S %d -H %d %s -uS' % \
             (cylinders, constants.sectors, constants.heads, image)
 
-        input = "0 %d L *\n" % cylinders
+        input = "%d %d L *\n" % (constants.partitionOffset / constants.sectorSize, (size - constants.partitionOffset) / constants.sectorSize)
 
         sfdisk = util.popen(cmd, 'w')
         sfdisk.write(input)
         sfdisk.close()
 
         try:
-            dev = self.loop(image, offset = 512)
-            util.execute('mke2fs -L / -F %s' % dev)
+            dev = self.loop(image, offset = constants.partitionOffset)
+            util.execute('mke2fs -L / -F -b 4096 %s %s' % \
+                             (dev, (size - constants.partitionOffset) / 4096))
             os.system('tune2fs -i 0 -c 0 -j %s' % dev)
+            util.execute('sync')
         finally:
             if 'dev' in locals():
                 util.execute('losetup -d %s' % dev)
+                util.execute('sync')
 
     @timeMe
     def makeBlankFS(self, image, size):
         if os.path.exists(image):
             util.rmtree(image)
         util.mkdirChain(os.path.split(image)[0])
-        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=512' % \
-                      (image, (size / 512) - 1))
+        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
+                      (image, (size / 4096) - 1))
 
-        util.execute('mke2fs -L / -F %s' % image)
+        util.execute('mke2fs -L / -F -b 4096 %s %s' % (image,  size / 4096))
         util.execute('tune2fs -i 0 -c 0 -j %s' % image)
 
     @timeMe
@@ -437,6 +440,7 @@ class BootableImage(ImageGenerator):
 
         # remove template kernel entry
         os.system('grubby --remove-kernel=/boot/vmlinuz-template --config-file=%s' % os.path.join(dest, 'boot', 'grub', 'grub.conf'))
+        os.system('sync')
 
     @timeMe
     def installGrub(self, fakeRoot, image):
@@ -445,22 +449,22 @@ class BootableImage(ImageGenerator):
             log.info("grub not found. skipping execution.")
             return
 
-        os.system('mount --bind /dev/ %s' % os.path.join(fakeRoot, 'dev'))
-        dev = self.loop(image)
-        try:
-            p = os.popen('chroot %s /sbin/grub --device-map=/dev/null --batch' \
-                             % fakeRoot, 'w')
-            p.write('device (hd0) %s\n' % dev)
-            p.write('root (hd0,0)\n')
-            p.write('setup (hd0)\n')
+        #os.system('mount --bind /dev/ %s' % os.path.join(fakeRoot, 'dev'))
+        #dev = self.loop(image)
+        #try:
+        #    p = os.popen('chroot %s /sbin/grub --device-map=/dev/null --batch' \
+        #                     % fakeRoot, 'w')
+        #    p.write('device (hd0) %s\n' % dev)
+        #    p.write('root (hd0,0)\n')
+        #    p.write('setup (hd0)\n')
 
             #os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
             #           '%s --batch') % (image, grubPath))
-        finally:
-            os.system('umount %s' % os.path.join(fakeRoot, 'dev'))
-            os.system('losetup -d %s' % dev)
-        #os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
-        #           '%s --device-map=/dev/null --batch') % (image, grubPath))
+        #finally:
+        #    os.system('umount %s' % os.path.join(fakeRoot, 'dev'))
+        #    os.system('losetup -d %s' % dev)
+        os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
+                   '%s --device-map=/dev/null --batch') % (image, grubPath))
 
     @timeMe
     def gzip(self, source, dest = None):
