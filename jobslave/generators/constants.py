@@ -10,10 +10,12 @@ cylindersize    = 516096
 sectors         = 63
 heads           = 16
 
+sectorSize = 512 # in bytes
+
 scsiSectors = 32
 scsiHeads = 128
 
-partitionOffset = 512
+partitionOffset = 65536
 
 import os
 
