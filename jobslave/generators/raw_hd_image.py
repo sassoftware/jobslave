@@ -20,12 +20,13 @@ class RawHdImage(bootable_image.BootableImage):
 
     def getImageSize(self):
         size = bootable_image.BootableImage.getTroveSize(self)
-        size += self.freespace + constants.partitionOffset
+        size += self.freespace
 
         size = int(ceil((size + 20 * 1024 * 1024 + self.swapSize) / 0.87))
         size += (constants.cylindersize - \
                      (size % constants.cylindersize)) % \
                      constants.cylindersize
+        size += constants.partitionOffset
 
         return size
 
