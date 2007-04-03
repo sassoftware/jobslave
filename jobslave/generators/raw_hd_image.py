@@ -5,6 +5,7 @@
 #
 
 import os
+import stat
 import tempfile
 
 from jobslave.filesystems import sortMountPoints
@@ -77,7 +78,7 @@ class RawHdImage(bootable_image.BootableImage):
 
         # create the raw file
         util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
-                      (image, (totalSize/ 4096) - 1))
+                      (image, (totalSize / 4096) - 1))
 
         # partition it
         cylinders = totalSize / constants.cylindersize
@@ -85,7 +86,7 @@ class RawHdImage(bootable_image.BootableImage):
             (cylinders, constants.sectors, constants.heads, image)
 
         start += partSize
-        size = lvmSize / constants.sectorSize
+        partSize = lvmSize / constants.sectorSize
         fdiskCommands += "%d %d 8e\n" % (start, partSize)
 
         sfdisk = util.popen(cmd, 'w')
@@ -144,12 +145,13 @@ class RawHdImage(bootable_image.BootableImage):
                 util.execute('mount %s %s' % (mounts[x], mountPoint + x))
 
             self.installFileTree(mountPoint, 0)
-            self.installGrub(mountPoint, image, size)
-            util.execute('umount %s' % mountPoint)
+            totalSize = os.stat(image)[stat.ST_SIZE]
+            self.installGrub(mountPoint, image, totalSize)
+
+            for x in sortMountPoints(mounts.keys() + ['/']):
+                util.execute('umount %s' % mountPoint + x)
         finally:
             # simply a failsafe to ensure image is unmounted
-            util.execute('mount | grep %s && umount %s || true' % \
-                             (mountPoint, mountPoint))
             util.rmtree(mountPoint, ignore_errors = True)
 
     def write(self):

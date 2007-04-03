@@ -337,6 +337,10 @@ class BootableImage(ImageGenerator):
                                                'conary-tag-script-kernel')))
             else:
                 log.info('Kernel detected, skipping.')
+
+            # FIXME: remove this
+            util.execute("conary sync lvm2[is:x86] --resolve --root %s --config-file %s" % (dest, cfgPath))
+
             self.fileSystemOddsNEnds(dest, swapFileSize)
             if self.scsiModules:
                 self.addScsiModules(dest)
