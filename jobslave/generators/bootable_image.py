@@ -19,7 +19,7 @@ import tempfile
 from jobslave import buildtypes, jobslave_error
 from jobslave.generators import gencslist, constants
 from jobslave.generators.imagegen import ImageGenerator, MSG_INTERVAL
-#from mint.client import upstream
+from jobslave import filesystems
 
 # conary imports
 from conary import conaryclient
@@ -31,23 +31,6 @@ from conary.conaryclient.cmdline import parseTroveSpec
 from conary.deps import deps
 from conary.lib import log, util
 from conary.repository import errors
-
-def getTroveSize(troveSpec):
-    from conary import versions
-    from conary.deps import deps
-    from conary import conaryclient
-    cc = conaryclient.ConaryClient()
-    repos = cc.getRepos()
-    n, v, f = conaryclient.cmdline.parseTroveSpec(troveSpec)
-    NVF = repos.findTrove(None, (n, v, f), cc.cfg.flavor)[0]
-    trove = repos.getTrove(*NVF)
-    return trove.troveInfo.size()
-
-def roundUpSize(size):
-    # 13% accounts for reserved block and inode consumption
-    size = int(math.ceil((size + TAGSCRIPT_GROWTH + SWAP_SIZE) / 0.87))
-    # now round up to next cylinder size
-    return size + ((CYLINDERSIZE - (size % CYLINDERSIZE)) % CYLINDERSIZE)
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False):
     xen = xen or dom0
@@ -90,29 +73,6 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False):
     r = '\n'.join([x for x in r.split('\n') if x.strip()])
     r += '\n\n'
     return r
-
-# this function is no longer used.
-def getManifest(xorg = True, gpm = True):
-    manifest = {
-        'fstab' : os.path.join('etc', 'fstab'),
-        'hosts' : os.path.join('etc', 'hosts'),
-        'ifcfg-eth0' : os.path.join('etc', 'sysconfig', 'network-scripts',
-                                    'ifcfg-eth0'),
-        'init.sh' : os.path.join('tmp', 'init.sh'),
-        'keyboard' : os.path.join('etc', 'sysconfig', 'keyboard'),
-        'network' : os.path.join('etc', 'sysconfig', 'network')
-        }
-    xorgFiles = {
-        'xorg.conf' : os.path.join('etc', 'X11', 'xorg.conf')
-        }
-    gpmFiles = {
-        'mouse' : os.path.join('etc', 'sysconfig', 'mouse'),
-        }
-    if xorg:
-        manifest.update(xorgFiles)
-    if gpm:
-        manifest.update(gpmFiles)
-    return manifest
 
 def timeMe(func):
     def wrapper(self, *args, **kwargs):
@@ -230,7 +190,7 @@ class BootableImage(ImageGenerator):
         dom0 = bool([x for x in bootDirFiles if re.match('xen.gz-.*', x)])
         hasInitrd = bool([x for x in bootDirFiles \
                               if re.match('initrd-.*.img', x)])
-        conf = getGrubConf(hasInitrd, xen, dom0)
+        conf = getGrubConf(name, hasInitrd, xen, dom0)
 
         f = open(os.path.join(fakeRoot, 'boot', 'grub', 'grub.conf'), 'w')
         f.write(conf)
@@ -304,59 +264,23 @@ class BootableImage(ImageGenerator):
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
     @timeMe
-    def getTroveSize(self):
-        NVF = self.nc.findTrove(None,
-                                (self.baseTrove,
-                                 self.baseVersion,
-                                 self.baseFlavor),
-                                self.conarycfg.flavor)[0]
+    def getTroveSize(self, mounts):
+        log.info("getting changeset for partition sizing")
+        job = (self.baseTrove, (None, None), (versions.VersionFromString(self.baseVersion), self.baseFlavor), True)
+        cs = self.nc.createChangeSet([job], withFiles = True, withFileContents = False)
+        sizes, totalSize = filesystems.calculatePartitionSizes(cs, mounts)
 
-        trv = self.nc.getTrove(NVF[0], NVF[1], NVF[2], withFiles = False)
+        return sizes, totalSize
 
-        return trv.getSize()
-
-    def getImageSize(self):
+    def getImageSize(self, mounts):
         # override this function as appropriate
-        return self.getTroveSize()
+        return self.getTroveSize(mounts)
 
-    @timeMe
-    def makeBlankDisk(self, image, size):
-        if os.path.exists(image):
-            util.rmtree(image)
-        util.mkdirChain(os.path.split(image)[0])
-        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
-                      (image, (size / 4096) - 1))
-
-        cylinders = size / constants.cylindersize
-        cmd = '/sbin/sfdisk -C %d -S %d -H %d %s -uS' % \
-            (cylinders, constants.sectors, constants.heads, image)
-
-        input = "%d %d L *\n" % (constants.partitionOffset / constants.sectorSize, (size - constants.partitionOffset) / constants.sectorSize)
-
-        sfdisk = util.popen(cmd, 'w')
-        sfdisk.write(input)
-        sfdisk.close()
-
-        try:
-            dev = self.loop(image, offset = constants.partitionOffset)
-            util.execute('mke2fs -L / -F -b 4096 %s %s' % \
-                             (dev, (size - constants.partitionOffset) / 4096))
-            os.system('tune2fs -i 0 -c 0 -j %s' % dev)
-            util.execute('sync')
-        finally:
-            if 'dev' in locals():
-                util.execute('losetup -d %s' % dev)
-                util.execute('sync')
-
-    @timeMe
-    def makeBlankFS(self, image, size):
-        if os.path.exists(image):
-            util.rmtree(image)
-        util.mkdirChain(os.path.split(image)[0])
-        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
-                      (image, (size / 4096) - 1))
-
-        util.execute('mke2fs -L / -F -b 4096 %s %s' % (image,  size / 4096))
+    def formatFS(self, image, size = None):
+        cmd = 'mke2fs -L / -F -b 4096 %s' % image
+        if size:
+            cmd += ' %s' % (size / 4096)
+        util.execute(cmd)
         util.execute('tune2fs -i 0 -c 0 -j %s' % image)
 
     @timeMe
@@ -387,7 +311,7 @@ class BootableImage(ImageGenerator):
         f.close()
 
     @timeMe
-    def installFileTree(self, dest):
+    def installFileTree(self, dest, swapFileSize):
         self.status('Installing image contents')
         self.createTemporaryRoot(dest)
         fd, cfgPath = tempfile.mkstemp(dir=constants.tmpDir)
@@ -413,7 +337,7 @@ class BootableImage(ImageGenerator):
                                                'conary-tag-script-kernel')))
             else:
                 log.info('Kernel detected, skipping.')
-            self.fileSystemOddsNEnds(dest, self.swapSize)
+            self.fileSystemOddsNEnds(dest, swapFileSize)
             if self.scsiModules:
                 self.addScsiModules(dest)
             self.setupGrub(dest)
@@ -439,32 +363,27 @@ class BootableImage(ImageGenerator):
         os.system("chroot %s /usr/sbin/usermod -p '' root" % dest)
 
         # remove template kernel entry
-        os.system('grubby --remove-kernel=/boot/vmlinuz-template --config-file=%s' % os.path.join(dest, 'boot', 'grub', 'grub.conf'))
-        os.system('sync')
+        util.execute('chroot %s /sbin/grubby --remove-kernel=/boot/vmlinuz-template' % dest)
 
     @timeMe
-    def installGrub(self, fakeRoot, image):
+    def installGrub(self, fakeRoot, image, size):
         grubPath = os.path.join(fakeRoot, 'sbin', 'grub')
         if not os.path.exists(grubPath):
             log.info("grub not found. skipping execution.")
             return
 
-        #os.system('mount --bind /dev/ %s' % os.path.join(fakeRoot, 'dev'))
-        #dev = self.loop(image)
-        #try:
-        #    p = os.popen('chroot %s /sbin/grub --device-map=/dev/null --batch' \
-        #                     % fakeRoot, 'w')
-        #    p.write('device (hd0) %s\n' % dev)
-        #    p.write('root (hd0,0)\n')
-        #    p.write('setup (hd0)\n')
+        cylinders = size / constants.cylindersize
+        grubCmds = "device (hd0) %s\n" \
+                   "geometry (hd0) %d %d %d\n" \
+                   "root (hd0,0)\n" \
+                   "setup (hd0)" % (image, cylinders, constants.heads, constants.sectors)
 
-            #os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
-            #           '%s --batch') % (image, grubPath))
-        #finally:
-        #    os.system('umount %s' % os.path.join(fakeRoot, 'dev'))
-        #    os.system('losetup -d %s' % dev)
-        os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
-                   '%s --device-map=/dev/null --batch') % (image, grubPath))
+        # add fakeRoot's libraries to LD_LIBRARY_PATH for grub
+        libPaths = [('lib',), ('lib64',), ('usr', 'lib'), ('usr', 'lib64')]
+        os.environ['LD_LIBRARY_PATH'] = ":".join(os.path.join(fakeRoot, *x) for x in libPaths)
+
+        os.system(('echo -e "%s" | '
+                   '%s --no-floppy --batch') % (grubCmds, grubPath))
 
     @timeMe
     def gzip(self, source, dest = None):

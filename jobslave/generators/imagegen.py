@@ -106,7 +106,7 @@ class Generator(threading.Thread):
         self.conarycfg.configLine( \
             'entitlementDirectory /srv/jobslave/entitlements')
 
-        if parent.cfg.proxy:
+        if parent and parent.cfg.proxy:
             self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
 
         self.cc = conaryclient.ConaryClient(self.conarycfg)
@@ -278,6 +278,11 @@ class ImageGenerator(Generator):
         self.baseTrove = self.jobData['troveName']
         versionStr = self.jobData['troveVersion']
         flavorStr = self.jobData['troveFlavor']
+
+        if 'filesystems' in self.jobData:
+            self.mountDict = dict([(x[0], tuple(x[1:])) for x in self.jobData['filesystems'] if x[0]])
+        else:
+            self.mountDict = {}
 
         #Thaw the version string
         ver = versions.ThawVersion(versionStr)
