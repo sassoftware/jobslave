@@ -171,6 +171,7 @@ class InstallCallback(UpdateCallback):
 
         UpdateCallback.__init__(self)
 
+
 class Filesystem:
     loopDev = None
     offset = None
@@ -211,6 +212,13 @@ class Filesystem:
 
 class BootableImage(ImageGenerator):
     filesystems = {}
+
+    def __init__(self, *args, **kwargs):
+        ImageGenerator.__init__(self, *args, **kwargs)
+        self.scsiModules = False
+
+        log.info('building trove: (%s, %s, %s)' % \
+                 (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
@@ -307,13 +315,6 @@ class BootableImage(ImageGenerator):
             copyfile(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC'),
                      os.path.join(fakeRoot, 'etc', 'localtime'))
 
-    def __init__(self, *args, **kwargs):
-        ImageGenerator.__init__(self, *args, **kwargs)
-        self.scsiModules = False
-
-        log.info('building trove: (%s, %s, %s)' % \
-                 (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
-
     @timeMe
     def getTroveSize(self, mounts):
         log.info("getting changeset for partition sizing")
@@ -323,7 +324,7 @@ class BootableImage(ImageGenerator):
 
         return sizes, totalSize
 
-    def getImageSize(self):
+    def getImageSize(self, realign = constants.sectorSize, partitionOffset = constants.partitionOffset):
         mounts = [x[0] for x in self.jobData['filesystems'] if x[0]]
         sizes, totalSize = self.getTroveSize(mounts)
 
@@ -337,14 +338,12 @@ class BootableImage(ImageGenerator):
 
             # pad size and align to sector
             requestedSize = int(ceil((requestedSize + 20 * 1024 * 1024) / 0.87))
-            adjust = (constants.cylindersize- \
-                             (requestedSize % constants.cylindersize)) % \
-                             constants.sectorSize
-            requestedSize += adjust
+            if realign:
+                adjust = (realign - (requestedSize % realign)) % realign
+                requestedSize += adjust
 
             totalSize += requestedSize
-
-            realSizes[x] = requestedSize 
+            realSizes[x] = requestedSize
 
         totalSize += constants.partitionOffset
 
