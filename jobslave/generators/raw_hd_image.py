@@ -79,10 +79,6 @@ class RawHdImage(bootable_image.BootableImage):
 
         container.partition(partitions)
 
-        import epdb
-        epdb.st()
-
-
         lvmContainer = lvm.LVMContainer(lvmSize, image, (rootStart * constants.sectorSize) + rootSize)
         try:
             rootFs = bootable_image.Filesystem(image, rootSize, offset = constants.partitionOffset)
