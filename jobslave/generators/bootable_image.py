@@ -18,6 +18,8 @@ import tempfile
 # mint imports
 from jobslave import buildtypes, jobslave_error
 from jobslave.generators import gencslist, constants
+from jobslave.generators import loophelpers
+from jobslave.filesystems import sortMountPoints
 from jobslave.generators.imagegen import ImageGenerator, MSG_INTERVAL
 from jobslave import filesystems
 
@@ -169,8 +171,67 @@ class InstallCallback(UpdateCallback):
 
         UpdateCallback.__init__(self)
 
+class Filesystem:
+    loopDev = None
+    offset = None
+    mounted = False
+
+    def __init__(self, fsDev, size, offset = 0):
+        self.fsDev = fsDev
+        self.size = size
+        self.offset = offset
+
+    def mount(self, mountPoint):
+        self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
+        util.execute("mount %s %s" % (self.loopDev, mountPoint))
+        self.mounted = True
+
+    def umount(self):
+        if not self.loopDev or not self.mounted:
+            return
+
+        util.execute("umount %s" % self.loopDev)
+        self.mounted = False
+
+    def format(self):
+        if self.offset:
+            loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
+        else:
+            loopDev = self.fsDev
+        try:
+            cmd = 'mke2fs -L / -F -b 4096 %s' % loopDev
+            if self.size:
+                cmd += ' %s' % (self.size / 4096)
+            util.execute(cmd)
+            util.execute('tune2fs -i 0 -c 0 -j %s' % loopDev)
+        finally:
+            if self.offset:
+                loophelpers.loopDetach(loopDev)
+
 
 class BootableImage(ImageGenerator):
+    filesystems = {}
+
+    def addFilesystem(self, mountPoint, fs):
+        self.filesystems[mountPoint] = fs
+
+    def mountAll(self):
+        rootDir = os.path.join(self.topDir, "root")
+        mounts = sortMountPoints(self.filesystems.keys())
+        for mountPoint in reversed(mounts):
+            util.mkdirChain(rootDir + mountPoint)
+            self.filesystems[mountPoint].mount(rootDir + mountPoint)
+
+    def umountAll(self):
+        mounts = sortMountPoints(self.filesystems.keys())
+        for mountPoint in mounts:
+            self.filesystems[mountPoint].umount()
+
+    def makeImage(self):
+        assert self.filesystems
+        rootDir = os.path.join(self.topDir, "root")
+        self.installFileTree(rootDir)
+
     @timeMe
     def setupGrub(self, fakeRoot):
         if not os.path.exists(os.path.join(fakeRoot, 'sbin', 'grub')):
@@ -218,7 +279,7 @@ class BootableImage(ImageGenerator):
 
 
     @timeMe
-    def fileSystemOddsNEnds(self, fakeRoot, swapSize):
+    def fileSystemOddsNEnds(self, fakeRoot):
         rnl5 = False
         for svc in ('xdm', 'gdm', 'kdm'):
             rnl5 |= os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc))
@@ -235,16 +296,6 @@ class BootableImage(ImageGenerator):
 
         self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conary', 'config.d',
                                         self.basefilename), self.cc)
-
-        # fix the fstab if needed
-        if not swapSize:
-            util.execute('sed -i "s/.*swap.*//" %s' % \
-                             os.path.join(fakeRoot, 'etc', 'fstab'))
-        else:
-            cmd = 'dd if=/dev/zero of=%s count=%d bs=%d; /sbin/mkswap %s' % \
-                (os.path.join(fakeRoot, 'var', 'swap'), swapSize / 512, 512,
-                 os.path.join(fakeRoot, 'var', 'swap'))
-            util.execute(cmd)
 
         if rnl5:
             #tweak the inittab to start at level 5
@@ -272,26 +323,32 @@ class BootableImage(ImageGenerator):
 
         return sizes, totalSize
 
-    def getImageSize(self, mounts):
-        # override this function as appropriate
-        return self.getTroveSize(mounts)
+    def getImageSize(self):
+        mounts = [x[0] for x in self.jobData['filesystems'] if x[0]]
+        sizes, totalSize = self.getTroveSize(mounts)
 
-    def formatFS(self, image, size = None):
-        cmd = 'mke2fs -L / -F -b 4096 %s' % image
-        if size:
-            cmd += ' %s' % (size / 4096)
-        util.execute(cmd)
-        util.execute('tune2fs -i 0 -c 0 -j %s' % image)
+        totalSize = 0
+        realSizes = {}
+        for x in self.mountDict.keys():
+            requestedSize, minFreeSpace, type = self.mountDict[x]
 
-    @timeMe
-    def loop(self, image, offset = 0):
-        p = os.popen('losetup -f')
-        dev = p.read().strip()
-        p.close()
-        util.execute('losetup %s %s %s' % \
-                         (offset and ('-o%d' % offset) or '', dev, image))
-        util.execute('sync')
-        return dev
+            if requestedSize - sizes[x] < minFreeSpace:
+                requestedSize += sizes[x] + minFreeSpace
+
+            # pad size and align to sector
+            requestedSize = int(ceil((requestedSize + 20 * 1024 * 1024) / 0.87))
+            adjust = (constants.cylindersize- \
+                             (requestedSize % constants.cylindersize)) % \
+                             constants.sectorSize
+            requestedSize += adjust
+
+            totalSize += requestedSize
+
+            realSizes[x] = requestedSize 
+
+        totalSize += constants.partitionOffset
+
+        return totalSize, realSizes
 
     @timeMe
     def getKernelFlavor(self):
@@ -311,7 +368,7 @@ class BootableImage(ImageGenerator):
         f.close()
 
     @timeMe
-    def installFileTree(self, dest, swapFileSize):
+    def installFileTree(self, dest):
         self.status('Installing image contents')
         self.createTemporaryRoot(dest)
         fd, cfgPath = tempfile.mkstemp(dir=constants.tmpDir)
@@ -341,7 +398,7 @@ class BootableImage(ImageGenerator):
             # FIXME: remove this
             util.execute("conary sync lvm2[is:x86] --resolve --root %s --config-file %s" % (dest, cfgPath))
 
-            self.fileSystemOddsNEnds(dest, swapFileSize)
+            self.fileSystemOddsNEnds(dest)
             if self.scsiModules:
                 self.addScsiModules(dest)
             self.setupGrub(dest)
