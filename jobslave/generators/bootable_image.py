@@ -463,8 +463,12 @@ class BootableImage(ImageGenerator):
         #finally:
         #    os.system('umount %s' % os.path.join(fakeRoot, 'dev'))
         #    os.system('losetup -d %s' % dev)
-        os.system(('echo -e "device (hd0) %s\nroot (hd0,0)\nsetup (hd0)\n" | '
-                   '%s --device-map=/dev/null --batch') % (image, grubPath))
+
+        size = os.stat(image)[stat.ST_SIZE]
+        cylinders = size / constants.cylindersize
+        os.system(('echo -e "device (hd0) %s\ngeometry (hd0) %d %d %d\nroot (hd0,0)\nsetup (hd0)\n" | '
+                   '%s --no-floppy --batch') % (image, cylinders, constants.heads,
+                                                           constants.sectors, grubPath))
 
     @timeMe
     def gzip(self, source, dest = None):
