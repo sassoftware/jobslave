@@ -213,7 +213,7 @@ class Generator(threading.Thread):
         self.pid = os.fork()
         if not self.pid:
             # become session leader for clean job ending.
-            os.setsid()
+            os.setpgid(0, 0)
             try:
                 try:
                     os.close(inF)
@@ -257,10 +257,8 @@ class Generator(threading.Thread):
     def kill(self):
         if self.pid:
             try:
-                # this might be considered fairly dangerous since this command
-                # is executed as superuser, but chances of hitting the wrong pid
-                # are astronomically small.
-                os.kill(self.pid, signal.SIGKILL)
+                # send kill signal to entire process group
+                os.kill(-self.pid, signal.SIGKILL)
             except OSError, e:
                 # errno 3 is "no such process"
                 if e.errno != 3:
