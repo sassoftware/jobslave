@@ -103,7 +103,11 @@ class JobSlave(object):
             util.rmtree(os.path.join(constants.finishedDir, UUID),
                         ignore_errors = True)
         mcpClient = client.MCPClient(self.cfg)
-        mcpClient.stopSlave(self.cfg.nodeName, delayed = False)
+        try:
+            mcpClient.stopSlave(self.cfg.nodeName, delayed = False)
+        except:
+            # mask all errors. we're about to shutdown anyways
+            pass
         self.jobQueue.disconnect()
         self.controlTopic.disconnect()
         self.response.response.disconnect()
@@ -111,8 +115,7 @@ class JobSlave(object):
         # redundant protection: attempt to power off the machine in case
         # stop slave command does not get to master right away.
 
-        # FIXME: disabled during testing. reenable before deployment
-        #os.system('poweroff -h')
+        os.system('poweroff -h')
 
     # FIXME: decorate with a catchall exception logger
     def checkControlTopic(self):
