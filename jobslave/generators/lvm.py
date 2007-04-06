@@ -4,11 +4,17 @@ from jobslave.generators import bootable_image
 
 class LVMFilesystem(bootable_image.Filesystem):
     def mount(self, mountPoint):
+        if self.fsType == "swap":
+            return
+
         # no loopback needed here
         util.execute("mount %s %s" % (self.fsDev, mountPoint))
         self.mounted = True
 
     def umount(self):
+        if self.fsType == "swap":
+            return
+
         if not self.mounted:
             return
         util.execute("umount %s" % (self.fsDev))
@@ -26,12 +32,15 @@ class LVMContainer:
         util.execute("pvcreate %s" % self.loopDev)
         util.execute("vgcreate %s %s" % (self.volGroupName, self.loopDev))
 
-    def addFilesystem(self, mountPoint, size):
+    def addFilesystem(self, mountPoint, fsType, size):
         name = mountPoint.replace('/', '')
+        if not name:
+            name = 'root'
+
         fsDev = '/dev/vg00/%s' % name
         util.execute('lvcreate -n %s -L%dK vg00' % (name, size / 1024))
 
-        fs = LVMFilesystem(fsDev, size, fsLabel = mountPoint)
+        fs = LVMFilesystem(fsDev, fsType, size, fsLabel = mountPoint)
         self.filesystems.append(fs)
         return fs
 

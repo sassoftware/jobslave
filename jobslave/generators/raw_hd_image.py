@@ -52,7 +52,6 @@ class RawHdImage(bootable_image.BootableImage):
         util.mkdirChain(os.path.split(image)[0])
         if '/boot' in realSizes:
             rootPart = '/boot'
-            rootSize = realSizes['/boot']
         else:
             rootPart = '/'
 
@@ -81,15 +80,15 @@ class RawHdImage(bootable_image.BootableImage):
 
         lvmContainer = lvm.LVMContainer(lvmSize, image, (rootStart * constants.sectorSize) + rootSize)
         try:
-            rootFs = bootable_image.Filesystem(image, rootSize,
-                offset = constants.partitionOffset, fsLabel = rootPart)
+            rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
+                rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
             rootFs.format()
             self.addFilesystem(rootPart, rootFs)
 
-            for mountPoint in self.mountDict:
+            for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
                 if mountPoint == rootPart:
                     continue
-                fs = lvmContainer.addFilesystem(mountPoint, realSizes[mountPoint])
+                fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
                 fs.format()
 
                 self.addFilesystem(mountPoint, fs)

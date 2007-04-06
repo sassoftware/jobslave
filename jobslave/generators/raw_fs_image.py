@@ -13,14 +13,14 @@ from jobslave.filesystems import sortMountPoints
 from conary.lib import util, log
 
 class RawFsImage(bootable_image.BootableImage):
-    def makeBlankFS(self, image, size, fsLabel = None):
+    def makeBlankFS(self, image, fsType, size, fsLabel = None):
         if os.path.exists(image):
             util.rmtree(image)
         util.mkdirChain(os.path.split(image)[0])
         util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
                       (image, (size / 4096) - 1))
 
-        fs = bootable_image.Filesystem(image, size, fsLabel = fsLabel)
+        fs = bootable_image.Filesystem(image, fsType, size, fsLabel = fsLabel)
         fs.format()
         return fs
 
@@ -39,7 +39,7 @@ class RawFsImage(bootable_image.BootableImage):
                 tag = tag and tag or "root"
                 imgFiles[mountPoint] = os.path.join(self.workDir, "%s-%s.ext3" % (self.basefilename, tag))
                 log.info("creating mount point %s as %s size of %d" % (mountPoint, imgFiles[mountPoint], requestedSize))
-                fs = self.makeBlankFS(imgFiles[mountPoint], requestedSize, fsLabel = mountPoint)
+                fs = self.makeBlankFS(imgFiles[mountPoint], fsType, requestedSize, fsLabel = mountPoint)
 
                 self.addFilesystem(mountPoint, fs)
 

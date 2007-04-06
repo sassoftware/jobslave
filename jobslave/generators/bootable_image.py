@@ -176,20 +176,28 @@ class Filesystem:
     loopDev = None
     offset = None
     mounted = False
+    fsType = None
 
-    def __init__(self, fsDev, size, offset = 0, fsLabel = None):
+    def __init__(self, fsDev, fsType, size, offset = 0, fsLabel = None):
         self.fsDev = fsDev
         self.size = size
         self.offset = offset
         self.fsLabel = fsLabel
+        self.fsType = fsType
 
     def mount(self, mountPoint):
+        if self.fsType == "swap":
+            return
+
         self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
         util.execute("mount %s %s" % (self.loopDev, mountPoint))
         self.mounted = True
 
     def umount(self):
         if not self.loopDev or not self.mounted:
+            return
+
+        if self.fsType == "swap":
             return
 
         util.execute("umount %s" % self.loopDev)
@@ -202,13 +210,19 @@ class Filesystem:
         else:
             loopDev = self.fsDev
         try:
-            cmd = 'mke2fs -L / -F -b 4096 %s' % loopDev
-            if self.size:
-                cmd += ' %s' % (self.size / 4096)
-            util.execute(cmd)
+            if self.fsType == 'ext3':
+                cmd = 'mke2fs -L / -F -b 4096 %s' % loopDev
+                if self.size:
+                    cmd += ' %s' % (self.size / 4096)
+                util.execute(cmd)
 
-            labelCmd = '-L "%s"' % self.fsLabel
-            util.execute('tune2fs -i 0 -c 0 -j %s %s' % (labelCmd, loopDev))
+                labelCmd = '-L "%s"' % self.fsLabel
+                util.execute('tune2fs -i 0 -c 0 -j %s %s' % (labelCmd, loopDev))
+            elif self.fsType == 'swap':
+                cmd = 'mkswap -L %s %s' % (self.fsLabel, loopDev)
+                util.execute(cmd)
+            else:
+                raise RuntimeError, "Invalid filesystem type: %s" % self.fsType
         finally:
             if self.offset:
                 loophelpers.loopDetach(loopDev)
@@ -329,8 +343,13 @@ class BootableImage(ImageGenerator):
 
         fstabExtra = ""
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
-            fstabExtra += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % \
-                (mountPoint, mountPoint, (mountPoint == '/') and 1 or 2)
+            reqSize, freeSpace, fsType = self.mountDict[mountPoint]
+
+            if fsType == "ext3":
+                fstabExtra += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % \
+                    (mountPoint, mountPoint, (mountPoint == '/') and 1 or 2)
+            elif fsType == "swap":
+                fstabExtra += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
         fstab = open(os.path.join(fakeRoot, 'etc', 'fstab'), 'w')
         fstab.write(fstabExtra)
         fstab.write(oldFstab)
@@ -352,13 +371,15 @@ class BootableImage(ImageGenerator):
         totalSize = 0
         realSizes = {}
         for x in self.mountDict.keys():
-            requestedSize, minFreeSpace, type = self.mountDict[x]
+            requestedSize, minFreeSpace, fsType = self.mountDict[x]
 
             if requestedSize - sizes[x] < minFreeSpace:
                 requestedSize += sizes[x] + minFreeSpace
 
-            # pad size and align to sector
-            requestedSize = int(ceil((requestedSize + 20 * 1024 * 1024) / 0.87))
+            # pad size if ext3
+            if fsType == "ext3":
+                requestedSize = int(ceil((requestedSize + 20 * 1024 * 1024) / 0.87))
+            # realign to sector if requested
             if realign:
                 adjust = (realign - (requestedSize % realign)) % realign
                 requestedSize += adjust
@@ -404,6 +425,9 @@ class BootableImage(ImageGenerator):
                      str(self.baseFlavor), dest, cfgPath,
                      os.path.join(dest, 'root', 'conary-tag-script.in')))
 
+            # FIXME: remove this
+            util.execute("conary sync lvm2[is:x86] --resolve --root %s --config-file %s" % (dest, cfgPath))
+
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
                 util.execute(("TMPDIR=%s conary update --sync-to-parents "
                               "'kernel:runtime[%s]' --root %s "
@@ -414,9 +438,6 @@ class BootableImage(ImageGenerator):
                                                'conary-tag-script-kernel')))
             else:
                 log.info('Kernel detected, skipping.')
-
-            # FIXME: remove this
-            util.execute("conary sync lvm2[is:x86] --resolve --root %s --config-file %s" % (dest, cfgPath))
 
             self.fileSystemOddsNEnds(dest)
             if self.scsiModules:
