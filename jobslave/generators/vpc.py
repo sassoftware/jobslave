@@ -49,29 +49,24 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
         ofile.close()
 
     def write(self):
-        topDir = os.path.join(constants.tmpDir, self.jobId)
-        image = os.path.join(topDir, self.basefilename + '.hdd')
-        outputDir = os.path.join(constants.finishedDir, self.UUID)
-        util.mkdirChain(outputDir)
-        outputFile = os.path.join(outputDir, self.basefilename + self.suffix)
-        try:
-            self.makeHDImage(image)
+        image = os.path.join(self.workDir, self.basefilename + '.hdd')
+        outputFile = os.path.join(self.outputDir, self.basefilename + self.suffix)
 
-            self.status('Creating %s Image' % self.productName)
-            workingDir = os.path.join(topDir, self.basefilename)
-            if os.path.exists(workingDir):
-                util.rmtree(workingDir)
-            util.mkdirChain(workingDir)
+        self.makeHDImage(image)
+        self.status('Creating %s Image' % self.productName)
 
-            # pass just the basename, these functions handle the proper suffix
-            self.createVHD(image, os.path.join(workingDir, self.basefilename))
-            self.createVMC(os.path.join(workingDir, self.basefilename))
+        workingDir = os.path.join(self.workDir, self.basefilename)
+        if os.path.exists(workingDir):
+            util.rmtree(workingDir)
+        util.mkdirChain(workingDir)
 
-            self.status('Compressing Microsoft Virtual PC Image')
-            self.gzip(workingDir, outputFile)
-            self.postOutput(((outputFile, 'Virtual Server'),))
-        finally:
-            util.rmtree(topDir, ignore_errors = True)
+        # pass just the basename, these functions handle the proper suffix
+        self.createVHD(image, os.path.join(workingDir, self.basefilename))
+        self.createVMC(os.path.join(workingDir, self.basefilename))
+
+        self.status('Compressing Microsoft Virtual PC Image')
+        self.gzip(workingDir, outputFile)
+        self.postOutput(((outputFile, 'Virtual Server'),))
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)

@@ -222,7 +222,8 @@ class Generator(threading.Thread):
                     try:
                         self.write()
                     finally:
-                        util.rmtree(self.workDir)
+                        if os.path.exists(self.workDir):
+                            util.rmtree(self.workDir)
                     os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()
