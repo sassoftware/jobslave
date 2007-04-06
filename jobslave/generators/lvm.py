@@ -31,7 +31,7 @@ class LVMContainer:
         fsDev = '/dev/vg00/%s' % name
         util.execute('lvcreate -n %s -L%dK vg00' % (name, size / 1024))
 
-        fs = LVMFilesystem(fsDev, size)
+        fs = LVMFilesystem(fsDev, size, fsLabel = mountPoint)
         self.filesystems.append(fs)
         return fs
 

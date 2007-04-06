@@ -81,7 +81,8 @@ class RawHdImage(bootable_image.BootableImage):
 
         lvmContainer = lvm.LVMContainer(lvmSize, image, (rootStart * constants.sectorSize) + rootSize)
         try:
-            rootFs = bootable_image.Filesystem(image, rootSize, offset = constants.partitionOffset)
+            rootFs = bootable_image.Filesystem(image, rootSize,
+                offset = constants.partitionOffset, fsLabel = rootPart)
             rootFs.format()
             self.addFilesystem(rootPart, rootFs)
 
@@ -95,22 +96,15 @@ class RawHdImage(bootable_image.BootableImage):
 
             self.mountAll()
             self.makeImage()
-            self.installGrub(os.path.join(self.topDir, "root"), image, totalSize)
+            self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
         finally:
             self.umountAll()
             lvmContainer.destroy()
 
     def write(self):
-        # FIXME: don't init this here
-        self.topDir = os.path.join(constants.tmpDir, self.jobId)
-        outputDir = os.path.join(constants.finishedDir, self.UUID)
-        util.mkdirChain(outputDir)
-        image = os.path.join(self.topDir, self.basefilename + '.hdd')
-        finalImage = os.path.join(outputDir, self.basefilename + '.hdd.gz')
-        try:
-            self.makeHDImage(image)
-            outFile = self.gzip(image, finalImage)
-            self.postOutput(((finalImage, 'Raw Hard Disk Image'),))
-        finally:
-            pass
-        #    util.rmtree(self.topDir, ignore_errors = True)
+        image = os.path.join(self.workDir, self.basefilename + '.hdd')
+        self.makeHDImage(image)
+
+        finalImage = os.path.join(self.outputDir, self.basefilename + '.hdd.gz')
+        outFile = self.gzip(image, finalImage)
+        self.postOutput(((finalImage, 'Raw Hard Disk Image'),))

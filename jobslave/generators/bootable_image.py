@@ -177,10 +177,11 @@ class Filesystem:
     offset = None
     mounted = False
 
-    def __init__(self, fsDev, size, offset = 0):
+    def __init__(self, fsDev, size, offset = 0, fsLabel = None):
         self.fsDev = fsDev
         self.size = size
         self.offset = offset
+        self.fsLabel = fsLabel
 
     def mount(self, mountPoint):
         self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
@@ -192,6 +193,7 @@ class Filesystem:
             return
 
         util.execute("umount %s" % self.loopDev)
+        loophelpers.loopDetach(self.loopDev)
         self.mounted = False
 
     def format(self):
@@ -204,7 +206,9 @@ class Filesystem:
             if self.size:
                 cmd += ' %s' % (self.size / 4096)
             util.execute(cmd)
-            util.execute('tune2fs -i 0 -c 0 -j %s' % loopDev)
+
+            labelCmd = '-L "%s"' % self.fsLabel
+            util.execute('tune2fs -i 0 -c 0 -j %s %s' % (labelCmd, loopDev))
         finally:
             if self.offset:
                 loophelpers.loopDetach(loopDev)
@@ -220,11 +224,15 @@ class BootableImage(ImageGenerator):
         log.info('building trove: (%s, %s, %s)' % \
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
+        self.workDir = os.path.join(constants.tmpDir, self.jobId)
+        self.outputDir = os.path.join(constants.finishedDir, self.UUID)
+        util.mkdirChain(self.outputDir)
+
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
 
     def mountAll(self):
-        rootDir = os.path.join(self.topDir, "root")
+        rootDir = os.path.join(self.workDir, "root")
         mounts = sortMountPoints(self.filesystems.keys())
         for mountPoint in reversed(mounts):
             util.mkdirChain(rootDir + mountPoint)
@@ -236,8 +244,7 @@ class BootableImage(ImageGenerator):
             self.filesystems[mountPoint].umount()
 
     def makeImage(self):
-        assert self.filesystems
-        rootDir = os.path.join(self.topDir, "root")
+        rootDir = os.path.join(self.workDir, "root")
         self.installFileTree(rootDir)
 
     @timeMe
@@ -314,6 +321,20 @@ class BootableImage(ImageGenerator):
         if os.path.exists(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC')):
             copyfile(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC'),
                      os.path.join(fakeRoot, 'etc', 'localtime'))
+
+        # extend fstab based on the list of filesystems we have added
+        f = open(os.path.join(fakeRoot, 'etc', 'fstab'))
+        oldFstab = f.read()
+        f.close()
+
+        fstabExtra = ""
+        for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
+            fstabExtra += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % \
+                (mountPoint, mountPoint, (mountPoint == '/') and 1 or 2)
+        fstab = open(os.path.join(fakeRoot, 'etc', 'fstab'), 'w')
+        fstab.write(fstabExtra)
+        fstab.write(oldFstab)
+        fstab.close()
 
     @timeMe
     def getTroveSize(self, mounts):

@@ -5,6 +5,7 @@
 #
 
 import os
+import stat
 
 from jobslave.generators import bootable_image, raw_hd_image, constants
 
@@ -63,37 +64,28 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 os.chmod(os.path.join(baseDir, f), 0600)
 
     def write(self):
-        topDir = os.path.join(constants.tmpDir, self.jobId)
-        image = os.path.join(topDir, self.basefilename + '.hdd')
-        outputDir = os.path.join(constants.finishedDir, self.UUID)
-        util.mkdirChain(outputDir)
-        workingDir = os.path.join(topDir, self.basefilename)
-        outputFile = os.path.join(outputDir, self.basefilename + self.suffix)
-        try:
-            size = self.getImageSize()
-            self.makeHDImage(image, size)
-            self.status('Creating %s Image' % self.productName)
-            if os.path.exists(workingDir):
-                util.rmtree(workingDir)
-            util.mkdirChain(workingDir)
-            vmdkPath = os.path.join(workingDir, self.basefilename + '.vmdk')
-            vmxPath = os.path.join(workingDir, self.basefilename + '.vmx')
+        image = os.path.join(self.workDir, self.basefilename + '.hdd')
+        workingDir = os.path.join(self.workDir, self.basefilename)
+        outputFile = os.path.join(self.outputDir, self.basefilename + self.suffix)
 
-            # passing size simply to avoid recalculation, since that incurs
-            # network traffic
-            self.createVMDK(image, vmdkPath, size)
+        self.makeHDImage(image)
+        self.status('Creating %s Image' % self.productName)
+        if os.path.exists(workingDir):
+            util.rmtree(workingDir)
+        util.mkdirChain(workingDir)
+        vmdkPath = os.path.join(workingDir, self.basefilename + '.vmdk')
+        vmxPath = os.path.join(workingDir, self.basefilename + '.vmx')
 
-            self.createVMX(vmxPath)
-            self.setModes(workingDir)
-            self.gzip(workingDir, outputFile)
-            self.postOutput(((outputFile, self.productName + 'image'),))
-        finally:
-            util.rmtree(topDir, ignore_errors = True)
+        size = os.stat(image)[stat.ST_SIZE]
+        self.createVMDK(image, vmdkPath, size)
+
+        self.createVMX(vmxPath)
+        self.setModes(workingDir)
+        self.gzip(workingDir, outputFile)
+        self.postOutput(((outputFile, self.productName + 'image'),))
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
-        self.freespace = self.getBuildData("freespace") * 1048576
-        self.swapSize = self.getBuildData("swapSize") * 1048576
         self.adapter = self.getBuildData('diskAdapter')
         self.vmSnapshots = self.getBuildData('vmSnapshots')
         self.vmMemory = self.getBuildData('vmMemory')
@@ -103,6 +95,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         if self.adapter == 'lsilogic':
             self.scsiModules = True
+
 
 class VMwareESXImage(VMwareImage):
     def __init__(self, *args, **kwargs):

@@ -13,35 +13,35 @@ from jobslave.filesystems import sortMountPoints
 from conary.lib import util, log
 
 class RawFsImage(bootable_image.BootableImage):
-    def makeBlankFS(self, image, size):
+    def makeBlankFS(self, image, size, fsLabel = None):
         if os.path.exists(image):
             util.rmtree(image)
         util.mkdirChain(os.path.split(image)[0])
         util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
                       (image, (size / 4096) - 1))
 
-        fs = bootable_image.Filesystem(image, size)
+        fs = bootable_image.Filesystem(image, size, fsLabel = fsLabel)
         fs.format()
         return fs
 
     def makeFSImage(self, sizes):
-        root = self.topDir + "/root"
+        root = self.workDir + "/root"
         try:
             # create an image file per mount point
             imgFiles = {}
-            for x in self.mountDict.keys():
-                requestedSize, minFreeSpace, fsType = self.mountDict[x]
+            for mountPoint in self.mountDict.keys():
+                requestedSize, minFreeSpace, fsType = self.mountDict[mountPoint]
 
-                if requestedSize - sizes[x] < minFreeSpace:
-                    requestedSize += sizes[x] + minFreeSpace
+                if requestedSize - sizes[mountPoint] < minFreeSpace:
+                    requestedSize += sizes[mountPoint] + minFreeSpace
 
-                tag = x.replace("/", "")
+                tag = mountPoint.replace("/", "")
                 tag = tag and tag or "root"
-                imgFiles[x] = os.path.join(self.topDir, "%s-%s.ext3" % (self.basefilename, tag))
-                log.info("creating mount point %s as %s size of %d" % (x, imgFiles[x], requestedSize))
-                fs = self.makeBlankFS(imgFiles[x], requestedSize)
+                imgFiles[mountPoint] = os.path.join(self.workDir, "%s-%s.ext3" % (self.basefilename, tag))
+                log.info("creating mount point %s as %s size of %d" % (mountPoint, imgFiles[mountPoint], requestedSize))
+                fs = self.makeBlankFS(imgFiles[mountPoint], requestedSize, fsLabel = mountPoint)
 
-                self.addFilesystem(x, fs)
+                self.addFilesystem(mountPoint, fs)
 
             self.mountAll()
             self.installFileTree(root)
@@ -52,17 +52,10 @@ class RawFsImage(bootable_image.BootableImage):
         return imgFiles.values()
 
     def write(self):
-        mounts = [x[0] for x in self.jobData['filesystems'] if x[0]]
-
         totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
-        self.topDir = os.path.join(constants.tmpDir, self.jobId)
-        outputDir = os.path.join(constants.finishedDir, self.UUID)
-        util.mkdirChain(outputDir)
-        finalImage = os.path.join(outputDir, self.basefilename + '.ext3.gz')
-        try:
-            images = self.makeFSImage(sizes)
-            for image in images:
-                self.gzip(image, os.path.join(outputDir, os.path.basename(image)) + '.gz')
-            self.postOutput(((finalImage, 'Raw Filesystem Image'),))
-        finally:
-            util.rmtree(self.topDir, ignore_errors = True)
+        finalImage = os.path.join(self.outputDir, self.basefilename + '.ext3.gz')
+
+        images = self.makeFSImage(sizes)
+        for image in images:
+            self.gzip(image, os.path.join(self.outputDir, os.path.basename(image)) + '.gz')
+        self.postOutput(((finalImage, 'Raw Filesystem Image'),))

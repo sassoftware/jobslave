@@ -219,7 +219,10 @@ class Generator(threading.Thread):
                     os.close(inF)
                     self.parentPipe = outF
                     self.status('starting')
-                    self.write()
+                    try:
+                        self.write()
+                    finally:
+                        util.rmtree(self.workDir)
                     os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()
