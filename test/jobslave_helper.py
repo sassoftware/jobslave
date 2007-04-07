@@ -9,8 +9,10 @@ import os, sys
 import testhelp
 
 import threading
+import tempfile
 
-from jobslave import jobhandler, slave
+from jobslave import jobhandler, slave, constants, generators
+from conary.lib import util
 
 class DummyConnection(object):
     def __init__(self, *args, **kwargs):
@@ -78,7 +80,11 @@ class JobSlaveHelper(testhelp.TestCase):
         self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
         self.jobSlave = ThreadedJobSlave(self.slaveCfg)
 
+        self.finishedDir = tempfile.mkdtemp(prefix="jobslave-test")
+        generators.constants.finishedDir = self.finishedDir
+
     def tearDown(self):
+        util.rmtree(self.finishedDir)
         self.jobSlave.imageServer.stop()
         testhelp.TestCase.tearDown(self)
 
