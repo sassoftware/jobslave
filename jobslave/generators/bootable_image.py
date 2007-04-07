@@ -235,6 +235,16 @@ class BootableImage(ImageGenerator):
         ImageGenerator.__init__(self, *args, **kwargs)
         self.scsiModules = False
 
+        if filesystems not in self.jobData:
+            # support for legacy requests
+            freeSpace = self.getBuildData("freespace") * 1048576
+            swapSize = self.getBuildData("swapSize") * 1048576
+
+            self.jobData['filesystems'] = [
+                ('/', 0, freeSpace, 'ext3'),
+                ('swap', 0, swapSize, 'swap'),
+            ]
+
         log.info('building trove: (%s, %s, %s)' % \
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
