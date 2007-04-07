@@ -26,7 +26,7 @@ class LVMContainer:
     filesystems = []
 
     def __init__(self, totalSize, image = None, offset = 0):
-        assert image and offset # for now
+        assert image # for now
 
         self.loopDev = loophelpers.loopAttach(image, offset)
         util.execute("pvcreate %s" % self.loopDev)

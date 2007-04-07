@@ -84,18 +84,30 @@ def getRecipe(jobData):
         for trv in jobData['troveItems']:
             ver = trv['versionLock'] and trv['trvVersion'] or trv['trvLabel']
 
+            d = {}
+            d['name'] = trv['trvName']
+            d['flavor'] = trv['trvFlavor']
+            d['groupName'] = trv['subGroup']
+            d['ver'] = ver
+
             # XXX HACK to use the "fancy-flavored" group troves from
             # conary.rpath.com
             if trv['trvName'].startswith('group-') and \
                    trv['trvLabel'].startswith('conary.rpath.com@'):
+
+                branch = trv['trvLabel'].split("@")[1]
+                addonsLabel = "addons.rpath.com@" + branch
+
+                d['fancyFlavor'] = 'is:x86(i486,i586,i686) x86_64'
+                d['searchPath'] = str([addonsLabel] + recipeLabels)
+
                 recipe += indent + "if Arch.x86_64:\n"
-                recipe += (12 * " ") + "r.add('" + trv['trvName'] + "', '" + \
-                          ver + "', 'is:x86(i486,i586,i686) x86_64', " + \
-                          "groupName = '" + trv['subGroup'] +"')\n"
+                recipe += (12 * " ") + "r.add('%(name)s', flavor = '%(fancyFlavor)s', groupName = '%(groupName)s', searchPath = %(searchPath)s)\n" % d
                 recipe += indent + "else:\n" + (4 * " ")
-            recipe += indent + "r.add('" + trv['trvName'] + "', '" + ver \
-                      + "', '" + trv['trvFlavor'] + "', groupName = '" + \
-                      trv['subGroup'] +"')\n"
+                recipe += indent + "r.add('%(name)s', flavor = '%(flavor)s', groupName = '%(groupName)s', searchPath = %(searchPath)s)\n" % d
+            else:
+                recipe += indent + "r.add('%(name)s', '%(ver)s', '%(flavor)s', groupName = '%(groupName)s')\n" % d
+
         return recipe
 
 class GroupTroveCook(Generator):
