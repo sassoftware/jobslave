@@ -468,6 +468,67 @@ class InstallableIso(ImageGenerator):
         finally:
             util.rmtree(tmpRoot)
 
+    def extractPublicKeys(self, keyDir, topdir, csdir):
+        self.status('Extracting Public Keys')
+        homeDir = tempfile.mkdtemp()
+        tmpRoot = tempfile.mkdtemp()
+        try:
+            client = self.getConaryClient(tmpRoot,
+                                          self.build.getArchFlavor().freeze())
+
+            fingerprints = {}
+            fpTrovespecs = {}
+            for filename in [x for x in os.listdir(csdir) if x.endswith('.ccs')]:
+                cs = changeset.ChangeSetFromFile(os.path.join(csdir, filename))
+                troves = [trove.Trove(x) for x in cs.iterNewTroveList()]
+                for trv in troves:
+                    label = trv.version.v.trailingLabel()
+                    for sig in trv.troveInfo.sigs.digitalSigs.iter():
+                        tspecList = fpTrovespecs.get(sig[0], set())
+                        tspecList.add('%s=%s[%s]' % (trv.getName(),
+                                                 str(trv.getVersion()),
+                                                 str(trv.getFlavor())))
+                        fpTrovespecs[sig[0]] = tspecList
+                        if fingerprints.has_key(label):
+                            if sig[0] not in fingerprints[label]:
+                                fingerprints[label].append(sig[0])
+                        else:
+                            fingerprints.update({label:[sig[0]]})
+
+            missingKeys = []
+            for label, fingerprints in fingerprints.items():
+                for fp in fingerprints:
+                    try:
+                        key = client.repos.getAsciiOpenPGPKey(label, fp)
+                        fd, fname = tempfile.mkstemp()
+                        os.close(fd)
+                        fd = open(fname, 'w')
+                        fd.write(key)
+                        fd.close()
+                        call('gpg', '--home', homeDir,
+                             '--trust-model', 'always',
+                             '--import', fname)
+                        os.unlink(fname)
+                    except openpgpfile.KeyNotFound:
+                        missingKeys.append(fp)
+
+            if missingKeys:
+                errorMessage = 'The following troves do not have keys in ' \
+                    'their associated repositories:\n'
+                for fingerprint in missingKeys:
+                    errorMessage += '%s requires %s\n' %  \
+                        (', '.join(fpTrovespecs[fingerprint]), fingerprint)
+                if self.isocfg.failOnKeyError:
+                    raise RuntimeError(errorMessage)
+                else:
+                    print >> sys.stderr, errorMessage
+            call('gpg', '--home', homeDir, '--export',
+                 '--no-auto-check-trustdb', '-o',
+                 os.path.join(topdir, 'public_keys.gpg'))
+        finally:
+            util.rmtree(homeDir)
+            util.rmtree(tmpRoot)
+
     def extractChangeSets(self, csdir):
         # build a set of the things we already have extracted.
         self.status("Extracting changesets")
@@ -564,6 +625,7 @@ class InstallableIso(ImageGenerator):
         discInfoFile.close()
 
         self.extractMediaTemplate(topdir)
+        self.extractPublicKeys('public_keys', topdir, csdir)
         self.setupKickstart(topdir)
         self.writeProductImage(topdir, getArchFlavor(self.baseFlavor).freeze())
 
