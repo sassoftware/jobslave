@@ -15,33 +15,7 @@ from cStringIO import StringIO
 from conary.repository import changeset
 from jobslave import filesystems
 from jobslave.generators import lvm
-
-class ExecuteLoggerTest(unittest.TestCase):
-    def setUp(self):
-        self.oldOsSystem = os.system
-        self.callLog = []
-
-        def osSystem(cmd):
-            self.callLog.append(cmd)
-
-        os.system = osSystem
-
-    def injectPopen(self, output):
-        self.oldPopen = os.popen
-        cs = StringIO()
-        cs.write(output)
-        cs.seek(0)
-
-        def popen(cmd):
-            return cs
-
-        os.popen = popen
-
-    def tearDown(self):
-        os.system = self.oldOsSystem
-
-    def reset(self):
-        self.callLog = []
+from jobslave_helper import ExecuteLoggerTest
 
 class LVMTest(ExecuteLoggerTest):
     def testLVMContainer(self):

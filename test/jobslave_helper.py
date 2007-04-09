@@ -11,6 +11,8 @@ import testhelp
 import threading
 import tempfile
 
+
+from cStringIO import StringIO
 from jobslave import jobhandler, slave, constants, generators
 from conary.lib import util
 
@@ -117,3 +119,34 @@ class JobSlaveHelper(testhelp.TestCase):
         finally:
             os.dup2(oldErr, sys.stderr.fileno())
             os.dup2(oldOut, sys.stdout.fileno())
+
+
+class ExecuteLoggerTest(JobSlaveHelper):
+    def setUp(self):
+        self.oldOsSystem = os.system
+        self.callLog = []
+
+        def osSystem(cmd):
+            self.callLog.append(cmd)
+
+        os.system = osSystem
+        JobSlaveHelper.setUp(self)
+
+    def injectPopen(self, output):
+        self.oldPopen = os.popen
+        cs = StringIO()
+        cs.write(output)
+        cs.seek(0)
+
+        def popen(cmd):
+            os.popen = self.oldPopen
+            return cs
+
+        os.popen = popen
+
+    def tearDown(self):
+        JobSlaveHelper.tearDown(self)
+        os.system = self.oldOsSystem
+
+    def reset(self):
+        self.callLog = []
