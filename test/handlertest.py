@@ -53,6 +53,7 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
         assert handler, "Failed to get Virtual Server Image"
 
     def testGetXenOVA(self):
+        raise testsuite.SkipTestException("No handler for AMI yet")
         handler = self.supressOutput(self.getHandler,
                                      buildtypes.XEN_OVA)
         assert handler, "Failed to get Xen Enterprise Image"
