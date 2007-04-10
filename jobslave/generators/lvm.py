@@ -1,3 +1,5 @@
+import time
+
 from conary.lib import util
 from jobslave.generators import loophelpers
 from jobslave.generators import bootable_image
@@ -17,7 +19,17 @@ class LVMFilesystem(bootable_image.Filesystem):
 
         if not self.mounted:
             return
-        util.execute("umount %s" % (self.fsDev))
+        tries = 0
+        while tries < 5:
+            try:
+                util.execute("sync")
+                util.execute("umount %s" % (self.fsDev))
+            except:
+                pass
+            else:
+                break
+            time.sleep(1)
+            tries += 1
         self.mounted = False
 
 class LVMContainer:
