@@ -281,10 +281,17 @@ class ImageGenerator(Generator):
         versionStr = self.jobData['troveVersion']
         flavorStr = self.jobData['troveFlavor']
 
-        if 'filesystems' in self.jobData:
-            self.mountDict = dict([(x[0], tuple(x[1:])) for x in self.jobData['filesystems'] if x[0]])
-        else:
-            self.mountDict = {}
+        if filesystems not in self.jobData:
+            # support for legacy requests
+            freeSpace = self.getBuildData("freespace") * 1048576
+            swapSize = self.getBuildData("swapSize") * 1048576
+
+            self.jobData['filesystems'] = [
+                ('/', 0, freeSpace, 'ext3'),
+                ('swap', 0, swapSize, 'swap'),
+            ]
+
+        self.mountDict = dict([(x[0], tuple(x[1:])) for x in self.jobData['filesystems'] if x[0]])
 
         #Thaw the version string
         ver = versions.ThawVersion(versionStr)
