@@ -425,9 +425,6 @@ class BootableImage(ImageGenerator):
                      str(self.baseFlavor), dest, cfgPath,
                      os.path.join(dest, 'root', 'conary-tag-script.in')))
 
-            # FIXME: remove this
-            util.execute("conary sync lvm2[is:x86] --resolve --root %s --config-file %s" % (dest, cfgPath))
-
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
                 util.execute(("TMPDIR=%s conary update --sync-to-parents "
                               "'kernel:runtime[%s]' --root %s "
