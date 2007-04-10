@@ -281,7 +281,7 @@ class ImageGenerator(Generator):
         versionStr = self.jobData['troveVersion']
         flavorStr = self.jobData['troveFlavor']
 
-        if filesystems not in self.jobData:
+        if 'filesystems' not in self.jobData:
             # support for legacy requests
             freeSpace = self.getBuildData("freespace") * 1048576
             swapSize = self.getBuildData("swapSize") * 1048576
