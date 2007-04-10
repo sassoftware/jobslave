@@ -232,7 +232,6 @@ class BootableImage(ImageGenerator):
     filesystems = {}
 
     def __init__(self, *args, **kwargs):
-        ImageGenerator.__init__(self, *args, **kwargs)
         self.scsiModules = False
 
         if filesystems not in self.jobData:
@@ -245,6 +244,7 @@ class BootableImage(ImageGenerator):
                 ('swap', 0, swapSize, 'swap'),
             ]
 
+        ImageGenerator.__init__(self, *args, **kwargs)
         log.info('building trove: (%s, %s, %s)' % \
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
