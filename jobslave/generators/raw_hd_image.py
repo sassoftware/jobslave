@@ -4,7 +4,7 @@
 # All Rights Reserved
 #
 
-import os
+import os, sys
 import stat
 import tempfile
 
@@ -97,8 +97,11 @@ class RawHdImage(bootable_image.BootableImage):
             self.makeImage()
             self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
         finally:
-            self.umountAll()
-            lvmContainer.destroy()
+            try:
+                self.umountAll()
+                lvmContainer.destroy()
+            except Exception, e:
+                print >> sys.stderr, "Error tearing down LVM setup:", str(e)
 
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')

@@ -317,8 +317,6 @@ class ImageGenerator(Generator):
 
         self.basefilename = basefilename
 
-
-
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()
         trv = repos.getTroves([trove])
