@@ -219,11 +219,12 @@ class Generator(threading.Thread):
                     os.close(inF)
                     self.parentPipe = outF
                     self.status('starting')
+                    self.write()
                     try:
-                        self.write()
-                    finally:
                         if os.path.exists(self.workDir):
                             util.rmtree(self.workDir)
+                    except Exception, e:
+                        log.error("couldn't clean up afterwards: %s" % str(e))
                     os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()

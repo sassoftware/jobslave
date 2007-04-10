@@ -79,26 +79,26 @@ class RawHdImage(bootable_image.BootableImage):
         container.partition(partitions)
 
         lvmContainer = lvm.LVMContainer(lvmSize, image, (rootStart * constants.sectorSize) + rootSize)
-        try:
-            rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
-                rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
-            rootFs.format()
-            self.addFilesystem(rootPart, rootFs)
 
-            for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
-                if mountPoint == rootPart:
-                    continue
-                fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
-                fs.format()
+        rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
+            rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
+        rootFs.format()
+        self.addFilesystem(rootPart, rootFs)
 
-                self.addFilesystem(mountPoint, fs)
+        for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
+            if mountPoint == rootPart:
+                continue
+            fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
+            fs.format()
 
-            self.mountAll()
-            self.makeImage()
-            self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
-        finally:
-            self.umountAll()
-            lvmContainer.destroy()
+            self.addFilesystem(mountPoint, fs)
+
+        self.mountAll()
+        self.makeImage()
+        self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
+
+        self.umountAll()
+        lvmContainer.destroy()
 
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
