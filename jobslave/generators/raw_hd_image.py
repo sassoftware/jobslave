@@ -79,29 +79,29 @@ class RawHdImage(bootable_image.BootableImage):
         container.partition(partitions)
 
         lvmContainer = lvm.LVMContainer(lvmSize, image, (rootStart * constants.sectorSize) + rootSize)
+
+        rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
+            rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
+        rootFs.format()
+        self.addFilesystem(rootPart, rootFs)
+
+        for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
+            if mountPoint == rootPart:
+                continue
+            fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
+            fs.format()
+
+            self.addFilesystem(mountPoint, fs)
+
+        self.mountAll()
+        self.makeImage()
+        self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
+
         try:
-            rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
-                rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
-            rootFs.format()
-            self.addFilesystem(rootPart, rootFs)
-
-            for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
-                if mountPoint == rootPart:
-                    continue
-                fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
-                fs.format()
-
-                self.addFilesystem(mountPoint, fs)
-
-            self.mountAll()
-            self.makeImage()
-            self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
-        finally:
-            try:
-                self.umountAll()
-                lvmContainer.destroy()
-            except Exception, e:
-                print >> sys.stderr, "Error tearing down LVM setup:", str(e)
+            self.umountAll()
+            lvmContainer.destroy()
+        except Exception, e:
+            print >> sys.stderr, "Error tearing down LVM setup:", str(e)
 
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
