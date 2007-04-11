@@ -420,7 +420,7 @@ class BootableImage(ImageGenerator):
             util.execute('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
             util.execute( \
                 ("TMPDIR=%s conary update '%s=%s[%s]' --root %s "
-                 "--config-file %s --replace-files --tag-script=%s --config 'threaded False'") % \
+                 "--config-file %s --replace-files --tag-script=%s") % \
                     (constants.tmpDir, self.baseTrove, self.baseVersion,
                      str(self.baseFlavor), dest, cfgPath,
                      os.path.join(dest, 'root', 'conary-tag-script.in')))
@@ -428,7 +428,7 @@ class BootableImage(ImageGenerator):
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
                 util.execute(("TMPDIR=%s conary update --sync-to-parents "
                               "'kernel:runtime[%s]' --root %s "
-                              "--config-file %s --tag-script=%s --config 'threaded False'") % \
+                              "--config-file %s --tag-script=%s") % \
                                  (constants.tmpDir, self.getKernelFlavor(),
                                   dest, cfgPath,
                                   os.path.join(dest, 'root',
