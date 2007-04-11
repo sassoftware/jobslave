@@ -97,8 +97,12 @@ class RawHdImage(bootable_image.BootableImage):
         self.makeImage()
         self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
 
-        import epdb
-        epdb.st()
+        try:
+            rootFs.umount()
+        except Exception, e:
+            import epdb
+            epdb.st()
+
 
         try:
             self.umountAll()
