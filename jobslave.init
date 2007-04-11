@@ -20,7 +20,7 @@
 
 LONGNAME="rBuilder Job Slave"
 PIDFILE='/var/run/jobslave.pid'
-DAEMON='/usr/bin/jobslave'
+DAEMON='/tmp/jobslave/bin//jobslave'
 
 start() {
     echo -n "Starting $LONGNAME:"
@@ -29,7 +29,8 @@ start() {
         mount -t nfs -o wsize=4096,rsize=4096,tcp,hard $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
     done
     modprobe loop max_loop=256
-    screen -d -m $DAEMON
+    hg clone http://hg.rdu.rpath.com/hg/jobslave/ /tmp/jobslave/
+    PYTHONPATH=/tmp/jobslave/ screen -d -m $DAEMON
     echo ""
 }
 
