@@ -28,6 +28,11 @@ start() {
     do
         mount -t nfs -o wsize=4096,rsize=4096,tcp,hard $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
     done
+
+    if [ -f /dev/xvda2 ]; then
+        mount /dev/xvda2 /srv/jobslave/tmp/
+    fi
+
     modprobe loop max_loop=256
     hg clone http://hg.rdu.rpath.com/hg/jobslave/ /tmp/jobslave/
     PYTHONPATH=/tmp/jobslave/ screen -d -m $DAEMON
