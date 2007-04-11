@@ -103,7 +103,6 @@ class RawHdImage(bootable_image.BootableImage):
             import epdb
             epdb.st()
 
-
         try:
             self.umountAll()
             lvmContainer.destroy()
