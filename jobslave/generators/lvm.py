@@ -1,3 +1,10 @@
+#
+# Copyright (c) 2007 rPath, Inc.
+# All Rights Reserved
+#
+
+import sys
+
 from conary.lib import util
 from jobslave.generators import loophelpers
 from jobslave.generators import bootable_image
@@ -17,7 +24,11 @@ class LVMFilesystem(bootable_image.Filesystem):
 
         if not self.mounted:
             return
-        util.execute("umount %s" % (self.fsDev))
+
+        try:
+            util.execute("umount %s" % (self.fsDev))
+        except RuntimeError, e:
+            print >> sys.stderr, "Error umounting device:", str(e)
         self.mounted = False
 
 class LVMContainer:

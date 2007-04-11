@@ -200,8 +200,11 @@ class Filesystem:
         if self.fsType == "swap":
             return
 
-        util.execute("umount %s" % self.loopDev)
-        loophelpers.loopDetach(self.loopDev)
+        try:
+            util.execute("umount %s" % self.loopDev)
+            loophelpers.loopDetach(self.loopDev)
+        except RuntimeError, e:
+            print >> sys.stderr, "Failed to umount or detach loop device:", str(e)
         self.mounted = False
 
     def format(self):
