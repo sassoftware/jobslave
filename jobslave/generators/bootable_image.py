@@ -200,17 +200,7 @@ class Filesystem:
         if self.fsType == "swap":
             return
 
-        tries = 0
-        while tries < 5:
-            try:
-                util.execute("sync")
-                util.execute("umount %s" % self.loopDev)
-            except:
-                pass
-            else:
-                break
-            tries += 1
-            time.sleep(1)
+        util.execute("umount %s" % self.loopDev)
         loophelpers.loopDetach(self.loopDev)
         self.mounted = False
 
