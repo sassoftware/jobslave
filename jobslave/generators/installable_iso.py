@@ -532,32 +532,29 @@ class InstallableIso(ImageGenerator):
     def extractChangeSets(self, csdir):
         # build a set of the things we already have extracted.
         self.status("Extracting changesets")
-        existingChangesets = set()
-        for path in (os.path.join(csdir, x) for x in os.listdir(csdir)):
-            existingChangesets.add(path)
 
         tmpRoot = tempfile.mkdtemp(dir=constants.tmpDir)
-        client = self.getConaryClient(\
-            tmpRoot, getArchFlavor(self.baseFlavor).freeze())
-        trvList = client.repos.findTrove(client.cfg.installLabelPath[0],\
-                                 (self.troveName, str(self.troveVersion), self.troveFlavor),
-                                 defaultFlavor = client.cfg.flavor)
+        client = self.getConaryClient(tmpRoot,
+                                      getArchFlavor(self.baseFlavor).freeze())
+        trvList = client.repos.findTrove(client.cfg.installLabelPath[0],
+                                         (self.troveName, 
+                                          str(self.troveVersion),
+                                          self.troveFlavor),
+                                         defaultFlavor = client.cfg.flavor)
 
         if not trvList:
             raise RuntimeError, "no match for %s" % groupName
         elif len(trvList) > 1:
             raise RuntimeError, "multiple matches for %s" % groupName 
 
-        groupName, groupVer, groupFlavor = trvList[0]
+        tg = gencslist.TreeGenerator(client.cfg, client, trvList[0],
+                                     cacheDir=contstants.cachePath)
+        tg.parsePackageData()
+        tg.extractChangeSets(csdir, callback=self.callback)
 
-        rc = gencslist.extractChangeSets(client, client.cfg, csdir, groupName,
-                                         groupVer, groupFlavor,
-                                         oldFiles = existingChangesets,
-                                         cacheDir = constants.cachePath,
-                                         callback = self.callback)
         print >> sys.stderr, "done extracting changesets"
         sys.stderr.flush()
-        return rc
+        return tg
 
     def _setupTrove(self):
         self.troveName = self.baseTrove
@@ -584,32 +581,20 @@ class InstallableIso(ImageGenerator):
             maxIsoSize -= 1024 * 1024
 
         csdir = self.prepareTemplates(topdir)
-        cslist, groupcs = self.extractChangeSets(csdir)
+        tg = self.extractChangeSets(csdir)
 
         if self.arch == 'x86':
             anacondaArch = 'i386'
         else:
             anacondaArch = self.arch
 
-        # write the sqldb file
         baseDir = os.path.join(topdir, self.productDir, 'base')
-        sqldbPath = os.path.join(baseDir, 'sqldb')
-        tmpFd, tmpCfgPath = tempfile.mkstemp(dir=constants.tmpDir)
-        try:
-            os.close(tmpFd)
-            gencslist.writeSqldb(groupcs, sqldbPath, cfgFile = tmpCfgPath)
-        finally:
-            util.rmtree(tmpCfgPath, ignore_errors = True)
 
         # write the cslist
-        cslistPath = os.path.join(baseDir, 'cslist')
-        cslistFile = file(cslistPath, "w")
-        cslistFile.write("\n".join(cslist))
-        cslistFile.close()
+        tg.writeCsList(baseDir)
 
         # write the group.ccs
-        groupCsPath = os.path.join(baseDir, 'group.ccs')
-        groupcs.writeToFile(groupCsPath)
+        tg.writeGroupCs(baseDir)
 
         # write .discinfo
         discInfoPath = os.path.join(topdir, ".discinfo")
