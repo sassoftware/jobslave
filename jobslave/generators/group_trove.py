@@ -5,6 +5,7 @@
 #
 import os.path
 import sys
+import string
 import tempfile
 import time
 
