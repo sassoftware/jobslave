@@ -67,6 +67,8 @@ class JobSlave(object):
                                        'control', namespace = cfg.namespace,
                                        timeOut = 0)
 
+        self.jobControlQueue = None
+
         self.response = response.MCPResponse(self.cfg.nodeName, cfg)
         self.timeIdle = time.time()
         self.jobHandler = None
@@ -112,6 +114,8 @@ class JobSlave(object):
         self.controlTopic.disconnect()
         self.response.response.disconnect()
         del self.response
+        if self.jobControlQueue:
+            self.jobControlQueue.disconnect()
         # redundant protection: attempt to power off the machine in case
         # stop slave command does not get to master right away.
 
@@ -119,10 +123,11 @@ class JobSlave(object):
 
     # FIXME: decorate with a catchall exception logger
     def checkControlTopic(self):
-        dataStr = self.controlTopic.read()
+        dataStr = self.controlTopic.read() or \
+            (self.jobControlQueue and self.jobControlQueue.read())
         while dataStr:
             data = simplejson.loads(dataStr)
-            if data.get('node') in ('masters', self.cfg.nodeName):
+            if data.get('node') in ('slaves', self.cfg.nodeName):
                 action = data['action']
                 kwargs = dict([(str(x[0]), x[1]) for x in data.iteritems() \
                                    if x[0] not in ('node', 'action')])
@@ -147,9 +152,17 @@ class JobSlave(object):
         # to ensure this is honored when refactoring.
         if (self.timeIdle is not None) and \
                 (time.time() - self.timeIdle) > self.cfg.TTL:
-            self.takingJobs = False
+            # avoid race conditions by setting queue limit to zero
+            self.jobQueue.setLimit(0)
+            # this check prevents setting takingJobs to false if one just
+            # came in.
+            if not self.jobQueue.inbound:
+                self.takingJobs = False
         if self.jobHandler and not self.jobHandler.isAlive():
             self.timeIdle = time.time()
+            self.jobControlQueue.disconnect()
+            self.jobControlQueue = None
+
             self.jobHandler = None
             if self.takingJobs:
                 self.jobQueue.incrementLimit()
@@ -163,6 +176,9 @@ class JobSlave(object):
             if self.jobHandler:
                 self.jobHandler.start()
                 self.timeIdle = None
+                self.jobControlQueue = queue.Queue( \
+                    self.cfg.queueHost, self.cfg.queuePort, data['UUID'],
+                    namespace = self.cfg.namespace, timeOut = 0)
             else:
                 self.response.jobStatus(data['UUID'], jobstatus.FAILED,
                                         'Unsupported Output type')
@@ -195,6 +211,8 @@ class JobSlave(object):
             handlerJobId = self.jobHandler.jobId
             if jobId == handlerJobId:
                 self.jobHandler.kill()
+                self.jobControlQueue.disconnect()
+                self.jobControlQueue = None
         else:
             self.response.jobStatus(jobId, jobstatus.FAILED, 'No Job')
 
@@ -239,43 +257,3 @@ def main():
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
     slave = JobSlave(cfg)
     slave.run()
-
-def runDaemon():
-    pidFile = os.path.join(os.path.sep, 'var', 'run', 'jobslave.pid')
-    if os.path.exists(pidFile):
-        f = open(pidFile)
-        pid = f.read()
-        f.close()
-        statPath = os.path.join(os.path.sep, 'proc', pid, 'stat')
-        if os.path.exists(statPath):
-            f = open(statPath)
-            name = f.read().split()[1][1:-1]
-            if name == 'jobslave':
-                print >> sys.stderr, "Job Slave already running as: %s" % pid
-                sys.stderr.flush()
-                sys.exit(-1)
-            else:
-                # pidfile doesn't point to a job slave
-                os.unlink(pidFile)
-        else:
-            # pidfile is stale
-            os.unlink(pidFile)
-    pid = os.fork()
-    if not pid:
-        os.setpgid(0, 0)
-        devNull = os.open(os.devnull, os.O_RDWR)
-        stdout = os.open('/tmp/stdout', os.WRONLY)
-        stderr = os.open('/tmp/stdout', os.WRONLY)
-        os.dup2(stdout, sys.stdout.fileno())
-        os.dup2(stderr, sys.stderr.fileno())
-        os.dup2(devNull, sys.stdin.fileno())
-        os.close(devNull)
-        os.close(stdout)
-        os.close(stderr)
-        pid = os.fork()
-        if not pid:
-            f = open(pidFile, 'w')
-            f.write(str(os.getpid()))
-            f.close()
-            main()
-            os.unlink(pidFile)
