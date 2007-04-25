@@ -536,19 +536,9 @@ class InstallableIso(ImageGenerator):
         tmpRoot = tempfile.mkdtemp(dir=constants.tmpDir)
         client = self.getConaryClient(tmpRoot,
                                       getArchFlavor(self.baseFlavor).freeze())
-        trvList = client.repos.findTrove(client.cfg.installLabelPath[0],
-                                         (self.troveName, 
-                                          str(self.troveVersion),
-                                          self.troveFlavor),
-                                         defaultFlavor = client.cfg.flavor)
-
-        if not trvList:
-            raise RuntimeError, "no match for %s" % groupName
-        elif len(trvList) > 1:
-            raise RuntimeError, "multiple matches for %s" % groupName 
-
-        tg = gencslist.TreeGenerator(client.cfg, client, trvList[0],
-                                     cacheDir=contstants.cachePath)
+        tg = gencslist.TreeGenerator(client.cfg, client,
+            (self.troveName, self.troveVersion, self.troveFlavor),
+            cacheDir=contstants.cachePath)
         tg.parsePackageData()
         tg.extractChangeSets(csdir, callback=self.callback)
 
