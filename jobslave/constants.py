@@ -4,4 +4,4 @@
 # All rights reserved
 #
 
-version = '3.1.0'
+version = '4.0.0'
