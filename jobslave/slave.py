@@ -54,6 +54,17 @@ class SlaveConfig(client.MCPClientConfig):
     imageTimeout = (cfgtypes.CfgInt, 600)
     proxy = (cfgtypes.CfgString, None)
 
+def catchErrors(func):
+    def wrapper(self, *args, **kwargs):
+        try:
+            func(self, *args, **kwargs)
+        except:
+            exc_class, exc, bt = sys.exc_info()
+            log.error("%s %s" % ("Uncaught Exception: (" + \
+                exc.__class__.__name__ + ')', str(exc)))
+            log.error('\n'.join(traceback.format_tb(bt)))
+    return wrapper
+
 class JobSlave(object):
     def __init__(self, cfg):
         self.cfg = cfg
@@ -121,7 +132,7 @@ class JobSlave(object):
 
         os.system('poweroff -h')
 
-    # FIXME: decorate with a catchall exception logger
+    @catchErrors
     def checkControlTopic(self):
         dataStr = self.controlTopic.read() or \
             (self.jobControlQueue and self.jobControlQueue.read())
@@ -146,6 +157,10 @@ class JobSlave(object):
     def servingImages(self):
         (time.time() - self.imageIdle) < self.cfg.imageTimeout
 
+    # Note, ignoring errors at this level can have interesting side effects,
+    # since this function is responsible for determining if a slave should go
+    # away on it's own.
+    @catchErrors
     def checkJobQueue(self):
         # this function is designed to ensure that TTL checks can block
         # the jobQueue from picking up a job when it's time to die. be careful
@@ -172,7 +187,14 @@ class JobSlave(object):
         dataStr = self.jobQueue.read()
         if dataStr:
             data = simplejson.loads(dataStr)
-            self.jobHandler = jobhandler.getHandler(data, self)
+            try:
+                self.jobHandler = jobhandler.getHandler(data, self)
+            except Exception, e:
+                print "Error starting job:", e
+                exc_class, exc, bt = sys.exc_info()
+                print ''.join(traceback.format_tb(bt))
+                self.response.jobStatus(data['UUID'], jobstatus.FAILED,
+                                        'Internal Server Error')
             if self.jobHandler:
                 self.jobHandler.start()
                 self.timeIdle = None
