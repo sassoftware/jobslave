@@ -66,14 +66,14 @@ def getRecipe(jobData):
         indent = 4 * " "
 
         recipe += "class " + name + "(GroupRecipe):\n"
-        recipe += indent + "name = '%s'\n" % jobData['recipeName']
-        recipe += indent + "version = '%s'\n\n" % jobData['upstreamVersion']
+        recipe += indent + "name = '%s'\n" % str(jobData['recipeName'])
+        recipe += indent + "version = '%s'\n\n" % str(jobData['upstreamVersion'])
         recipe += indent + "autoResolve = %s\n\n" % \
                   str(jobData['autoResolve'])
         recipe += indent + 'def setup(r):\n'
 
         indent = 8 * " "
-        recipeLabels = jobData['labelPath']
+        recipeLabels = [str(x) for x in jobData['labelPath']]
         recipe += indent + "r.setLabelPath(%s)\n" % \
                   str(recipeLabels).split('[')[1].split(']')[0]
 
@@ -86,10 +86,10 @@ def getRecipe(jobData):
             ver = trv['versionLock'] and trv['trvVersion'] or trv['trvLabel']
 
             d = {}
-            d['name'] = trv['trvName']
-            d['flavor'] = trv['trvFlavor']
-            d['groupName'] = trv['subGroup']
-            d['ver'] = ver
+            d['name'] = str(trv['trvName'])
+            d['flavor'] = str(trv['trvFlavor'])
+            d['groupName'] = str(trv['subGroup'])
+            d['ver'] = str(ver)
 
             # XXX HACK to use the "fancy-flavored" group troves from
             # conary.rpath.com
@@ -100,7 +100,7 @@ def getRecipe(jobData):
                 addonsLabel = "addons.rpath.com@" + branch
 
                 d['fancyFlavor'] = 'is:x86(i486,i586,i686) x86_64'
-                d['searchPath'] = str([addonsLabel] + recipeLabels)
+                d['searchPath'] = str([str(addonsLabel)] + recipeLabels)
 
                 recipe += indent + "if Arch.x86_64:\n"
                 recipe += (12 * " ") + "r.add('%(name)s', flavor = '%(fancyFlavor)s', groupName = '%(groupName)s', searchPath = %(searchPath)s)\n" % d
@@ -124,7 +124,7 @@ class GroupTroveCook(Generator):
             path = tempfile.mkdtemp(dir=constants.tmpDir)
             recipe = getRecipe(self.jobData)
             sourceName = recipeName + ":source"
-            flavor = deps.ThawFlavor(self.getCookData("arch"))
+            flavor = deps.ThawFlavor(str(self.getCookData("arch")))
 
             cfg = self.conarycfg
             cfg.configLine('user * mintauth mintpass')
