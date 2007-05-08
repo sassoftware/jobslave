@@ -37,7 +37,7 @@ class RawFsImage(bootable_image.BootableImage):
 
                 tag = mountPoint.replace("/", "")
                 tag = tag and tag or "root"
-                imgFiles[mountPoint] = os.path.join(self.workDir, "%s-%s.ext3" % (self.basefilename, tag))
+                imgFiles[mountPoint] = os.path.join(self.workDir, "%s-%s.%s" % (self.basefilename, tag, fsType))
                 log.info("creating mount point %s as %s size of %d" % (mountPoint, imgFiles[mountPoint], requestedSize))
                 fs = self.makeBlankFS(imgFiles[mountPoint], fsType, requestedSize, fsLabel = mountPoint)
 
@@ -53,9 +53,8 @@ class RawFsImage(bootable_image.BootableImage):
 
     def write(self):
         totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
-        finalImage = os.path.join(self.outputDir, self.basefilename + '.ext3.gz')
+        finalImage = os.path.join(self.outputDir, self.basefilename + '.fs.gz')
 
         images = self.makeFSImage(sizes)
-        for image in images:
-            self.gzip(image, os.path.join(self.outputDir, os.path.basename(image)) + '.gz')
+        self.gzip(self.outputDir, finalImage)
         self.postOutput(((finalImage, 'Raw Filesystem Image'),))
