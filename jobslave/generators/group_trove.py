@@ -127,7 +127,6 @@ class GroupTroveCook(Generator):
             flavor = deps.ThawFlavor(str(self.getCookData("arch")))
 
             cfg = self.conarycfg
-            cfg.configLine('user * mintauth mintpass')
             cfg.name = "rBuilder Online"
             cfg.contact = "http://www.rpath.org"
             cfg.quiet = True
