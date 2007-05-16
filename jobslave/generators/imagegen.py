@@ -109,6 +109,7 @@ class Generator(threading.Thread):
         if parent and parent.cfg.proxy:
             self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
 
+        self.conarycfg.display() # dump conary config for debugging 
         self.cc = conaryclient.ConaryClient(self.conarycfg)
         self.nc = self.cc.getRepos()
 
