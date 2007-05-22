@@ -27,7 +27,7 @@ filterArgs = lambda d, *args: dict([x for x in d.iteritems() \
                                         if x[0] not in args])
 
 def getIP():
-    p = os.popen("""ifconfig `route | grep "^default" | sed "s/.* //"` | grep "inet addr" | awk -F: '{print $2}' | sed 's/ .*//'""")
+    p = os.popen("""/sbin/ifconfig `/sbin/route | grep "^default" | sed "s/.* //"` | grep "inet addr" | awk -F: '{print $2}' | sed 's/ .*//'""")
     data = p.read().strip()
     p.close()
     return data
