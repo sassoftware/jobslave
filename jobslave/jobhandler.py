@@ -11,6 +11,7 @@ from jobslave.generators.vpc import VirtualPCImage
 from jobslave.generators.xen_ova import XenOVA
 from jobslave.generators.parallels import ParallelsImage
 from jobslave.generators.virtual_iron import VirtualIronVHD
+from jobslave.generators.update_iso import UpdateIso
 
 from jobslave import buildtypes
 
@@ -28,6 +29,7 @@ jobHandlers = {
     buildtypes.XEN_OVA:           XenOVA,
     buildtypes.VIRTUAL_IRON:      VirtualIronVHD,
     buildtypes.PARALLELS:         ParallelsImage,
+    buildtypes.UPDATE_ISO:        UpdateIso,
 }
 
 import threading

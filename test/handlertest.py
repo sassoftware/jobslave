@@ -63,5 +63,10 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
                                      buildtypes.AMI)
         assert handler, "Failed to get AMI"
 
+    def testGetUpdateIso(self):
+        handler = self.supressOutput(self.getHandler,
+                                     buildtypes.UPDATE_ISO)
+        assert handler, "Failed to get Update ISO"
+
 if __name__ == "__main__":
     testsuite.main()

@@ -118,6 +118,10 @@ upstream = lambda ver: ver.trailingRevision().asString().split('-')[0]
 class InstallableIso(ImageGenerator):
     productDir = 'rPath'
 
+    def __init__(self, *args, **kwargs):
+        ImageGenerator.__init__(self, *args, **kwargs)
+        self.showMediaCheck = self.getBuildData('showMediaCheck')
+
     def _getUpdateJob(self, cclient, troveName):
         self.callback.setChangeSet(troveName)
         trvSpec = self.getBuildData(troveName)
@@ -266,7 +270,6 @@ class InstallableIso(ImageGenerator):
         util.rmtree(autoGenPath)
 
     def buildIsos(self, topdir):
-        showMediaCheck = self.getBuildData('showMediaCheck')
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         # add the group writeable bit
@@ -326,7 +329,7 @@ class InstallableIso(ImageGenerator):
                 raise RuntimeError, "ISO generation failed"
             else:
                 cmd = [constants.implantIsoMd5]
-                if not showMediaCheck:
+                if not self.showMediaCheck:
                     cmd.append('--supported-iso')
                 cmd.append(iso)
                 call(*cmd)
