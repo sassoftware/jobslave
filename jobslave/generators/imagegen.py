@@ -106,6 +106,12 @@ class Generator(threading.Thread):
         self.conarycfg.configLine( \
             'entitlementDirectory /srv/jobslave/entitlements')
 
+        util.mkdirChain('/srv/jobslave/entitlements')
+        for serverName, (entClass, entKey) in jobData['entitlements'].items():
+            f = open('/srv/jobslave/entitlements/' % serverName, 'w')
+            f.write(conarycfg.emitEntitement(serverName, entClass, entKey))
+            f.close()
+
         if parent and parent.cfg.proxy:
             self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
 
@@ -219,7 +225,7 @@ class Generator(threading.Thread):
                 try:
                     os.close(inF)
                     self.parentPipe = outF
-                    self.status('starting')
+                    self.status('Starting job')
                     self.write()
                     try:
                         if os.path.exists(self.workDir):
