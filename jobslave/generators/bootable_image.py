@@ -355,6 +355,12 @@ class BootableImage(ImageGenerator):
         fstab.write(oldFstab)
         fstab.close()
 
+        # write the /etc/sysconfig/appliance-name for rpl:2 initscripts
+        util.mkdirChain(os.path.join(fakeRoot, 'etc', 'sysconfig'))
+        appName = open(os.path.join(fakeRoot, 'etc', 'sysconfig', 'appliance-name'), 'w')
+        print >> appName, self.jobData['project']['name']
+        appName.close()
+
     @timeMe
     def getTroveSize(self, mounts):
         log.info("getting changeset for partition sizing")
