@@ -103,7 +103,7 @@ class Generator(threading.Thread):
         self.conarycfg.readObject(cfgData, cfgData)
 
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
-        self.conarycfg.configLine('entitlementDirectory %s', constants.entDir)
+        self.conarycfg.configLine('entitlementDirectory %s' % constants.entDir)
 
         util.mkdirChain(constants.entDir)
         for serverName, (entClass, entKey) in jobData['entitlements'].items():
