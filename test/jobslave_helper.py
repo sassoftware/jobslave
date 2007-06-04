@@ -83,11 +83,14 @@ class JobSlaveHelper(testhelp.TestCase):
         self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
         self.jobSlave = ThreadedJobSlave(self.slaveCfg)
 
-        self.finishedDir = tempfile.mkdtemp(prefix="jobslave-test")
+        self.finishedDir = tempfile.mkdtemp(prefix="jobslave-test-finished-images")
+        self.entDir = tempfile.mkdtemp(prefix="jobslave-test-ent")
         generators.constants.finishedDir = self.finishedDir
+        generators.constants.entDir = self.entDir
 
     def tearDown(self):
         util.rmtree(self.finishedDir)
+        util.rmtree(self.entDir)
         self.jobSlave.imageServer.stop()
         testhelp.TestCase.tearDown(self)
 
@@ -105,6 +108,7 @@ class JobSlaveHelper(testhelp.TestCase):
              'troveFlavor': '1#x86',
              'data' : {'jsversion': '3.0.0'},
              'outputQueue': 'test',
+             'entitlements': {'conary.rpath.com': ('class', 'key')},
              'buildType' : buildType},
             self.jobSlave)
 

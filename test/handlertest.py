@@ -5,6 +5,7 @@
 # All rights reserved
 #
 
+import os
 import testsuite
 testsuite.setup()
 
@@ -16,6 +17,7 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
         handler = self.supressOutput(self.getHandler,
                                      buildtypes.INSTALLABLE_ISO)
         assert handler, "Failed to get Installable ISO"
+        self.failUnless(os.path.exists(self.entDir + "/conary.rpath.com"))
 
     def testGetRawFSImage(self):
         handler = self.supressOutput(self.getHandler,
