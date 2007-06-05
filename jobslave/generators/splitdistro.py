@@ -132,7 +132,7 @@ def reorderChangesets(f, csPath, initialSizes, maxisosize, isoblocksize,
     for size, line in sizedList:
         match = False
         for i, (changesets, limit) in enumerate(reOrdList):
-            if size <= limit:
+            if maxisosize and (size <= limit):
                 reOrdList[i][0].append(line)
                 reOrdList[i][1] -= size
                 match = True
@@ -197,7 +197,7 @@ def splitDistro(unified, baseTrove, maxisosize = 650 * 1024 * 1024,
         csfile = line.split()[0]
         src = join(unified, csdir, csfile)
         used += spaceused(src, isoblocksize)
-        if used > maxisosize:
+        if maxisosize and (used > maxisosize):
             # oops, ran out of space.  set up a new disc
             discnum += 1
             current = join(os.path.dirname(unified), 'disc%d' %discnum)

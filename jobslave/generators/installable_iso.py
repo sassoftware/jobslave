@@ -121,6 +121,7 @@ class InstallableIso(ImageGenerator):
     def __init__(self, *args, **kwargs):
         ImageGenerator.__init__(self, *args, **kwargs)
         self.showMediaCheck = self.getBuildData('showMediaCheck')
+        self.maxIsoSize = int(self.getBuildData('maxIsoSize'))
 
     def _getUpdateJob(self, cclient, troveName):
         self.callback.setChangeSet(troveName)
@@ -562,16 +563,15 @@ class InstallableIso(ImageGenerator):
         util.mkdirChain(topdir)
 
         self._setupTrove()
-        maxIsoSize = int(self.getBuildData('maxIsoSize'))
 
         print >> sys.stderr, "Building ISOs of size: %d Mb" % \
-              (maxIsoSize / 1048576)
+              (self.maxIsoSize / 1048576)
         sys.stderr.flush()
 
         # FIXME: hack to ensure we don't trigger overburns.
         # there are probably cleaner ways to do this.
-        if maxIsoSize > 681574400:
-            maxIsoSize -= 1024 * 1024
+        if self.maxIsoSize > 681574400:
+            self.maxIsoSize -= 1024 * 1024
 
         csdir = self.prepareTemplates(topdir)
         tg = self.extractChangeSets(csdir)
@@ -608,7 +608,7 @@ class InstallableIso(ImageGenerator):
         self.writeProductImage(topdir, getArchFlavor(self.baseFlavor).freeze())
 
         self.status("Building ISOs")
-        splitdistro.splitDistro(topdir, self.troveName, maxIsoSize)
+        splitdistro.splitDistro(topdir, self.troveName, self.maxIsoSize)
         isoList = self.buildIsos(topdir)
 
         # notify client that images are ready

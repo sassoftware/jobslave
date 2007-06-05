@@ -17,6 +17,7 @@ class UpdateIso(installable_iso.InstallableIso):
         # from build Data, which isn't there.
         ImageGenerator.__init__(self, *args, **kwargs)
         self.showMediaCheck = False
+        self.maxIsoSize = 0
 
     def prepareTemplates(self, topdir):
         util.mkdirChain(os.path.join(topdir, self.productDir, 'base'))
