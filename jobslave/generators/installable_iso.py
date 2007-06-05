@@ -541,7 +541,7 @@ class InstallableIso(ImageGenerator):
                                       getArchFlavor(self.baseFlavor).freeze())
         tg = gencslist.TreeGenerator(client.cfg, client,
             (self.troveName, self.troveVersion, self.troveFlavor),
-            cacheDir=contstants.cachePath)
+            cacheDir=constants.cachePath)
         tg.parsePackageData()
         tg.extractChangeSets(csdir, callback=self.callback)
 
