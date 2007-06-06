@@ -116,7 +116,7 @@ class CsCache(TroveBucket):
             callback.setChangeSet(name)
             callback.setPrefix('changeset %d of %d: ' % (num, total))
 
-        client.getRepos().createChangeSetFile(
+        self.client.getRepos().createChangeSetFile(
             csRequest, fn,
             recurse = False,
             primaryTroveList = [(name, version, flavor)],
