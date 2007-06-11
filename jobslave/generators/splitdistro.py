@@ -19,6 +19,11 @@ import conary.repository.changeset
 commonfiles = ('README', 'LICENSE')
 basicminimal = ('group-core', 'group-base')
 
+def call(*cmds):
+    print >> sys.stderr, " ".join(cmds)
+    sys.stderr.flush()
+    subprocess.call(cmds)
+
 def join(*args):
     return os.sep.join(args)
 
@@ -78,6 +83,12 @@ def preparedir(unified, path, csdir):
     if 'media-template' in os.listdir(unified) and \
        'all' in os.listdir(os.path.join(unified, 'media-template')):
         lndir(os.path.join(unified, 'media-template', 'all'), path)
+    # copy over new media-template using overwrite rules
+    srcDir = os.path.join(unified, 'media-template2', 'all')
+    if os.path.exists(srcDir):
+        for src in os.listdir(srcDir):
+            call('cp', '-R', '--no-dereference', os.path.join(srcDir, src),
+                 path)
 
 def writediscinfo(path, discnum, discinfo):
     newinfo = discinfo[:]
@@ -175,6 +186,13 @@ def splitDistro(unified, baseTrove, maxisosize = 650 * 1024 * 1024,
         if 'media-template' in os.listdir(unified) and \
                cDir in os.listdir(os.path.join(unified, 'media-template')):
             lndir(os.path.join(unified, 'media-template', cDir), current)
+
+    for cDir in ('all', 'disc1'):
+        srcDir = os.path.join(unified, 'media-template2', cDir)
+        if os.path.exists(srcDir):
+            for src in os.listdir(srcDir):
+                call('cp', '-R', '--no-dereference', os.path.join(srcDir, src),
+                     current)
 
     used = spaceused(current, isoblocksize)
 

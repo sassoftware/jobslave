@@ -15,6 +15,7 @@ import time
 from jobslave.generators import constants
 from jobslave.generators import gencslist
 from jobslave.generators import splitdistro
+from joblsave.generators.splitdistro import call
 from jobslave.generators import anaconda_templates
 from jobslave.generators.anaconda_images import AnacondaImages
 from jobslave.generators.imagegen import ImageGenerator, MSG_INTERVAL
@@ -96,13 +97,6 @@ def _linkRecurse(fromDir, toDir):
             src = os.path.join(root, file)
             dest = os.path.join(newRoot, file)
             gencslist._linkOrCopyFile(src, dest)
-
-
-def call(*cmds):
-    print >> sys.stderr, " ".join(cmds)
-    sys.stderr.flush()
-    subprocess.call(cmds)
-
 
 def getArchFlavor(flv):
     if flv.members and deps.DEP_CLASS_IS in flv.members:
@@ -465,8 +459,16 @@ class InstallableIso(ImageGenerator):
 
                 # copy content into unified tree root. add recurse and no-deref
                 # flags to command. following symlinks is really bad in this case.
-                call('cp', '-R', '--no-dereference',
-                     tmpRoot + '/usr/lib/media-template', topdir)
+                oldTemplateDir = os.path.join(tmpRoot,
+                                              'usr', 'lib', 'media-template')
+                if os.path.exists(oldTemplateDir):
+                    call('cp', '-R', '--no-dereference', oldTemplateDir, topdir)
+                for tDir in ('all', 'disc1'):
+                    srcDir = os.path.join(tmpRoot, tDir)
+                    destDir = os.path.join(topdir, 'media-template2')
+                    if os.path.exists(srcDir):
+                        util.mkdirchain(destDir)
+                        call('cp', '-R', '--no-dereference', srcDir, destDir)
             else:
                 print >> sys.stderr, "media-template not found on repository"
         finally:
