@@ -44,12 +44,13 @@ def _linkOrCopyFile(src, dest):
 
 
 class CsCache(TroveBucket):
-    __slots__ = ('client', 'cacheDir')
+    __slots__ = ('client', 'cacheDir', 'changesetVersion')
 
-    def __init__(self, client, groupcs, cacheDir=None):
+    def __init__(self, client, groupcs, cacheDir=None, changesetVersion=None):
         self.client = client
         self.cacheDir = cacheDir or ''
         self.groupcs = groupcs
+        self.changesetVersion = changesetVersion
 
     def _getCacheFilename(self, name, version, flavor, compNames):
         # hash the version and flavor to give a unique filename
@@ -120,6 +121,7 @@ class CsCache(TroveBucket):
             csRequest, fn,
             recurse = False,
             primaryTroveList = [(name, version, flavor)],
+            changesetVersion = self.changesetVersion,
             callback = callback
         )
 
@@ -159,9 +161,11 @@ class CsCache(TroveBucket):
 
 
 class TreeGenerator(TroveBucket):
-    __slots__ = ('client', 'cacheDir', 'cscache', 'cslist', 'pkgorder')
+    __slots__ = ('client', 'cacheDir', 'cscache', 'cslist', 'pkgorder',
+                 'changesetVersion')
 
-    def __init__(self, cfg, client, topGroup, cacheDir=None):
+    def __init__(self, cfg, client, topGroup, cacheDir=None, 
+                 clientVersion=None):
         TroveBucket.__init__(self, cfg)
         self.client = client
         self.topGroup = topGroup
@@ -170,6 +174,11 @@ class TreeGenerator(TroveBucket):
         self.cscache = None
         self.pkgorder = None
         self.cslist = None
+        self.changesetVersion = None
+
+        if clientVersion:
+            self.changesetVersion = changeset.getNativeChangesetVersion(clientVersion)
+
 
     def _getGroupChangeSet(self):
         name, version, flavor = self.topGroup
@@ -181,7 +190,7 @@ class TreeGenerator(TroveBucket):
 
         # Get a cscache as soon as possible.
         self.cscache = CsCache(self.client, self.groupcs,
-                               cacheDir=self.cacheDir)
+                               cacheDir=self.cacheDir, changesetVersion=self.changesetVersion)
 
     def _orderValidTroves(self, jobs):
         trvList = []
@@ -315,7 +324,8 @@ class TreeGenerator(TroveBucket):
         groupCsFile = os.path.join(path, 'group.ccs')
         if not os.path.exists(groupCsFile):
             log.info('writing group changeset')
-            self.groupcs.writeToFile(groupCsFile)
+            self.groupcs.writeToFile(groupCsFile, 
+                                     versionOverride=self.changesetVersion)
 
 
 if __name__ == '__main__':
