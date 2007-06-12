@@ -15,7 +15,7 @@ import time
 from jobslave.generators import constants
 from jobslave.generators import gencslist
 from jobslave.generators import splitdistro
-from joblsave.generators.splitdistro import call
+from jobslave.generators.splitdistro import call
 from jobslave.generators import anaconda_templates
 from jobslave.generators.anaconda_images import AnacondaImages
 from jobslave.generators.imagegen import ImageGenerator, MSG_INTERVAL
