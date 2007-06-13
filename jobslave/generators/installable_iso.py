@@ -479,8 +479,8 @@ class InstallableIso(ImageGenerator):
         homeDir = tempfile.mkdtemp()
         tmpRoot = tempfile.mkdtemp()
         try:
-            client = self.getConaryClient(tmpRoot,
-                                          self.build.getArchFlavor().freeze())
+            client = self.getConaryClient( \
+                tmpRoot, getArchFlavor(self.baseFlavor).freeze())
 
             fingerprints = {}
             fpTrovespecs = {}
