@@ -478,8 +478,8 @@ class InstallableIso(ImageGenerator):
 
     def extractPublicKeys(self, keyDir, topdir, csdir):
         self.status('Extracting Public Keys')
-        homeDir = tempfile.mkdtemp()
-        tmpRoot = tempfile.mkdtemp()
+        homeDir = tempfile.mkdtemp(dir = constants.tmpDir)
+        tmpRoot = tempfile.mkdtemp(dir = constants.tmpDir)
         try:
             client = self.getConaryClient( \
                 tmpRoot, getArchFlavor(self.baseFlavor).freeze())
@@ -508,7 +508,7 @@ class InstallableIso(ImageGenerator):
                 for fp in fingerprints:
                     try:
                         key = client.repos.getAsciiOpenPGPKey(label, fp)
-                        fd, fname = tempfile.mkstemp()
+                        fd, fname = tempfile.mkstemp(dir = constants.tmpDir)
                         os.close(fd)
                         fd = open(fname, 'w')
                         fd.write(key)
@@ -561,60 +561,62 @@ class InstallableIso(ImageGenerator):
 
         # set up the topdir
         topdir = os.path.join(constants.tmpDir, self.jobId, "unified")
-        util.mkdirChain(topdir)
+        try:
+            util.mkdirChain(topdir)
 
-        self._setupTrove()
+            self._setupTrove()
 
-        print >> sys.stderr, "Building ISOs of size: %d Mb" % \
-              (self.maxIsoSize / 1048576)
-        sys.stderr.flush()
+            print >> sys.stderr, "Building ISOs of size: %d Mb" % \
+                  (self.maxIsoSize / 1048576)
+            sys.stderr.flush()
 
-        # FIXME: hack to ensure we don't trigger overburns.
-        # there are probably cleaner ways to do this.
-        if self.maxIsoSize > 681574400:
-            self.maxIsoSize -= 1024 * 1024
+            # FIXME: hack to ensure we don't trigger overburns.
+            # there are probably cleaner ways to do this.
+            if self.maxIsoSize > 681574400:
+                self.maxIsoSize -= 1024 * 1024
 
-        csdir = self.prepareTemplates(topdir)
-        tg = self.extractChangeSets(csdir)
+            csdir = self.prepareTemplates(topdir)
+            tg = self.extractChangeSets(csdir)
 
-        if self.arch == 'x86':
-            anacondaArch = 'i386'
-        else:
-            anacondaArch = self.arch
+            if self.arch == 'x86':
+                anacondaArch = 'i386'
+            else:
+                anacondaArch = self.arch
 
-        baseDir = os.path.join(topdir, self.productDir, 'base')
+            baseDir = os.path.join(topdir, self.productDir, 'base')
 
-        # write the cslist
-        tg.writeCsList(baseDir)
+            # write the cslist
+            tg.writeCsList(baseDir)
 
-        # write the group.ccs
-        tg.writeGroupCs(baseDir)
+            # write the group.ccs
+            tg.writeGroupCs(baseDir)
 
-        # write .discinfo
-        discInfoPath = os.path.join(topdir, ".discinfo")
-        if os.path.exists(discInfoPath):
-            os.unlink(discInfoPath)
-        discInfoFile = open(discInfoPath, "w")
-        print >> discInfoFile, time.time()
-        print >> discInfoFile, self.jobData['name']
-        print >> discInfoFile, anacondaArch
-        print >> discInfoFile, "1"
-        for x in ["base", "changesets", "pixmaps"]:
-            print >> discInfoFile, "%s/%s" % (self.productDir, x)
-        discInfoFile.close()
+            # write .discinfo
+            discInfoPath = os.path.join(topdir, ".discinfo")
+            if os.path.exists(discInfoPath):
+                os.unlink(discInfoPath)
+            discInfoFile = open(discInfoPath, "w")
+            print >> discInfoFile, time.time()
+            print >> discInfoFile, self.jobData['name']
+            print >> discInfoFile, anacondaArch
+            print >> discInfoFile, "1"
+            for x in ["base", "changesets", "pixmaps"]:
+                print >> discInfoFile, "%s/%s" % (self.productDir, x)
+            discInfoFile.close()
 
-        self.extractMediaTemplate(topdir)
-        self.extractPublicKeys('public_keys', topdir, csdir)
-        self.setupKickstart(topdir)
-        self.writeProductImage(topdir, getArchFlavor(self.baseFlavor).freeze())
+            self.extractMediaTemplate(topdir)
+            self.extractPublicKeys('public_keys', topdir, csdir)
+            self.setupKickstart(topdir)
+            self.writeProductImage(topdir, getArchFlavor(self.baseFlavor).freeze())
 
-        self.status("Building ISOs")
-        splitdistro.splitDistro(topdir, self.troveName, self.maxIsoSize)
-        isoList = self.buildIsos(topdir)
+            self.status("Building ISOs")
+            splitdistro.splitDistro(topdir, self.troveName, self.maxIsoSize)
+            isoList = self.buildIsos(topdir)
 
-        # notify client that images are ready
-        self.postOutput(isoList)
+            # notify client that images are ready
+            self.postOutput(isoList)
 
-        # clean up
-        self.status("Cleaning up...")
-        util.rmtree(os.path.normpath(os.path.join(topdir, "..")))
+            # clean up
+            self.status("Cleaning up...")
+        finally:
+            util.rmtree(os.path.normpath(os.path.join(topdir, "..")))
