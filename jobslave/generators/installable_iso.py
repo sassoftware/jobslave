@@ -29,6 +29,7 @@ from conary import conaryclient
 from conary import conarycfg
 from conary.deps import deps
 from conary import versions
+from conary.repository import changeset
 from conary.repository import errors
 from conary.build import use
 from conary.conarycfg import ConfigFile
