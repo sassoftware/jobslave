@@ -619,4 +619,5 @@ class InstallableIso(ImageGenerator):
             # clean up
             self.status("Cleaning up...")
         finally:
-            util.rmtree(os.path.normpath(os.path.join(topdir, "..")))
+            util.rmtree(os.path.normpath(os.path.join(topdir, "..")),
+                        ignore_errors = True)
