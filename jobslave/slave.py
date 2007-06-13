@@ -194,7 +194,7 @@ class JobSlave(object):
                 exc_class, exc, bt = sys.exc_info()
                 print ''.join(traceback.format_tb(bt))
                 self.response.jobStatus(data['UUID'], jobstatus.FAILED,
-                                        'Internal Server Error')
+                                        'Image creation error: %s' % str(e))
             if self.jobHandler:
                 self.jobHandler.start()
                 self.timeIdle = None
