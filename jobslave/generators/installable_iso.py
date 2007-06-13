@@ -479,8 +479,8 @@ class InstallableIso(ImageGenerator):
         homeDir = tempfile.mkdtemp()
         tmpRoot = tempfile.mkdtemp()
         try:
-            client = self.getConaryClient(tmpRoot,
-                                          self.build.getArchFlavor().freeze())
+            client = self.getConaryClient( \
+                tmpRoot, getArchFlavor(self.baseFlavor).freeze())
 
             fingerprints = {}
             fpTrovespecs = {}
@@ -524,10 +524,7 @@ class InstallableIso(ImageGenerator):
                 for fingerprint in missingKeys:
                     errorMessage += '%s requires %s\n' %  \
                         (', '.join(fpTrovespecs[fingerprint]), fingerprint)
-                if self.isocfg.failOnKeyError:
-                    raise RuntimeError(errorMessage)
-                else:
-                    print >> sys.stderr, errorMessage
+                raise RuntimeError(errorMessage)
             call('gpg', '--home', homeDir, '--export',
                  '--no-auto-check-trustdb', '-o',
                  os.path.join(topdir, 'public_keys.gpg'))
