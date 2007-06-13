@@ -7,6 +7,7 @@
 
 import os, sys
 import tempfile
+import subprocess
 
 from jobslave.generators.gencslist import _linkOrCopyFile
 from jobslave.generators import constants
