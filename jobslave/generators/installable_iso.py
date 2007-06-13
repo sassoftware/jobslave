@@ -31,10 +31,11 @@ from conary.deps import deps
 from conary import versions
 from conary.repository import changeset
 from conary.repository import errors
+from conary import trove
 from conary.build import use
 from conary.conarycfg import ConfigFile
 from conary.conaryclient.cmdline import parseTroveSpec
-from conary.lib import util, sha1helper
+from conary.lib import util, sha1helper, openpgpfile
 
 
 class AnacondaTemplateMissing(Exception):
