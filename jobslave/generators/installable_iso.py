@@ -256,15 +256,15 @@ class InstallableIso(ImageGenerator):
 
         betaNag = self.getBuildData('betaNag')
         call('sed', '-i', 's/BETANAG = 1/BETANAG = %d/' % int(betaNag), tmpPath + '/constants.py')
-        util.rmtree(stage2Path)
+        util.rmtree(stage2Path, ignore_errors = True)
 
         # create cramfs
         call('mkcramfs', tmpPath, productPath)
 
         # clean up
-        util.rmtree(tmpPath)
-        util.rmtree(tmpRoot)
-        util.rmtree(autoGenPath)
+        util.rmtree(tmpPath, ignore_errors = True)
+        util.rmtree(tmpRoot, ignore_errors = True)
+        util.rmtree(autoGenPath, ignore_errors = True)
 
     def buildIsos(self, topdir):
         outputDir = os.path.join(constants.finishedDir, self.UUID)
@@ -418,7 +418,7 @@ class InstallableIso(ImageGenerator):
                     os.rename(templateDirTemp, templateDir)
                 finally:
                     if os.path.exists(templateDirTemp):
-                        util.rmtree(templateDirTemp)
+                        util.rmtree(templateDirTemp, ignore_errors = True)
             print >> sys.stderr, "templates found:", templateDir
 
             return templateDir
@@ -474,7 +474,7 @@ class InstallableIso(ImageGenerator):
             else:
                 print >> sys.stderr, "media-template not found on repository"
         finally:
-            util.rmtree(tmpRoot)
+            util.rmtree(tmpRoot, ignore_errors = True)
 
     def extractPublicKeys(self, keyDir, topdir, csdir):
         self.status('Extracting Public Keys')
@@ -531,8 +531,8 @@ class InstallableIso(ImageGenerator):
                  '--no-auto-check-trustdb', '-o',
                  os.path.join(topdir, 'public_keys.gpg'))
         finally:
-            util.rmtree(homeDir)
-            util.rmtree(tmpRoot)
+            util.rmtree(homeDir, ignore_errors = True)
+            util.rmtree(tmpRoot, ignore_errors = True)
 
     def extractChangeSets(self, csdir):
         # build a set of the things we already have extracted.

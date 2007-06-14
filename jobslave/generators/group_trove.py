@@ -223,7 +223,7 @@ class GroupTroveCook(Generator):
                 os.chdir(curDir)
             except:
                 pass
-            util.rmtree(path)
+            util.rmtree(path, ignore_errors = True)
 
         if ret:
             return ret[0], ret[1], ret[2].freeze()

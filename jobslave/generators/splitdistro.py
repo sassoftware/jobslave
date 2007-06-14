@@ -203,7 +203,7 @@ def splitDistro(unified, baseTrove, maxisosize = 650 * 1024 * 1024,
     tmpDisc = tempfile.mkdtemp(dir=constants.tmpDir)
     preparedir(unified, tmpDisc, csdir)
     allContentSize = spaceused(tmpDisc, isoblocksize)
-    util.rmtree(tmpDisc)
+    util.rmtree(tmpDisc, ignore_errors = True)
 
     # iterate through the cslist, copying all the changesets that
     # will fit
