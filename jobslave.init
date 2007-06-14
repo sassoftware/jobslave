@@ -24,10 +24,17 @@ DAEMON='/usr/bin/jobslave'
 
 start() {
     echo -n "Starting $LONGNAME:"
-    for mnt in anaconda-templates finished-images tmp
+    for mnt in anaconda-templates finished-images
     do
         mount -t nfs -o wsize=4096,rsize=4096,tcp,hard $MASTER_IP:/srv/rbuilder/jobmaster/$mnt /srv/jobslave/$mnt
     done
+
+    if [ -b /dev/xvda2 ]; then
+        mount /dev/xvda2 /srv/jobslave/tmp/
+    else
+        mount -t nfs -o wsize=4096,rsize=4096,tcp,hard $MASTER_IP:/srv/rbuilder/jobmaster/tmp /srv/jobslave/tmp
+    fi
+
     modprobe loop max_loop=256
     screen -d -m $DAEMON
     echo ""
