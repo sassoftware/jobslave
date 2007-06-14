@@ -162,7 +162,7 @@ class CsCache(TroveBucket):
 
 class TreeGenerator(TroveBucket):
     __slots__ = ('client', 'cacheDir', 'cscache', 'cslist', 'pkgorder',
-                 'changesetVersion')
+                 'changesetVersion', '_cslist')
 
     def __init__(self, cfg, client, topGroup, cacheDir=None, 
                  clientVersion=None):
@@ -175,6 +175,8 @@ class TreeGenerator(TroveBucket):
         self.pkgorder = None
         self.cslist = None
         self.changesetVersion = None
+
+        self._cslist = None
 
         if clientVersion:
             self.changesetVersion = changeset.getNativeChangesetVersion(clientVersion)
@@ -269,7 +271,7 @@ class TreeGenerator(TroveBucket):
         log.info('verifying package list')
         assert self._verifyPackageList()
 
-    def _getCsFilename(self, trv, csdir):
+    def _getCsFilename(self, trv):
         if deps.DEP_CLASS_IS in trv.flavor.members:
             pkgarch = trv.flavor.members[deps.DEP_CLASS_IS].members.keys()[0]
         else:
@@ -277,11 +279,10 @@ class TreeGenerator(TroveBucket):
 
         csfile = '%s-%s-%s-%s' % (trv.name, trv.revision.getVersion(),
                                   trv.release, pkgarch)
-        cspath = os.path.join(csdir, csfile)
 
-        if '%s.ccs' % cspath in self.cslist:
+        if '%s.ccs' % csfile in self._cslist:
             i = 0
-            while '%s-%s.ccs' % (cspath, i) in self.cslist:
+            while '%s-%s.ccs' % (csfile, i) in self._cslist:
                 i += 1
             return '%s-%s.ccs' % (csfile, i)
 
@@ -295,11 +296,13 @@ class TreeGenerator(TroveBucket):
 
     def extractChangeSets(self, csdir, callback=None):
         self.cslist = []
+        self._cslist = []
         total = len(self.pkgorder)
         for num, trv in enumerate(self.pkgorder):
             log.info('extracting %s' % trv.name)
 
-            csfile = self._getCsFilename(trv, csdir)
+            csfile = self._getCsFilename(trv)
+            self._cslist.append(csfile)
             self.cslist.append(self._getCsListEntry(trv, csfile))
 
             csPath = os.path.join(csdir, csfile)
