@@ -88,7 +88,7 @@ class Node(object):
             self.children = []
 
         if not self._children:
-            self._children = [ x for x in self.children if x.isDefault() ]
+            self._children = [ x for x in self.children if x.isDefault() or x.isSelected() ]
             self._children.sort(_pkgSort)
 
         return self._children
