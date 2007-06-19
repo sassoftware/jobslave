@@ -35,7 +35,7 @@ templateDir = os.path.join(os.path.sep, 'srv', 'jobslave', 'templates')
 tmpDir = os.path.join(os.path.sep, 'srv', 'jobslave', 'tmp')
 
 scriptPath            = '/usr/share/jobslave/scripts/'
-cachePath             = '/srv/jobslave/changesets/'
+cachePath             = '/srv/jobslave/tmp/changesets/'
 implantIsoMd5         = '/usr/bin/implantisomd5'
 anacondaImagesPath    = '/srv/jobslave/pixmaps'
 anacondaTemplatesPath = '/srv/jobslave/anaconda-templates'

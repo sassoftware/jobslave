@@ -539,6 +539,7 @@ class InstallableIso(ImageGenerator):
         self.status("Extracting changesets")
 
         tmpRoot = tempfile.mkdtemp(dir=constants.tmpDir)
+        util.mkdirChain(constants.cachePath)
         client = self.getConaryClient(tmpRoot,
                                       getArchFlavor(self.baseFlavor).freeze())
         tg = gencslist.TreeGenerator(client.cfg, client,
@@ -621,3 +622,4 @@ class InstallableIso(ImageGenerator):
         finally:
             util.rmtree(os.path.normpath(os.path.join(topdir, "..")),
                         ignore_errors = True)
+            util.rmtree(constants.cachePath, ignore_errors = True)
