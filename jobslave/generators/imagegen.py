@@ -81,6 +81,7 @@ class Generator(threading.Thread):
         self.jobData = jobData
         self.response = weakref.ref(parent.response)
         self.parent = weakref.ref(parent)
+        self.workDir = None
 
         # FIXME: once conary handles unicode better, remove these items
         # coerce to str if possible due to conary not handling unicode well
@@ -227,7 +228,7 @@ class Generator(threading.Thread):
                     self.status('Starting job')
                     self.write()
                     try:
-                        if os.path.exists(self.workDir):
+                        if self.workDir and os.path.exists(self.workDir):
                             util.rmtree(self.workDir)
                     except Exception, e:
                         log.error("couldn't clean up afterwards: %s" % str(e))
