@@ -8,9 +8,9 @@
 import os, sys
 import testhelp
 
+import subprocess
 import threading
 import tempfile
-
 
 from cStringIO import StringIO
 from jobslave import jobhandler, slave, constants, generators
@@ -129,12 +129,18 @@ class JobSlaveHelper(testhelp.TestCase):
 class ExecuteLoggerTest(JobSlaveHelper):
     def setUp(self):
         self.oldOsSystem = os.system
+        self.oldSubprocessCall = subprocess.call
         self.callLog = []
 
         def osSystem(cmd):
             self.callLog.append(cmd)
 
+        def subprocessCall(cmd, **kwargs):
+            self.callLog.append(cmd)
+            return 0
+
         os.system = osSystem
+        subprocess.call = subprocessCall
         JobSlaveHelper.setUp(self)
 
     def injectPopen(self, output):
@@ -152,6 +158,7 @@ class ExecuteLoggerTest(JobSlaveHelper):
     def tearDown(self):
         JobSlaveHelper.tearDown(self)
         os.system = self.oldOsSystem
+        subprocess.call = self.oldSubprocessCall
 
     def reset(self):
         self.callLog = []
