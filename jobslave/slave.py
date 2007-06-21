@@ -47,6 +47,29 @@ def protocols(protocolList):
         return wrapper
     return deco
 
+
+def watchdog():
+    """Fork and shutdown if parent dies.
+
+    This function forks and simply waits. if the parent thread dies, it emits
+    a shutdown command. this prevents jobslave VMs from existing without a
+    jobslave process allowing them to me managed by the MCP. This function
+    requires superuser privileges."""
+
+    pid = os.fork()
+    if not pid:
+        try:
+            ppid = os.getppid()
+            print "jobslave watchdog monitoring pid: %s" % str(ppid)
+            while os.getppid() == ppid:
+                time.sleep(1)
+            print 'watchdog detected parent thread died. shutting down.'
+            os.system('poweroff -h')
+        except:
+            os._exit(1)
+        else:
+            os._exit(0)
+
 class SlaveConfig(client.MCPClientConfig):
     jobQueueName = (cfgtypes.CfgString, None)
     nodeName = (cfgtypes.CfgString, None)
@@ -60,9 +83,9 @@ def catchErrors(func):
             func(self, *args, **kwargs)
         except:
             exc_class, exc, bt = sys.exc_info()
-            log.error("%s %s" % ("Uncaught Exception: (" + \
-                exc.__class__.__name__ + ')', str(exc)))
-            log.error('\n'.join(traceback.format_tb(bt)))
+            print >> sys.stderr, "%s %s" % ("Uncaught Exception: (" + \
+                exc.__class__.__name__ + ')', str(exc))
+            print >> sys.stderr, '\n'.join(traceback.format_tb(bt))
     return wrapper
 
 class JobSlave(object):
@@ -96,6 +119,7 @@ class JobSlave(object):
 
     def run(self):
         print "Listening for jobs:", self.cfg.jobQueueName
+        watchdog()
         self.running = True
         self.sendSlaveStatus()
         try:
