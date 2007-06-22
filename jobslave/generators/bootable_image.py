@@ -464,7 +464,7 @@ class BootableImage(ImageGenerator):
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
         # remove root password
-        os.system("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 --enableshadow --disablecache" % dest
+        os.system("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 --enableshadow --disablecache" % dest)
         os.system("chroot %s /usr/sbin/usermod -p '' root" % dest)
 
         # remove template kernel entry
