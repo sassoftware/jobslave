@@ -49,12 +49,14 @@ class RawFsImage(bootable_image.BootableImage):
             self.umountAll()
             util.rmtree(root, ignore_errors = True)
 
-        return imgFiles.values()
+        return imgFiles
 
     def write(self):
         totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
-        finalImage = os.path.join(self.outputDir, self.basefilename + '.fs.gz')
 
         images = self.makeFSImage(sizes)
-        self.gzip(self.outputDir, finalImage)
-        self.postOutput(((finalImage, 'Raw Filesystem Image'),))
+        finalImages = []
+        for mountPoint, image in images.items():
+            self.gzip(self.outputDir, image)
+            finalImages.append((image, "Raw Filesystem Image (%s)" % mountPoint))
+        self.postOutput(finalImages)
