@@ -9,6 +9,7 @@ import time
 import simplejson
 import httplib
 import signal
+import traceback
 
 from jobslave import jobhandler, imgserver
 from jobslave.generators import constants
