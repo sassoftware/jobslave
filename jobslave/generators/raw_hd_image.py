@@ -10,6 +10,7 @@ import tempfile
 
 from jobslave.filesystems import sortMountPoints
 from jobslave import lvm
+from jobslave.imagegen import logCall
 from jobslave.generators import bootable_image, constants
 from math import ceil
 
@@ -26,7 +27,7 @@ class HDDContainer:
         self.mountPoint = tempfile.mkdtemp(dir=constants.tmpDir)
 
         # create the raw file
-        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
+        logCall('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
             (image, (totalSize / 4096) - 1))
 
     def partition(self, partitions):

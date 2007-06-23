@@ -9,6 +9,7 @@ import os
 
 # jobslave imports
 from jobslave.generators import bootable_image, constants
+from jobslave.imagegen import logCall
 
 # conary imports
 from conary.lib import util
@@ -27,7 +28,7 @@ class NetbootImage(bootable_image.BootableImage):
         try:
             self.installFileTree(basePath)
             os.chdir(basePath)
-            util.execute('find . -depth | cpio -o | gzip > %s' % cpioImage)
+            logCall('find . -depth | cpio -o | gzip > %s' % cpioImage)
             kernel = self.findFile(os.path.join(basePath, 'boot'),
                                    'vmlinuz.*')
             outputKernel = os.path.join(outputDir, os.path.basename(kernel))

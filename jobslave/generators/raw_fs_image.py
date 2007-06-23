@@ -9,6 +9,7 @@ import tempfile
 
 from jobslave.generators import bootable_image, constants
 from jobslave.filesystems import sortMountPoints
+from jobslave.imagegen import logCall
 
 from conary.lib import util, log
 
@@ -17,7 +18,7 @@ class RawFsImage(bootable_image.BootableImage):
         if os.path.exists(image):
             util.rmtree(image)
         util.mkdirChain(os.path.split(image)[0])
-        util.execute('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
+        logCall('dd if=/dev/zero of=%s count=1 seek=%d bs=4096' % \
                       (image, (size / 4096) - 1))
 
         fs = bootable_image.Filesystem(image, fsType, size, fsLabel = fsLabel)

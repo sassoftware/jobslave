@@ -6,15 +6,16 @@
 
 import os
 from conary.lib import util
+from jobslave.imagegen import logCall
 
 def loopAttach(image, offset = 0):
     p = os.popen('losetup -f')
     dev = p.read().strip()
     p.close()
-    util.execute('losetup %s %s %s' % \
+    logCall('losetup %s %s %s' % \
                      (offset and ('-o%d' % offset) or '', dev, image))
-    util.execute('sync')
+    logCall('sync')
     return dev
 
 def loopDetach(dev):
-    util.execute('losetup -d %s' % dev)
+    logCall('losetup -d %s' % dev)

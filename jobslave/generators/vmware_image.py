@@ -8,7 +8,7 @@ import os
 import stat
 
 from jobslave.generators import bootable_image, raw_hd_image, constants
-
+from jobslave.imagegen import logCall
 from conary.lib import util
 
 class VMwareImage(raw_hd_image.RawHdImage):
@@ -26,7 +26,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             cmd = 'raw2vmdk -C %d -H %d -S %d -A %s %s %s' % \
                 (cylinders, constants.scsiHeads, constants.scsiSectors,
                  self.adapter, hdImage, outfile)
-        util.execute(cmd)
+        logCall(cmd)
 
     @bootable_image.timeMe
     def createVMX(self, outfile):

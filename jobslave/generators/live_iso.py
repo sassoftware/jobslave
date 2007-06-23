@@ -13,6 +13,7 @@ import tempfile
 # mint imports
 from jobslave import buildtypes
 from jobslave.generators import bootable_image, constants
+from jobslave.imagegen import logCall
 
 # conary imports
 from conary import conaryclient
@@ -170,9 +171,9 @@ class LiveIso(bootable_image.BootableImage):
 
             nonZipped = os.path.join(liveDir, 'initrd.nogz')
             zippedImg = os.path.join(liveDir, 'initrd.img')
-            util.execute('e2fsimage -v -d %s -u 0 -g 0 -f %s -s 8000' % \
+            logCall('e2fsimage -v -d %s -u 0 -g 0 -f %s -s 8000' % \
                          (initrdDir, nonZipped))
-            util.execute('gzip < %s > %s' % (nonZipped, zippedImg))
+            logCall('gzip < %s > %s' % (nonZipped, zippedImg))
             os.unlink(nonZipped)
         finally:
             util.rmtree(initrdDir, ignore_errors = True)
@@ -244,7 +245,7 @@ class LiveIso(bootable_image.BootableImage):
             # instantiate contents of actual distro
             self.installFileTree(fileTree)
             # Symlink /proc/mounts to /etc/mtab
-            os.system('ln -s %s %s' % (os.path.join(os.path.sep, 'proc', 'mounts'), os.path.join(fileTree, 'etc', 'mtab')))
+            logCall('ln -s %s %s' % (os.path.join(os.path.sep, 'proc', 'mounts'), os.path.join(fileTree, 'etc', 'mtab')))
             activeTree = fileTree
             extraArgs = ''
 
@@ -254,22 +255,22 @@ class LiveIso(bootable_image.BootableImage):
 
             # and compress them if needed
             if self.zisofs:
-                util.execute('mkzftree %s %s' % (fileTree, zFileTree))
+                logCall('mkzftree %s %s' % (fileTree, zFileTree))
                 activeTree = zFileTree
                 extraArgs = '-z'
 
             # make the inner image
-            util.execute('mkisofs -J -R -U %s %s > %s' % (extraArgs, activeTree, innerIsoImage))
+            logCall('mkisofs -J -R -U %s %s > %s' % (extraArgs, activeTree, innerIsoImage))
             os.chmod(innerIsoImage, 0755)
 
             # make the outer image
-            util.execute('mkisofs -o %s -J -R -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -V %s %s' % (finalIsoImage, self.getVolName(), liveDir))
+            logCall('mkisofs -o %s -J -R -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -V %s %s' % (finalIsoImage, self.getVolName(), liveDir))
             os.chmod(finalIsoImage, 0755)
 
             # If the inner image wasn't compressed, compress the final image
             deliveryImage = finalIsoImage
             if not self.zisofs:
-                util.execute('gzip < %s > %s' % (finalIsoImage, zippedIsoImage))
+                logCall('gzip < %s > %s' % (finalIsoImage, zippedIsoImage))
                 os.chmod(zippedIsoImage, 0755)
                 deliveryImage = zippedIsoImage
 

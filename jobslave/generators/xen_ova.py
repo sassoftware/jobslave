@@ -10,6 +10,7 @@ import stat
 import zipfile
 
 from jobslave import buildtypes
+from jobslave.imagegen import logCall
 from jobslave.generators import constants
 from jobslave.generators import raw_fs_image, bootable_image
 
@@ -57,11 +58,11 @@ class XenOVA(raw_fs_image.RawFsImage):
             self.makeFSImage(imagePath, size)
 
             self.createXVA(ovaPath, size)
-            util.execute('split -b 1000000000 -a 8 -d %s "%s"' % \
+            logCall('split -b 1000000000 -a 8 -d %s "%s"' % \
                              (imagePath, chunkPrefix))
-            util.execute('for a in "%s*"; do gzip $a; done' % chunkPrefix)
+            logCall('for a in "%s*"; do gzip $a; done' % chunkPrefix)
             tarBase, tarTarget = os.path.split(baseDir)
-            util.execute('tar -cv -C %s %s > %s' % \
+            logCall('tar -cv -C %s %s > %s' % \
                              (tarBase, tarTarget, deliverable))
             self.postOutput(((deliverable, 'Xen OVA'),))
         finally:

@@ -9,6 +9,7 @@ import os
 
 # jobslave imports
 from jobslave.generators import bootable_image, constants
+from jobslave.imaggen import logCall
 
 from conary.lib import util
 from jobslave import buildtypes
@@ -30,7 +31,7 @@ class Tarball(bootable_image.BootableImage):
         try:
             self.installFileTree(basePath)
             os.chdir(basePath)
-            util.execute('tar -C %s -cpPs --to-stdout ./ | gzip > %s' % \
+            logCall('tar -C %s -cpPs --to-stdout ./ | gzip > %s' % \
                              (basePath, tarball))
             self.postOutput(((tarball, 'Tar File'),))
         finally:
