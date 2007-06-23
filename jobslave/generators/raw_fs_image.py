@@ -58,5 +58,6 @@ class RawFsImage(bootable_image.BootableImage):
         finalImages = []
         for mountPoint, image in images.items():
             self.gzip(self.outputDir, image)
-            finalImages.append((image, "Raw Filesystem Image (%s)" % mountPoint))
+            finalImages.append((os.path.join(self.outputDir,
+                os.path.basepath(image) + ".gz"), "Raw Filesystem Image (%s)" % mountPoint))
         self.postOutput(finalImages)
