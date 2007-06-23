@@ -56,8 +56,7 @@ class LogHandler(logging.Handler):
 
     def emit(self, record):
         self._msgs += record.getMessage() + '\n'
-        if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
-            self.flush()
+        self.flush()
 
 
 def logCall(cmd, ignoreErrors = False):
