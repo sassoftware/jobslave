@@ -73,7 +73,7 @@ def logCall(cmd, ignoreErrors = False):
             [log.debug("++ " + errLine) for errLine in err.split("\n")]
 
     if p.returncode and not ignoreErrors:
-        raise RuntimeError("Error executing command: %s (return code %d)" % (cmd, code))
+        raise RuntimeError("Error executing command: %s (return code %d)" % (cmd, p.returncode))
     else:
         return p.returncode
 
