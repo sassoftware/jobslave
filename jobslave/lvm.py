@@ -7,6 +7,7 @@ import sys
 
 from conary.lib import util
 from jobslave import loophelpers
+from joblsave.imagegen import logCall
 from jobslave.generators import bootable_image
 
 class LVMFilesystem(bootable_image.Filesystem):
@@ -15,7 +16,7 @@ class LVMFilesystem(bootable_image.Filesystem):
             return
 
         # no loopback needed here
-        util.execute("mount %s %s" % (self.fsDev, mountPoint))
+        logCall("mount %s %s" % (self.fsDev, mountPoint))
         self.mounted = True
 
     def umount(self):
@@ -26,7 +27,7 @@ class LVMFilesystem(bootable_image.Filesystem):
             return
 
         try:
-            util.execute("umount %s" % (self.fsDev))
+            logCall("umount %s" % (self.fsDev))
         except RuntimeError, e:
             print >> sys.stderr, "Error umounting device:", str(e)
         self.mounted = False
@@ -40,8 +41,8 @@ class LVMContainer:
         assert image # for now
 
         self.loopDev = loophelpers.loopAttach(image, offset)
-        util.execute("pvcreate %s" % self.loopDev)
-        util.execute("vgcreate %s %s" % (self.volGroupName, self.loopDev))
+        logCall("pvcreate %s" % self.loopDev)
+        logCall("vgcreate %s %s" % (self.volGroupName, self.loopDev))
 
     def addFilesystem(self, mountPoint, fsType, size):
         name = mountPoint.replace('/', '')
@@ -49,7 +50,7 @@ class LVMContainer:
             name = 'root'
 
         fsDev = '/dev/vg00/%s' % name
-        util.execute('lvcreate -n %s -L%dK vg00' % (name, size / 1024))
+        logCall('lvcreate -n %s -L%dK vg00' % (name, size / 1024))
 
         fs = LVMFilesystem(fsDev, fsType, size, fsLabel = mountPoint)
         self.filesystems.append(fs)
@@ -58,7 +59,7 @@ class LVMContainer:
     def destroy(self):
         for fs in self.filesystems:
             fs.umount()
-            util.execute("lvchange -a n %s" % fs.fsDev)
-        util.execute("vgchange -a n %s" % self.volGroupName)
-        util.execute("pvchange -x n %s" % self.loopDev)
+            logCall("lvchange -a n %s" % fs.fsDev)
+        logCall("vgchange -a n %s" % self.volGroupName)
+        logCall("pvchange -x n %s" % self.loopDev)
         loophelpers.loopDetach(self.loopDev)
