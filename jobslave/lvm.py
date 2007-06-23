@@ -6,7 +6,7 @@
 import sys
 
 from conary.lib import util
-from jobslave.generators import loophelpers
+from jobslave import loophelpers
 from jobslave.generators import bootable_image
 
 class LVMFilesystem(bootable_image.Filesystem):

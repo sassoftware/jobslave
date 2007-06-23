@@ -5,8 +5,8 @@
 #
 import os.path
 
-from jobslave.generators import constants
-from jobslave.generators.imagegen import ImageGenerator
+from jobslave import constants
+from jobslave.imagegen import ImageGenerator
 
 class StubImage(ImageGenerator):
     def write(self):

@@ -11,7 +11,7 @@ import time
 
 from jobslave.generators import constants
 from jobslave.flavors import getStockFlavor
-from jobslave.generators.imagegen import Generator
+from jobslave.imagegen import Generator
 
 from conary import checkin
 from conary import conarycfg

@@ -11,7 +11,7 @@ import shutil
 import tempfile
 
 from jobslave.generators import constants
-from jobslave.generators.trovebucket import TroveBucket, Node, log
+from jobslave.trovebucket import TroveBucket, Node, log
 
 from conary.deps import deps
 from conary.lib import sha1helper

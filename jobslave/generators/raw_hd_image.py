@@ -9,7 +9,8 @@ import stat
 import tempfile
 
 from jobslave.filesystems import sortMountPoints
-from jobslave.generators import bootable_image, constants, lvm
+from jobslave import lvm
+from jobslave.generators import bootable_image, constants
 from math import ceil
 
 from conary.lib import util

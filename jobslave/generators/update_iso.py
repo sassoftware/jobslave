@@ -4,7 +4,7 @@
 # All Rights Reserved
 #
 import os
-from jobslave.generators.imagegen import ImageGenerator
+from jobslave.imagegen import ImageGenerator
 from jobslave.generators import installable_iso
 
 from conary.lib import util

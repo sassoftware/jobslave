@@ -17,11 +17,11 @@ import tempfile
 
 # mint imports
 from jobslave import buildtypes, jobslave_error
-from jobslave.generators import gencslist, constants
-from jobslave.generators import loophelpers
-from jobslave.filesystems import sortMountPoints
-from jobslave.generators.imagegen import ImageGenerator, MSG_INTERVAL
 from jobslave import filesystems
+from jobslave import loophelpers
+from jobslave.filesystems import sortMountPoints
+from jobslave.imagegen import ImageGenerator, MSG_INTERVAL, logCall
+from jobslave.generators import constants
 
 # conary imports
 from conary import conaryclient
@@ -190,7 +190,7 @@ class Filesystem:
             return
 
         self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
-        util.execute("mount %s %s" % (self.loopDev, mountPoint))
+        logCall("mount %s %s" % (self.loopDev, mountPoint))
         self.mounted = True
 
     def umount(self):
@@ -200,7 +200,7 @@ class Filesystem:
         if self.fsType == "swap":
             return
 
-        util.execute("umount %s" % self.loopDev)
+        logCall("umount %s" % self.loopDev)
         loophelpers.loopDetach(self.loopDev)
         self.mounted = False
 
@@ -214,13 +214,13 @@ class Filesystem:
                 cmd = 'mke2fs -L / -F -b 4096 %s' % loopDev
                 if self.size:
                     cmd += ' %s' % (self.size / 4096)
-                util.execute(cmd)
+                logCall(cmd)
 
                 labelCmd = '-L "%s"' % self.fsLabel
-                util.execute('tune2fs -i 0 -c 0 -j %s %s' % (labelCmd, loopDev))
+                logCall('tune2fs -i 0 -c 0 -j %s %s' % (labelCmd, loopDev))
             elif self.fsType == 'swap':
                 cmd = 'mkswap -L %s %s' % (self.fsLabel, loopDev)
-                util.execute(cmd)
+                logCall(cmd)
             else:
                 raise RuntimeError, "Invalid filesystem type: %s" % self.fsType
         finally:
@@ -329,7 +329,7 @@ class BootableImage(ImageGenerator):
         if rnl5:
             #tweak the inittab to start at level 5
             cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % os.path.join(fakeRoot, 'etc', 'inittab')
-            util.execute(cmd)
+            logCall(cmd)
 
         # copy timezone data into /etc/localtime
         if os.path.exists(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC')):
@@ -422,9 +422,9 @@ class BootableImage(ImageGenerator):
         try:
             os.close(fd)
             self.saveConaryRC(cfgPath)
-            util.execute('mount -t proc none %s' % os.path.join(dest, 'proc'))
-            util.execute('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
-            util.execute( \
+            logCall('mount -t proc none %s' % os.path.join(dest, 'proc'))
+            logCall('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
+            logCall( \
                 ("TMPDIR=%s conary update '%s=%s[%s]' --root %s "
                  "--config-file %s --replace-files --tag-script=%s") % \
                     (constants.tmpDir, self.baseTrove, self.baseVersion,
@@ -432,9 +432,9 @@ class BootableImage(ImageGenerator):
                      os.path.join(dest, 'root', 'conary-tag-script.in')))
 
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
-                util.execute(("TMPDIR=%s conary update --sync-to-parents "
-                              "'kernel:runtime[%s]' --root %s "
-                              "--config-file %s --tag-script=%s") % \
+                logCall(("TMPDIR=%s conary update --sync-to-parents "
+                         "'kernel:runtime[%s]' --root %s "
+                         "--config-file %s --tag-script=%s") % \
                                  (constants.tmpDir, self.getKernelFlavor(),
                                   dest, cfgPath,
                                   os.path.join(dest, 'root',
@@ -448,27 +448,27 @@ class BootableImage(ImageGenerator):
             self.setupGrub(dest)
             outScript = os.path.join(dest, 'root', 'conary-tag-script')
             inScript = outScript + '.in'
-            os.system('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
+            logCall('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
             os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
             for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
                 tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
                 if os.path.exists(util.joinPaths(dest, tagPath)):
-                    util.execute("chroot %s bash -c 'sh -x %s > %s 2>&1'" % \
+                    logCall("chroot %s bash -c 'sh -x %s > %s 2>&1'" % \
                                      (dest, tagPath, tagPath + '.output'))
         finally:
-            util.execute('umount %s' % os.path.join(dest, 'proc'))
-            util.execute('umount %s' % os.path.join(dest, 'sys'))
+            logCall('umount %s' % os.path.join(dest, 'proc'))
+            logCall('umount %s' % os.path.join(dest, 'sys'))
             os.unlink(cfgPath)
 
-        util.execute('rm -rf %s' % os.path.join( \
+        logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
         # remove root password
-        os.system("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 --enableshadow --disablecache" % dest)
-        os.system("chroot %s /usr/sbin/usermod -p '' root" % dest)
+        logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 --enableshadow --disablecache" % dest)
+        logCall("chroot %s /usr/sbin/usermod -p '' root" % dest)
 
         # remove template kernel entry
-        util.execute('chroot %s /sbin/grubby --remove-kernel=/boot/vmlinuz-template' % dest)
+        logCall('chroot %s /sbin/grubby --remove-kernel=/boot/vmlinuz-template' % dest)
 
     @timeMe
     def installGrub(self, fakeRoot, image, size):
@@ -487,8 +487,8 @@ class BootableImage(ImageGenerator):
         libPaths = [('lib',), ('lib64',), ('usr', 'lib'), ('usr', 'lib64')]
         os.environ['LD_LIBRARY_PATH'] = ":".join(os.path.join(fakeRoot, *x) for x in libPaths)
 
-        os.system(('echo -e "%s" | '
-                   '%s --no-floppy --batch') % (grubCmds, grubPath))
+        logCall('echo -e "%s" | '
+                '%s --no-floppy --batch' % (grubCmds, grubPath))
 
     @timeMe
     def gzip(self, source, dest = None):
@@ -496,12 +496,12 @@ class BootableImage(ImageGenerator):
             if not dest:
                 dest = source + '.tgz'
             parDir, targetDir = os.path.split(source)
-            util.execute('tar -czv -C %s %s > %s' % (parDir, targetDir, dest))
+            logCall('tar -czv -C %s %s > %s' % (parDir, targetDir, dest))
             pass
         else:
             if not dest:
                 dest = source + '.gz'
-            util.execute('gzip -c %s > %s' % (source, dest))
+            logCall('gzip -c %s > %s' % (source, dest))
         return dest
 
     def write(self):

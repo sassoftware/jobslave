@@ -59,19 +59,24 @@ class LogHandler(logging.Handler):
         if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
             self.flush()
 
-def system(command):
-    log.info(command)
-    p = subprocess.Popen(command, shell = True,
-                         stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+
+def logCall(cmd, ignoreErrors = False):
+    log.info("+ " + cmd)
+    p = subprocess.Popen(cmd, shell = True,
+        stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     while p.poll() is None:
         d = p.stdout.readline()
         if d:
-            log.info(d)
-        d = p.stdout.readline()
+            log.info("++ " + d)
+        d = p.stderr.readline()
         if d:
-            log.error(d)
+            log.debug("++ " + d)
 
-#os.system = system
+    if p.returncode and not ignoreErrors:
+        raise RuntimeError("Error executing command: %s (return code %d)" % (cmd, code))
+    else:
+        return p.returncode
+
 
 class Generator(threading.Thread):
     configObject = None
@@ -124,7 +129,7 @@ class Generator(threading.Thread):
             rootLogger.removeHandler(handler)
         self.logger = LogHandler(self.jobId, parent.response)
         rootLogger.addHandler(self.logger)
-        log.setVerbosity(logging.INFO)
+        log.setVerbosity(logging.DEBUG)
 
         self.doneStatus = jobstatus.FINISHED
         self.doneStatusMessage = 'Finished'
