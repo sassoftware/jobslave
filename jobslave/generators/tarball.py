@@ -9,7 +9,7 @@ import os
 
 # jobslave imports
 from jobslave.generators import bootable_image, constants
-from jobslave.imaggen import logCall
+from jobslave.imagegen import logCall
 
 from conary.lib import util
 from jobslave import buildtypes
