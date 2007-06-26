@@ -431,6 +431,11 @@ class BootableImage(ImageGenerator):
                      str(self.baseFlavor), dest, cfgPath,
                      os.path.join(dest, 'root', 'conary-tag-script.in')))
 
+            # set up the flavor for the kernel install based on the 
+            # rooted flavor setup.
+            self.conarycfg.useDirs = [os.path.join(dest, 'etc/conary/use')]
+            self.conarycfg.initializeFlavors()
+            self.saveConaryRC(cfgPath)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
                 logCall(("TMPDIR=%s conary update --sync-to-parents "
                          "'kernel:runtime[%s]' --root %s "
