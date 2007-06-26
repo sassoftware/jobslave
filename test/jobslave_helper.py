@@ -14,6 +14,7 @@ import tempfile
 
 from cStringIO import StringIO
 from jobslave import jobhandler, slave, constants, generators
+from jobslave import imagegen
 from conary.lib import util
 
 class DummyConnection(object):
@@ -130,6 +131,7 @@ class ExecuteLoggerTest(JobSlaveHelper):
     def setUp(self):
         self.oldOsSystem = os.system
         self.oldSubprocessCall = subprocess.call
+        self.oldSubprocessPopen = subprocess.Popen
         self.callLog = []
 
         def osSystem(cmd):
@@ -139,8 +141,23 @@ class ExecuteLoggerTest(JobSlaveHelper):
             self.callLog.append(cmd)
             return 0
 
+        def logCall(cmd, **kwargs):
+            self.callLog.append(cmd)
+            return 0
+
+        class FakePopen:
+            def __init__(self2, cmd, *args, **kwargs):
+                self.callLog.append(cmd)
+                self2.stderr = StringIO()
+                self2.stdout = StringIO()
+                self2.returncode = 0
+
+            def poll(self2):
+                return True
+
         os.system = osSystem
         subprocess.call = subprocessCall
+        subprocess.Popen = FakePopen
         JobSlaveHelper.setUp(self)
 
     def injectPopen(self, output):
@@ -159,6 +176,7 @@ class ExecuteLoggerTest(JobSlaveHelper):
         JobSlaveHelper.tearDown(self)
         os.system = self.oldOsSystem
         subprocess.call = self.oldSubprocessCall
+        subprocess.Popen = self.oldSubprocessPopen
 
     def reset(self):
         self.callLog = []

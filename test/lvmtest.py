@@ -15,6 +15,7 @@ from cStringIO import StringIO
 from conary.repository import changeset
 from jobslave import filesystems
 from jobslave import lvm
+from jobslave import imagegen
 from jobslave_helper import ExecuteLoggerTest
 
 class LVMTest(ExecuteLoggerTest):
