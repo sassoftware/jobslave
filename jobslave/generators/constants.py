@@ -19,10 +19,10 @@ partitionOffset = 65536
 
 import os
 
-finishedDir          = os.path.join(os.path.sep, 'srv', 'jobslave',
-                                    'finished-images')
+# path for temporary finished images
+finishedDir = os.path.join(os.path.sep, 'srv', 'jobslave', 'tmp', 'finished-images')
 
-#directory containing file tree with fstab and other hooks
+# directory containing file tree with fstab and other hooks
 skelDir         = os.path.join(os.path.sep, 'srv', 'jobslave', 'skel')
 
 # where to look for tools needed to boot a live ISO.

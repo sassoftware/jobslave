@@ -231,6 +231,7 @@ class Generator(threading.Thread):
                     os.close(inF)
                     self.parentPipe = outF
                     self.status('Starting job')
+                    util.mkdirChain(constants.finishedDir)
                     self.write()
                     try:
                         if self.workDir and os.path.exists(self.workDir):
