@@ -34,10 +34,10 @@ templateDir = os.path.join(os.path.sep, 'srv', 'jobslave', 'templates')
 # temporary directory
 tmpDir = os.path.join(os.path.sep, 'srv', 'jobslave', 'tmp')
 
-scriptPath            = '/usr/share/jobslave/scripts/'
-cachePath             = '/srv/jobslave/tmp/changesets/'
-implantIsoMd5         = '/usr/bin/implantisomd5'
-anacondaImagesPath    = '/srv/jobslave/pixmaps'
-anacondaTemplatesPath = '/srv/jobslave/anaconda-templates'
-templatesLabel        = 'conary.rpath.com@rpl:1'
-entDir                = '/srv/jobslave/entitlements/'
+scriptPath = os.path.join(os.path.sep, 'usr', 'share', 'jobslave', 'scripts')
+cachePath = os.path.join(os.path.sep, 'srv', 'jobslave', 'tmp', 'changesets')
+implantIsoMd5 = os.path.join(os.path.sep, 'usr', 'bin', 'implantisomd5')
+anacondaImagesPath = os.path.join(os.path.sep, 'srv', 'jobslave', 'pixmaps')
+anacondaTemplatesPath = os.path.join(os.path.sep, 'srv', 'jobslave', 'tmp', 'anaconda-templates')
+templatesLabel = 'conary.rpath.com@rpl:1'
+entDir =  os.path.join(os.path.sep, 'srv', 'jobslave', 'entitlements')
