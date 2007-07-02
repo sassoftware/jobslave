@@ -102,20 +102,13 @@ class Generator(threading.Thread):
         self.UUID = \
             ''.join([hex(ord(os.urandom(1)))[2:] for x in range(16)]).upper()
 
-        self.status('initializing')
+        self.status('Initializing build...')
 
         self.conarycfg = conarycfg.ConaryConfiguration(False)
         cfgData = StringIO.StringIO(jobData['project']['conaryCfg'])
         self.conarycfg.readObject(cfgData, cfgData)
 
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
-        self.conarycfg.configLine('entitlementDirectory %s' % constants.entDir)
-
-        util.mkdirChain(constants.entDir)
-        for serverName, (entClass, entKey) in jobData['entitlements'].items():
-            f = open(os.path.join(constants.entDir, serverName), 'w')
-            f.write(conarycfg.emitEntitlement(serverName, entClass, entKey))
-            f.close()
 
         if parent and parent.cfg.proxy:
             self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
