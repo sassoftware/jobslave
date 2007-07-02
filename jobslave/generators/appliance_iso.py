@@ -197,7 +197,6 @@ class ApplianceInstaller(bootable_image.BootableImage,
             # notify client that images are ready
             self.postOutput(isoList)
         finally:
-            #util.rmtree(os.path.normpath(os.path.join(topDir, "..")),
-            #            ignore_errors = True)
-            #util.rmtree(constants.cachePath, ignore_errors = True)
-	    pass
+            util.rmtree(os.path.normpath(os.path.join(topDir, "..")),
+                        ignore_errors = True)
+            util.rmtree(constants.cachePath, ignore_errors = True)
