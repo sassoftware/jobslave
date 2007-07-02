@@ -421,7 +421,7 @@ class BootableImage(ImageGenerator):
 
         uJob = cclient.newUpdateJob()
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False)
-        cclient.applyUpdateJob(uJob, replaceFiles = True,
+        cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script.in'))
 
     @timeMe
@@ -430,7 +430,7 @@ class BootableImage(ImageGenerator):
         itemList = [(kernel, (None, None), (version, flavor), True)]
         uJob = cclient.newUpdateJob()
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False)
-        cclient.applyUpdateJob(uJob, replaceFiles = True,
+        cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False,
             tagScript = os.path.join(dest, 'root', 'conary-tag-script-kernel'))
 
     @timeMe
