@@ -415,6 +415,33 @@ class BootableImage(ImageGenerator):
         f.close()
 
     @timeMe
+    def updateGroupChangeSet(self, dest, callback):
+        cfg = self.conarycfg.copy()
+        cfg.root = dest
+        cclient = conaryclient.ConaryClient(cfg)
+
+        itemList = [(self.baseTrove, (None, None), (self.baseVersion, self.baseFlavor), True)]
+
+        uJob, _ = cclient.updateChangeSet(itemList,
+            resolveDeps = False, split = True, callback = callback)
+
+        cclient.applyUpdate(uJob, callback = callback, replaceFiles = True,
+            tagScript = os.path.join(dest, 'root', 'conary-tag-script.in'))
+
+    @timeMe
+    def updateKernelChangeSet(self, kernelFlavor, dest, callback):
+        cfg = self.conarycfg.copy()
+        cfg.root = dest
+        cclient = conaryclient.ConaryClient(cfg)
+
+        kernel, version, flavor = parseTroveSpec('kernel:runtime[%s]' % kernelFlavor)
+        itemList = [(kernel, (None, None), (version, flavor), True)]
+        uJob, suggMap = cclient.updateChangeSet(itemList, sync = True,
+            callback = callback, split = True, resolveDeps = False)
+        cclient.applyUpdate(uJob, callback = callback, replaceFiles = True,
+            tagScript = os.path.join(dest, 'root', 'conary-tag-script-kernel'))
+
+    @timeMe
     def installFileTree(self, dest):
         self.status('Installing image contents')
         self.createTemporaryRoot(dest)
@@ -424,12 +451,9 @@ class BootableImage(ImageGenerator):
             self.saveConaryRC(cfgPath)
             logCall('mount -t proc none %s' % os.path.join(dest, 'proc'))
             logCall('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
-            logCall( \
-                ("TMPDIR=%s conary update '%s=%s[%s]' --root %s "
-                 "--config-file %s --replace-files --tag-script=%s") % \
-                    (constants.tmpDir, self.baseTrove, self.baseVersion,
-                     str(self.baseFlavor), dest, cfgPath,
-                     os.path.join(dest, 'root', 'conary-tag-script.in')))
+
+            callback = InstallCallback(log.info)
+            self.updateGroupChangeSet(dest, callback)
 
             # set up the flavor for the kernel install based on the 
             # rooted flavor setup.
@@ -437,13 +461,7 @@ class BootableImage(ImageGenerator):
             self.conarycfg.initializeFlavors()
             self.saveConaryRC(cfgPath)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
-                logCall(("TMPDIR=%s conary update --sync-to-parents "
-                         "'kernel:runtime[%s]' --root %s "
-                         "--config-file %s --tag-script=%s") % \
-                                 (constants.tmpDir, self.getKernelFlavor(),
-                                  dest, cfgPath,
-                                  os.path.join(dest, 'root',
-                                               'conary-tag-script-kernel')))
+                self.updateKernelChangeSet(self.getKernelFlavor(), dest, callback)
             else:
                 log.info('Kernel detected, skipping.')
 
