@@ -416,9 +416,7 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def updateGroupChangeSet(self, dest, callback):
-        cfg = self.conarycfg.copy()
-        cfg.root = dest
-        cclient = conaryclient.ConaryClient(cfg)
+        cclient = conaryclient.ConaryClient(self.conarycfg)
 
         itemList = [(self.baseTrove, (None, None), (self.baseVersion, self.baseFlavor), True)]
 
@@ -430,9 +428,7 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def updateKernelChangeSet(self, kernelFlavor, dest, callback):
-        cfg = self.conarycfg.copy()
-        cfg.root = dest
-        cclient = conaryclient.ConaryClient(cfg)
+        cclient = conaryclient.ConaryClient(self.conarycfg)
 
         kernel, version, flavor = parseTroveSpec('kernel:runtime[%s]' % kernelFlavor)
         itemList = [(kernel, (None, None), (version, flavor), True)]
@@ -452,7 +448,8 @@ class BootableImage(ImageGenerator):
             logCall('mount -t proc none %s' % os.path.join(dest, 'proc'))
             logCall('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
 
-            callback = InstallCallback(log.info)
+            self.conarycfg.root = dest
+            callback = InstallCallback(self.status)
             self.updateGroupChangeSet(dest, callback)
 
             # set up the flavor for the kernel install based on the 
