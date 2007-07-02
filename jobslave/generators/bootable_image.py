@@ -151,7 +151,7 @@ class InstallCallback(UpdateCallback):
         # current message
         if self.updateHunk[1] != 0:
             percent = (self.updateHunk[0] * 100) / self.updateHunk[1]
-            msg = "Updating changesets: %d%% (%s)" % (percent, msg)
+            msg = "Installing image contents: %d%% (%s)" % (percent, msg)
 
         if self.msg != msg and (curTime - self.timeStamp) > MSG_INTERVAL:
             self.msg = msg
@@ -372,6 +372,7 @@ class BootableImage(ImageGenerator):
 
     def getImageSize(self, realign = constants.sectorSize, partitionOffset = constants.partitionOffset):
         mounts = [x[0] for x in self.jobData['filesystems'] if x[0]]
+        self.status("Calculating disk sizes...")
         sizes, totalSize = self.getTroveSize(mounts)
 
         totalSize = 0
