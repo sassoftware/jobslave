@@ -260,11 +260,11 @@ class LiveIso(bootable_image.BootableImage):
                 extraArgs = '-z'
 
             # make the inner image
-            logCall('mkisofs -J -R -U %s %s > %s' % (extraArgs, activeTree, innerIsoImage))
+            logCall('mkisofs -v -J -R -U %s %s > %s' % (extraArgs, activeTree, innerIsoImage))
             os.chmod(innerIsoImage, 0755)
 
             # make the outer image
-            logCall('mkisofs -o %s -J -R -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -V %s %s' % (finalIsoImage, self.getVolName(), liveDir))
+            logCall('mkisofs -v -o %s -J -R -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -V %s %s' % (finalIsoImage, self.getVolName(), liveDir))
             os.chmod(finalIsoImage, 0755)
 
             # If the inner image wasn't compressed, compress the final image
