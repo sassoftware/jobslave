@@ -8,5 +8,5 @@
                 </hacks>
                 <vbd device="sda" function="root" mode="w" vdi="vdi_sda"/>
         </vm>
-        <vdi name="vdi_sda" size="@DISKSIZE@" source="file://sda" type="dir-gzipped-chunks"/>
+        <vdi name="vdi_sda" size="@DISKSIZE@" source="file://sda" type="dir-gzipped-chunks" variety="system" />
 </appliance>
