@@ -455,7 +455,7 @@ class BootableImage(ImageGenerator):
             self.conarycfg.initializeFlavors()
             self.saveConaryRC(cfgPath)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
-                self.updateKernelChangeSet(self.getKernelFlavor(), dest, callback)
+                self.updateKernelChangeSet(cclient)
             else:
                 log.info('Kernel detected, skipping.')
 
