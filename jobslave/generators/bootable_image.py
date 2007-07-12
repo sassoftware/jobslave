@@ -421,7 +421,7 @@ class BootableImage(ImageGenerator):
 
         uJob = cclient.newUpdateJob()
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False)
-        cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False,
+        cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = True,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script.in'))
 
     @timeMe
@@ -429,9 +429,9 @@ class BootableImage(ImageGenerator):
         kernel, version, flavor = parseTroveSpec('kernel:runtime[%s]' % self.getKernelFlavor())
         itemList = [(kernel, (None, None), (version, flavor), True)]
         uJob = cclient.newUpdateJob()
-        cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False)
-        cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False, sync = True,
-            tagScript = os.path.join(dest, 'root', 'conary-tag-script-kernel'))
+        cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False, sync = True)
+        cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False,
+            tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script-kernel'))
 
     @timeMe
     def installFileTree(self, dest):
@@ -445,6 +445,8 @@ class BootableImage(ImageGenerator):
             logCall('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
 
             self.conarycfg.root = dest
+            self.conarycfg.installLabelPath = [versions.VersionFromString(self.baseVersion).branch().label()]
+
             cclient = conaryclient.ConaryClient(self.conarycfg)
             cclient.setUpdateCallback(InstallCallback(self.status))
             self.updateGroupChangeSet(cclient)
