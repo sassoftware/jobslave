@@ -97,5 +97,5 @@ typeNamesMarketing = {
     PARALLELS:          "Parallels Virtual Appliance",
     AMI:                "Amazon Machine Image",
     UPDATE_ISO:         "Update CD/DVD",
-    APPLIANCE_ISO:      "Appliance Inst", 
+    APPLIANCE_ISO:      "Appliance Installable ISO",
 }
