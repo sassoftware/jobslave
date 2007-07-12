@@ -424,6 +424,9 @@ class BootableImage(ImageGenerator):
         cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = True,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script.in'))
 
+        # clean up after Conary
+        uJob.troveSource.db.close()
+
     @timeMe
     def updateKernelChangeSet(self, cclient):
         kernel, version, flavor = parseTroveSpec('kernel:runtime[%s]' % self.getKernelFlavor())
@@ -432,6 +435,10 @@ class BootableImage(ImageGenerator):
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False, sync = True)
         cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script-kernel'))
+
+        # clean up after Conary
+        uJob.troveSource.db.close()
+        uJob.troveSource.db.lockFileObj.close()
 
     @timeMe
     def installFileTree(self, dest):
@@ -460,6 +467,11 @@ class BootableImage(ImageGenerator):
                 self.updateKernelChangeSet(cclient)
             else:
                 log.info('Kernel detected, skipping.')
+
+            # clean up some bits Conary leaves around
+            cclient.db.close()
+            log.syslog.f.close()
+            log.syslog.f = None
 
             self.fileSystemOddsNEnds(dest)
             if self.scsiModules:
