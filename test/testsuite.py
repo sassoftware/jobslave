@@ -141,7 +141,7 @@ def isIndividual():
     return _individual
 
 
-EXCLUDED_PATHS = ['dist', 'build', 'test', 'setup.py']
+EXCLUDED_PATHS = ['dist', '/build/', 'test', 'setup.py']
 
 def main(argv=None, individual=True):
     import testhelp
