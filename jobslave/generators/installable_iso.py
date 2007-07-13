@@ -3,26 +3,28 @@
 #
 # All Rights Reserved
 #
+import httplib
 import os
 import pwd
 import re
+import socket
 import string
 import subprocess
 import sys
 import tempfile
 import time
+import urllib
+import urlparse
 
 from jobslave.generators import constants
 from jobslave import gencslist
 from jobslave import splitdistro
 from jobslave.splitdistro import call
-from jobslave.generators import anaconda_templates
 from jobslave.generators.anaconda_images import AnacondaImages
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
 
-#from mint.client import upstream
-
 from jobslave import flavors
+from jobslave.slave import getSlaveRuntimeConfig
 
 from conary import callbacks
 from conary import conaryclient
@@ -38,26 +40,18 @@ from conary.conaryclient.cmdline import parseTroveSpec
 from conary.lib import util, sha1helper, openpgpfile
 
 
-class AnacondaTemplateMissing(Exception):
-    def __init__(self, arch = "arch"):
-        self._arch = arch
-
-    def __str__(self):
-        return "Anaconda template missing for architecture: %s" % self._arch
-
-
 class Callback(callbacks.UpdateCallback):
     def requestingChangeSet(self):
-        self._update('requesting %s from repository')
+        self._update('Requesting %s from repository')
 
     def downloadingChangeSet(self, got, need):
         if need != 0:
-            self._update('downloading %%s from repository (%d%%%% of %dk)'
+            self._update('Downloading %%s from repository (%d%%%% of %dk)'
                          %((got * 100) / need, need / 1024))
 
     def downloadingFileContents(self, got, need):
         if need != 0:
-            self._update('downloading files for %%s from repository '
+            self._update('Downloading files for %%s from repository '
                          '(%d%%%% of %dk)' %((got * 100) / need, need / 1024))
 
     def _update(self, msg):
@@ -129,11 +123,14 @@ class InstallableIso(ImageGenerator):
                 resolveDeps = False)
             return uJob
 
-    def _getTroveSpec(self, uJob):
-        """returns the specstring of an update job"""
+    def _getNVF(self, uJob):
+        """returns the n, v, f of an update job, assuming only one job"""
         for job in uJob.getPrimaryJobs():
             trvName, trvVersion, trvFlavor = job[0], str(job[2][0]), str(job[2][1])
-            return "%s=%s[%s]" % (trvName, trvVersion, trvFlavor)
+            return (trvName, trvVersion, trvFlavor)
+    
+    def _getMasterIPAddress(self):
+        return getSlaveRuntimeConfig().get('MASTER_IP', '')
 
     def getConaryClient(self, tmpRoot, arch):
         arch = deps.ThawFlavor(arch)
@@ -347,87 +344,91 @@ class InstallableIso(ImageGenerator):
             os.system("sed -i '0,/append/s/append.*$/& ks=cdrom/' %s" % \
                       os.path.join(topdir, 'isolinux', 'isolinux.cfg'))
 
-    def _makeTemplate(self, templateDir, tmpDir, uJob, cclient):
-        # templateData is something that the template commands can
-        # modify so that we can use the information later on down the
-        # road.
-        self.templateData = {}
-        self.status("Preparing and caching new anaconda template...")
+    def retrieveTemplates(self):
+        self.status("Retrieving ISO template")
+        print >> sys.stderr, "requesting anaconda-templates for " + self.arch
 
-        def setInfo(key, data):
-            self.templateData[key] = data
+        masterIPAddress = self._getMasterIPAddress()
+        if not masterIPAddress:
+            raise RuntimeError, "Failed to get jobmaster's IP address, aborting"
 
-        def syslinux(self, input):
-            return call(['syslinux', input])
-
-        image = anaconda_templates.Image(templateDir, tmpDir)
-
-        cmdMap = {
-            'image':    image.run,
-            'set':      setInfo,
-            'syslinux': syslinux,
-        }
-
-        if uJob:
-            cclient.applyUpdate(uJob)
-            util.copytree(os.path.join(tmpDir, 'unified'), templateDir + os.path.sep)
-
-        manifest = open(os.path.join(tmpDir, "MANIFEST"))
-        for l in manifest.xreadlines():
-            cmds = [x.strip() for x in l.split(',')]
-
-            cmd = cmds.pop(0)
-            if cmd not in cmdMap:
-                raise RuntimeError, "Invalid command in anaconda-templates MANIFEST: %s" % (cmd)
-
-            func = cmdMap[cmd]
-            ret = func(*cmds)
-
-    def _getTemplatePath(self):
         tmpDir = tempfile.mkdtemp(dir=constants.tmpDir)
+        cclient = self.getConaryClient( \
+            tmpDir, getArchFlavor(self.baseFlavor).freeze())
+
+        # TODO what about custom templates?
+        cclient.cfg.installLabelPath.append(versions.Label(constants.templatesLabel))
+        uJob = self._getUpdateJob(cclient, 'anaconda-templates')
+        if not uJob:
+            raise RuntimeError, "Failed to find anaconda-templates"
+
+
+        _, v, f = self._getNVF(uJob)
+
         try:
-            print >> sys.stderr, "finding anaconda-templates for " + self.arch
-            cclient = self.getConaryClient( \
-                tmpDir, getArchFlavor(self.baseFlavor).freeze())
+            try:
+                # XXX fix hardcoded port!
+                httpconn = httplib.HTTPConnection('%s:%d' % \
+                        (masterIPAddress, 8000))
+                httpconn.connect()
 
-            cclient.cfg.installLabelPath.append(versions.Label(constants.templatesLabel))
+                # request new template
+                params = urllib.urlencode({'v': v, 'f': f})
+                headers = {"Content-type": "application/x-www-form-urlencoded",
+                           "Content-length": len(params)}
+                httpconn.request('POST', '/makeTemplate', params, headers)
+                httpresp = httpconn.getresponse()
 
-            uJob = self._getUpdateJob(cclient, 'anaconda-templates')
-            if not uJob:
-                raise RuntimeError, "anaconda-templates package not found!"
-            troveSpec = self._getTroveSpec(uJob)
-            hash = sha1helper.md5ToString(sha1helper.md5String(troveSpec))
-            templateDir = os.path.join(constants.anacondaTemplatesPath, hash)
-            templateDirTemp = templateDir + "-temp"
+                # At this point the serve may do one of three things:
+                # - Return 202, with trove hash. This indicates that the
+                #   template build has been started by this process.
+                # - Return 303. This could mean that either
+                #   - the build is still in progress (if the URI in location
+                #     contains "status" in its path) OR
+                #   - the build is complete, and the URI in the location field
+                #     is the URL to fetch the finished template via GET
+                #
+                # Anything else represents a failure mode.
+                currentStatus = ''
+                nexthop = ''
+                while True:
+                    print currentStatus
+                    contentType = httpresp.getheader('Content-Type')
+                    if httpresp.status in (202, 303):
+                        nexthop = httpresp.getheader('Location')
+                    elif httpresp.status == 200:
+                        if contentType == 'text/plain':
+                            currentStatus = httpresp.read()
+                        elif contentType == 'application/x-tar':
+                            break
+                        else:
+                            raise RuntimeError, "Got an unexpected Content-Type '%s' from the template webservice, aborting" % contentType
+                    else:
+                        raise RuntimeError, "Failed to request a new template: anaconda-templates=%s[%s]" % (v, f)
 
-            # check to see if someone else is already creating the cache
-            tries = 0
-            while os.path.exists(templateDirTemp):
-                time.sleep(10)
-                print >> sys.stderr, "someone else is creating templates in %s -- sleeping 10 seconds" % templateDirTemp
-                tries += 1
+                    # Sleep 5 seconds, and ask again
+                    # XXX should we bail after a certain number of retries?
+                    #     if so, after how many?
+                    time.sleep(5)
+                    uripath, query = urlparse.urlsplit(nexthop)[2:4]
+                    if query:
+                        uripath += '?%s' % query
+                    httpconn.request('GET', uripath)
+                    httpresp = httpconn.getresponse()
 
-                if tries > 360:
-                    raise RuntimeError, "Waited 1 hour for anaconda templates from another job to appear: giving up."
-
-            if not os.path.exists(templateDir):
-                try:
-                    print >> sys.stderr, "template package not cached, creating"
-                    util.mkdirChain(templateDirTemp)
-                    self._makeTemplate(templateDirTemp, tmpDir, uJob, cclient)
-                    os.rename(templateDirTemp, templateDir)
-                finally:
-                    if os.path.exists(templateDirTemp):
-                        util.rmtree(templateDirTemp, ignore_errors = True)
-            print >> sys.stderr, "templates found:", templateDir
-
-            return templateDir
+                ncpv = int(httpresp.getheader('x-netclient-protocol-version'))
+                pTar = subprocess.Popen(['tar', '-xf', '-'],
+                    stdin=httpresp.fp, cwd=anacondaTemplateDir)
+                rc = pTar.wait()
+                if rc != 0:
+                    raise RuntimeError, "Failed to expand anaconda-templates (rc=%d)" % rc
+            except (IOError, socket.error), e:
+                raise "Error occurred when requesting anaconda-templates: %s" % str(e)
         finally:
-            util.rmtree(tmpDir, ignore_errors = True)
+            httpconn.close()
+        return os.path.join(templateDir, 'unified'), ncpv
 
-    def prepareTemplates(self, topdir):
-        templateDir = self._getTemplatePath() + "/unified"
-
+    def prepareTemplates(self, topdir, templateDir):
         self.status("Preparing ISO template")
         _linkRecurse(templateDir, topdir)
         productDir = os.path.join(topdir, self.productDir)
@@ -534,7 +535,7 @@ class InstallableIso(ImageGenerator):
             util.rmtree(homeDir, ignore_errors = True)
             util.rmtree(tmpRoot, ignore_errors = True)
 
-    def extractChangeSets(self, csdir):
+    def extractChangeSets(self, csdir, clientVersion):
         # build a set of the things we already have extracted.
         self.status("Extracting changesets")
 
@@ -544,7 +545,7 @@ class InstallableIso(ImageGenerator):
                                       getArchFlavor(self.baseFlavor).freeze())
         tg = gencslist.TreeGenerator(client.cfg, client,
             (self.troveName, self.troveVersion, self.troveFlavor),
-            cacheDir=constants.cachePath)
+            cacheDir=constants.cachePath, clientVersion=clientVersion)
         tg.parsePackageData()
         tg.extractChangeSets(csdir, callback=self.callback)
 
@@ -576,8 +577,9 @@ class InstallableIso(ImageGenerator):
             if self.maxIsoSize > 681574400:
                 self.maxIsoSize -= 1024 * 1024
 
-            csdir = self.prepareTemplates(topdir)
-            tg = self.extractChangeSets(csdir)
+            templateDir, clientVersion = self.retrieveTemplates()
+            csdir = self.prepareTemplates(topdir, templateDir)
+            tg = self.extractChangeSets(csdir, clientVersion)
 
             if self.arch == 'x86':
                 anacondaArch = 'i386'

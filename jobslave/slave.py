@@ -33,6 +33,24 @@ def getIP():
     p.close()
     return data
 
+def getSlaveRuntimeConfig():
+    d = {}
+    try:
+        try:
+            runtimeCfg = open('/etc/sysconfig/slave_runtime')
+            for l in runtimeCfg:
+                if l.startswith('#')
+                    continue
+                k, v = l.split('=')[0:2]
+                d[k] = v
+        except Exception:
+            pass
+    finally:
+        if runtimeCfg:
+            runtimeCfg.close()
+
+    return d
+
 def protocols(protocolList):
     if type(protocolList) in (int, long):
         protocolList = (protocolList,)
