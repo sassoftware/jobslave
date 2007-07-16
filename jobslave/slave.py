@@ -39,7 +39,7 @@ def getSlaveRuntimeConfig():
         try:
             runtimeCfg = open('/etc/sysconfig/slave_runtime')
             for l in runtimeCfg:
-                if l.startswith('#')
+                if l.startswith('#'):
                     continue
                 k, v = l.split('=')[0:2]
                 d[k] = v
