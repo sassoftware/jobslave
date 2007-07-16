@@ -208,21 +208,17 @@ class JobSlave(object):
             data = simplejson.loads(dataStr)
             try:
                 self.jobHandler = jobhandler.getHandler(data, self)
+                self.jobHandler.start()
+                self.timeIdle = None
+                self.jobControlQueue = queue.Queue( \
+                    self.cfg.queueHost, self.cfg.queuePort, data['UUID'],
+                    namespace = self.cfg.namespace, timeOut = 0)
             except Exception, e:
                 print "Error starting job:", e
                 exc_class, exc, bt = sys.exc_info()
                 print ''.join(traceback.format_tb(bt))
                 self.response.jobStatus(data['UUID'], jobstatus.FAILED,
                                         'Image creation error: %s' % str(e))
-            if self.jobHandler:
-                self.jobHandler.start()
-                self.timeIdle = None
-                self.jobControlQueue = queue.Queue( \
-                    self.cfg.queueHost, self.cfg.queuePort, data['UUID'],
-                    namespace = self.cfg.namespace, timeOut = 0)
-            else:
-                self.response.jobStatus(data['UUID'], jobstatus.FAILED,
-                                        'Unsupported Output type')
 
     def getBestProtocol(self, protocols):
         common = PROTOCOL_VERSIONS.intersection(protocols)

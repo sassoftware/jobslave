@@ -37,6 +37,14 @@ jobHandlers = {
 import threading
 import weakref
 
+class InvalidBuildType(Exception):
+    def __init__(self, buildType):
+        self._buildType = buildType
+
+    def __str__(self):
+        return "Invalid build type: %d" % self._buildType
+
+
 def getHandler(jobData, parent):
     if jobData['type'] == 'build':
         handlerClass = jobHandlers.get(jobData['buildType'])
@@ -44,3 +52,5 @@ def getHandler(jobData, parent):
             return handlerClass(jobData, parent)
     elif jobData['type'] == 'cook':
         return GroupTroveCook(jobData, parent)
+
+    raise InvalidBuildType(jobData['buildType'])
