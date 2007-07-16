@@ -24,7 +24,7 @@ from jobslave.generators.anaconda_images import AnacondaImages
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
 
 from jobslave import flavors
-from jobslave.slave import getSlaveRuntimeConfig
+from jobslave.helperfuncs import getSlaveRuntimeConfig
 
 from conary import callbacks
 from conary import conaryclient

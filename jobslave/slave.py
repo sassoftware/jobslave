@@ -13,6 +13,7 @@ import traceback
 
 from jobslave import jobhandler, imgserver
 from jobslave.generators import constants
+from jobslave.helperfuncs import getIP, getSlaveRuntimeConfig
 
 from mcp import client, queue, response, jobstatus, slavestatus
 
@@ -26,31 +27,6 @@ def controlMethod(func):
 
 filterArgs = lambda d, *args: dict([x for x in d.iteritems() \
                                         if x[0] not in args])
-
-def getIP():
-    p = os.popen("""/sbin/ifconfig `/sbin/route | grep "^default" | sed "s/.* //"` | grep "inet addr" | awk -F: '{print $2}' | sed 's/ .*//'""")
-    data = p.read().strip()
-    p.close()
-    return data
-
-def getSlaveRuntimeConfig():
-    d = {}
-    try:
-        try:
-            runtimeCfg = open('/etc/sysconfig/slave_runtime')
-            for l in runtimeCfg:
-                if l.startswith('#'):
-                    continue
-                k, v = l.split('=')[0:2]
-                d[k] = v
-        except Exception:
-            pass
-    finally:
-        if runtimeCfg:
-            runtimeCfg.close()
-
-    return d
-
 def protocols(protocolList):
     if type(protocolList) in (int, long):
         protocolList = (protocolList,)
