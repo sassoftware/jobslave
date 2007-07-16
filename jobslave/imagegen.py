@@ -233,10 +233,8 @@ class Generator(threading.Thread):
                     os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()
-                    # exceptions should *never* cross this point, so it's always
-                    # an internal server error
                     self.logger.flush()
-                    self.status('Internal Server Error', status = jobstatus.FAILED)
+                    self.status('Job failed: %s' % str(e), status = jobstatus.FAILED)
                     import traceback
                     log.error(traceback.format_exc(bt))
                     log.error(str(e))
