@@ -39,7 +39,6 @@ from conary.conarycfg import ConfigFile
 from conary.conaryclient.cmdline import parseTroveSpec
 from conary.lib import util, sha1helper, openpgpfile
 
-
 class Callback(callbacks.UpdateCallback):
     def requestingChangeSet(self):
         self._update('Requesting %s from repository')
@@ -420,8 +419,8 @@ class InstallableIso(ImageGenerator):
                 if ncpv:
                     ncpv = int(ncpv)
                 else:
-                    print sys.stderr >> "Missing netclient protocol version," \
-                                        "falling back to a safe version (38)"
+                    print >> sys.stderr, "Missing netclient protocol version," \
+                                         "falling back to a safe version (38)"
                     sys.stderr.flush()
                     ncpv = 38
 
