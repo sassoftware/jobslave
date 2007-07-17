@@ -416,7 +416,15 @@ class InstallableIso(ImageGenerator):
                     httpconn.request('GET', uripath)
                     httpresp = httpconn.getresponse()
 
-                ncpv = int(httpresp.getheader('x-netclient-protocol-version'))
+                ncpv = httpresp.getheader('x-netclient-protocol-version')
+                if ncpv:
+                    ncpv = int(ncpv)
+                else:
+                    print sys.stderr >> "Missing netclient protocol version," \
+                                        "falling back to a safe version (38)"
+                    sys.stderr.flush()
+                    ncpv = 38
+
                 pTar = subprocess.Popen(['tar', '-xf', '-'],
                     stdin=httpresp.fp, cwd=anacondaTemplateDir)
                 rc = pTar.wait()
