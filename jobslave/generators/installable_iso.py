@@ -424,6 +424,8 @@ class InstallableIso(ImageGenerator):
                                 "falling back to a safe version (38)")
                     ncpv = 38
 
+                anacondaTemplateDir = tempfile.mkdtemp(dir=constants.tmpDir)
+
                 pTar = subprocess.Popen(['tar', '-xf', '-'],
                     stdin=httpresp.fp, cwd=anacondaTemplateDir)
                 rc = pTar.wait()
@@ -433,7 +435,7 @@ class InstallableIso(ImageGenerator):
                 raise "Error occurred when requesting anaconda-templates: %s" % str(e)
         finally:
             httpconn.close()
-        return os.path.join(templateDir, 'unified'), ncpv
+        return os.path.join(anacondaTemplateDir, 'unified'), ncpv
 
     def prepareTemplates(self, topdir, templateDir):
         self.status("Preparing ISO template")
