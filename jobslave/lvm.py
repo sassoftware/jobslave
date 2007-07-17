@@ -7,7 +7,7 @@ import sys
 
 from conary.lib import util
 from jobslave import loophelpers
-from jobslave.imagegen import logCall
+from jobslave.imagegen import logCall, log
 from jobslave.generators import bootable_image
 
 class LVMFilesystem(bootable_image.Filesystem):
@@ -29,7 +29,7 @@ class LVMFilesystem(bootable_image.Filesystem):
         try:
             logCall("umount %s" % (self.fsDev))
         except RuntimeError, e:
-            print >> sys.stderr, "Error umounting device:", str(e)
+            log.warning("Error umounting device: %s" % str(e))
         self.mounted = False
 
 class LVMContainer:

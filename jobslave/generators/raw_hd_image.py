@@ -10,7 +10,7 @@ import tempfile
 
 from jobslave.filesystems import sortMountPoints
 from jobslave import lvm
-from jobslave.imagegen import logCall
+from jobslave.imagegen import logCall, log
 from jobslave.generators import bootable_image, constants
 from math import ceil
 
@@ -103,7 +103,7 @@ class RawHdImage(bootable_image.BootableImage):
             self.umountAll()
             lvmContainer.destroy()
         except Exception, e:
-            print >> sys.stderr, "Error tearing down LVM setup:", str(e)
+            log.warning("Error tearing down LVM setup: %s" % str(e))
 
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
