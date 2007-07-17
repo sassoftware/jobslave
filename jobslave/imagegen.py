@@ -13,6 +13,7 @@ import StringIO
 
 import logging
 import threading
+import traceback
 
 from conary import conarycfg
 from conary import conaryclient
@@ -233,18 +234,17 @@ class Generator(threading.Thread):
                     os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()
-                    self.logger.flush()
                     self.status('Job failed: %s' % str(e), status = jobstatus.FAILED)
-                    import traceback
                     log.error(traceback.format_exc(bt))
                     log.error(str(e))
                     log.error('Failed job: %s' % self.jobId)
+                    self.logger.flush()
                     raise
                 else:
-                    self.logger.flush()
                     self.status(self.doneStatusMessage,
                                 status = self.doneStatus)
                     log.info('Finished job: %s' % self.jobId)
+                    self.logger.flush()
             # place exit handlers in their own exception handling layer
             # to ensure that under no circumstances can it escape
             # use os._exit to force ending now.
