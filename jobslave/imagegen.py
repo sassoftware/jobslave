@@ -25,6 +25,7 @@ from conary.lib import util, log
 from jobslave.generators import constants
 from mcp import jobstatus
 
+MSG_INTERVAL = 5
 
 class LogHandler(logging.Handler):
     def __init__(self, jobId, response):
@@ -223,9 +224,9 @@ class Generator(threading.Thread):
                     os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()
-                    self.status('Job failed: %s' % str(e), status = jobstatus.FAILED)
-                    log.error(traceback.format_exc(bt))
-                    log.error(str(e))
+                    btText = traceback.format_exc(bt)
+                    self.status('Job failed (%s)' % (btText.split('\n')[-2]), status = jobstatus.FAILED)
+                    log.error(btText)
                     log.error('Failed job: %s' % self.jobId)
                     self.logger.flush()
                     raise
