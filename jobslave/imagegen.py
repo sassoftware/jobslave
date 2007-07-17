@@ -4,39 +4,28 @@
 # All Rights Reserved
 #
 
-import os
-import sys
-import signal
-import urllib
-import weakref
-import StringIO
-
 import logging
+import os
+import signal
+import StringIO
+import subprocess
+import sys
+import time
 import threading
 import traceback
+import urllib
+import weakref
 
 from conary import conarycfg
 from conary import conaryclient
-from conary.lib import util, log
-import subprocess
 from conary import versions
-
 from conary.deps import deps
+from conary.lib import util, log
 
 from jobslave.generators import constants
-
 from mcp import jobstatus
 
-MSG_INTERVAL = 5
 
-class NoConfigFile(Exception):
-    def __init__(self, path = ""):
-        self._path = path
-
-    def __str__(self):
-        return "Unable to access configuration file: %s" % self._path
-
-import time
 class LogHandler(logging.Handler):
     def __init__(self, jobId, response):
         self.jobId = jobId
@@ -276,6 +265,7 @@ class Generator(threading.Thread):
         log.error('Job killed: %s' % self.jobId)
         util.rmtree(os.path.join(constants.finishedDir, self.UUID),
                     ignore_errors = True)
+
 
 class ImageGenerator(Generator):
     def __init__(self, *args, **kwargs):
