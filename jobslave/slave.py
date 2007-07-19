@@ -68,7 +68,7 @@ def watchdog():
 class SlaveConfig(client.MCPClientConfig):
     jobQueueName = (cfgtypes.CfgString, None)
     nodeName = (cfgtypes.CfgString, None)
-    TTL = (cfgtypes.CfgInt, 0)
+    TTL = (cfgtypes.CfgInt, 500)
     imageTimeout = (cfgtypes.CfgInt, 600)
     proxy = (cfgtypes.CfgString, None)
 
