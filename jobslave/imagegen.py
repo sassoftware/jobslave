@@ -195,10 +195,10 @@ class Generator(threading.Thread):
         # it doesn't matter what we send, just not ''
         os.write(self.parentPipe, 'post')
         self.doneStatus = jobstatus.BUILT
-        self.doneStatusMessage = 'Done building image(s)'
+        self.doneStatusMessage = 'Done building image' + (len(fileList) > 1 and 's' or '')
         parent = self.parent and self.parent()
         if parent:
-            parent.postJobOutput(self.jobId, self.jobData['outputQueue'],
+            parent.postJobOutput(self.jobId, self.jobData['buildId'], self.jobData['outputUrl'],
                                  fileList)
         else:
             log.error("couldn't post output")
