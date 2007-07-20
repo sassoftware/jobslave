@@ -7,6 +7,7 @@
 import os, sys
 import time
 import simplejson
+import stat
 import httplib
 import signal
 import traceback
@@ -21,6 +22,7 @@ from mcp import client, queue, response, jobstatus, slavestatus
 from conary.lib import cfgtypes, util
 
 PROTOCOL_VERSIONS = set([1])
+BUFFER = 256 * 1024
 
 def controlMethod(func):
     func._controlMethod = True
