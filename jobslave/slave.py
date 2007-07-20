@@ -12,7 +12,7 @@ import signal
 import traceback
 import urlparse
 
-from jobslave import jobhandler, imgserver
+from jobslave import jobhandler
 from jobslave.generators import constants
 from jobslave.helperfuncs import getIP, getSlaveRuntimeConfig
 
