@@ -7,11 +7,13 @@
 import os, sys
 import time
 import simplejson
+import stat
 import httplib
 import signal
 import traceback
+import urlparse
 
-from jobslave import jobhandler, imgserver
+from jobslave import jobhandler
 from jobslave.generators import constants
 from jobslave.helperfuncs import getIP, getSlaveRuntimeConfig
 
@@ -20,6 +22,7 @@ from mcp import client, queue, response, jobstatus, slavestatus
 from conary.lib import cfgtypes, util
 
 PROTOCOL_VERSIONS = set([1])
+BUFFER = 256 * 1024
 
 def controlMethod(func):
     func._controlMethod = True
@@ -103,8 +106,6 @@ class JobSlave(object):
         self.jobHandler = None
         self.outstandingJobs = {}
         self.imageIdle = 0
-        self.imageServer = imgserver.getServer(constants.finishedDir)
-        self.baseUrl = 'http://%s:%d/' % (getIP(), self.imageServer.server_port)
         self.takingJobs = True
         signal.signal(signal.SIGTERM, self.catchSignal)
         signal.signal(signal.SIGINT, self.catchSignal)
@@ -128,8 +129,6 @@ class JobSlave(object):
     def disconnect(self):
         if self.jobHandler:
             self.jobHandler.kill()
-        self.imageServer.running = False
-        self.imageServer.join()
         for jobId, UUID in self.outstandingJobs.iteritems():
             self.response.jobStatus(jobId, jobstatus.FAILED, 'Image not delivered')
             util.rmtree(os.path.join(constants.finishedDir, UUID),
@@ -257,13 +256,37 @@ class JobSlave(object):
         self.imageIdle = time.time()
         self.outstandingJobs[jobId] = UUID
 
-    def postJobOutput(self, jobId, dest, files):
-        urls = []
-        for path, name in files:
-            urls.append((path.replace(constants.finishedDir, self.baseUrl),
-                         name))
-        # send a request to the url to come get the files
-        self.response.postJobOutput(jobId, dest, urls)
+    def postJobOutput(self, jobId, buildId, destUrl, files):
+        from conary.repository.transport import XMLOpener
+        import urllib
+        import xmlrpclib
+
+        opener = XMLOpener()
+
+        filenames = []
+        protocol, uri = urllib.splittype(destUrl + '/uploadBuild')
+        for fn, desc in files:
+            c, urlstr, selector, headers = opener.createConnection(uri,
+                ssl = (protocol == "https"))
+
+            c.connect()
+            c.putrequest("PUT", selector)
+
+            c.putheader("X-rBuilder-BuildId", str(buildId)) # replace this with a query arg?
+            c.putheader("X-rBuilder-Filename", os.path.basename(fn)) # replace this with a query arg
+            size = os.stat(files[0][0])[stat.ST_SIZE]
+            c.putheader('Content-length', str(size))
+            c.endheaders()
+
+            f = open(fn)
+            l = util.copyfileobj(f, c)
+            print >> sys.stderr, "wrote %d bytes of %s" % (l, fn)
+            filenames.append((fn, desc, size, '')) # FIXME: put the sha1 in somehow
+
+        rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
+        rba.setBuildFilenames(buildId, filenames)
+
+        
 
     @controlMethod
     def checkVersion(self, protocols):
