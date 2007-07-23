@@ -7,6 +7,7 @@
 import os, sys
 import time
 import simplejson
+import stat
 import httplib
 import signal
 import traceback
@@ -21,6 +22,7 @@ from mcp import client, queue, response, jobstatus, slavestatus
 from conary.lib import cfgtypes, util
 
 PROTOCOL_VERSIONS = set([1])
+BUFFER = 256 * 1024
 
 def controlMethod(func):
     func._controlMethod = True
@@ -255,33 +257,36 @@ class JobSlave(object):
         self.outstandingJobs[jobId] = UUID
 
     def postJobOutput(self, jobId, buildId, destUrl, files):
-        urlParts = urlparse.urlparse(destUrl)
-        conn = httplib.HTTPConnection(urlParts[1])
-        conn.request("PUT", urlParts[2])
+        from conary.repository.transport import XMLOpener
+        import urllib
+        import xmlrpclib
 
-        conn.putheader("X-rBuilder-BuildId", str(buildId))
+        opener = XMLOpener()
 
-        urlMap = []
+        filenames = []
+        protocol, uri = urllib.splittype(destUrl + '/uploadBuild')
         for fn, desc in files:
-            urlMap.append([os.path.basename(fn),
-                           os.stat(fn)[stat.ST_SIZE],
-                           desc])
-        conn.putheader("X-rBuilder-UrlMap", simplejson.dumps(urlMap))
-        conn.endheaders()
+            c, urlstr, selector, headers = opener.createConnection(uri,
+                ssl = (protocol == "https"))
 
-        for fn, desc in files:
+            c.connect()
+            c.putrequest("PUT", selector)
+
+            c.putheader("X-rBuilder-BuildId", str(buildId)) # replace this with a query arg?
+            c.putheader("X-rBuilder-Filename", os.path.basename(fn)) # replace this with a query arg
+            size = os.stat(files[0][0])[stat.ST_SIZE]
+            c.putheader('Content-length', str(size))
+            c.endheaders()
+
             f = open(fn)
-            try:
-                d = f.read(BUFFER)
-                while d:
-                    conn.send(d)
-                    d = f.read(BUFFER)
-            finally:
-                f.close()
+            l = util.copyfileobj(f, c)
+            print >> sys.stderr, "wrote %d bytes of %s" % (l, fn)
+            filenames.append((fn, desc, size, '')) # FIXME: put the sha1 in somehow
 
-        r = conn.getresponse()
-        assert(r.status == 200)
-        conn.close()
+        rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
+        rba.setBuildFilenames(buildId, filenames)
+
+        
 
     @controlMethod
     def checkVersion(self, protocols):
