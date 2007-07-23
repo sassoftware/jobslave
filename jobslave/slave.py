@@ -7,11 +7,13 @@
 import os, sys
 import time
 import simplejson
+import stat
 import httplib
 import signal
 import traceback
+import urlparse
 
-from jobslave import jobhandler, imgserver
+from jobslave import jobhandler
 from jobslave.generators import constants
 from jobslave.helperfuncs import getIP, getSlaveRuntimeConfig
 
@@ -20,6 +22,7 @@ from mcp import client, queue, response, jobstatus, slavestatus
 from conary.lib import cfgtypes, util
 
 PROTOCOL_VERSIONS = set([1])
+BUFFER = 256 * 1024
 
 def controlMethod(func):
     func._controlMethod = True
@@ -103,8 +106,6 @@ class JobSlave(object):
         self.jobHandler = None
         self.outstandingJobs = {}
         self.imageIdle = 0
-        self.imageServer = imgserver.getServer(constants.finishedDir)
-        self.baseUrl = 'http://%s:%d/' % (getIP(), self.imageServer.server_port)
         self.takingJobs = True
         signal.signal(signal.SIGTERM, self.catchSignal)
         signal.signal(signal.SIGINT, self.catchSignal)
@@ -128,8 +129,6 @@ class JobSlave(object):
     def disconnect(self):
         if self.jobHandler:
             self.jobHandler.kill()
-        self.imageServer.running = False
-        self.imageServer.join()
         for jobId, UUID in self.outstandingJobs.iteritems():
             self.response.jobStatus(jobId, jobstatus.FAILED, 'Image not delivered')
             util.rmtree(os.path.join(constants.finishedDir, UUID),
@@ -257,13 +256,34 @@ class JobSlave(object):
         self.imageIdle = time.time()
         self.outstandingJobs[jobId] = UUID
 
-    def postJobOutput(self, jobId, dest, files):
-        urls = []
-        for path, name in files:
-            urls.append((path.replace(constants.finishedDir, self.baseUrl),
-                         name))
-        # send a request to the url to come get the files
-        self.response.postJobOutput(jobId, dest, urls)
+    def postJobOutput(self, jobId, buildId, destUrl, files):
+        urlParts = urlparse.urlparse(destUrl)
+        conn = httplib.HTTPConnection(urlParts[1])
+        conn.request("PUT", urlParts[2])
+
+        conn.putheader("X-rBuilder-BuildId", str(buildId))
+
+        urlMap = []
+        for fn, desc in files:
+            urlMap.append([os.path.basename(fn),
+                           os.stat(fn)[stat.ST_SIZE],
+                           desc])
+        conn.putheader("X-rBuilder-UrlMap", simplejson.dumps(urlMap))
+        conn.endheaders()
+
+        for fn, desc in files:
+            f = open(fn)
+            try:
+                d = f.read(BUFFER)
+                while d:
+                    conn.send(d)
+                    d = f.read(BUFFER)
+            finally:
+                f.close()
+
+        r = conn.getresponse()
+        assert(r.status == 200)
+        conn.close()
 
     @controlMethod
     def checkVersion(self, protocols):

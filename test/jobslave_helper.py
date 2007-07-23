@@ -69,8 +69,6 @@ class ThreadedJobSlave(slave.JobSlave, threading.Thread):
         threading.Thread.__init__(self)
         slave.JobSlave.__init__(self, *args, **kwargs)
 
-    def disconnect(self):
-        self.imageServer.running = False
 
 class JobSlaveHelper(testhelp.TestCase):
     def setUp(self):
@@ -92,7 +90,6 @@ class JobSlaveHelper(testhelp.TestCase):
     def tearDown(self):
         util.rmtree(self.finishedDir)
         util.rmtree(self.entDir)
-        self.jobSlave.imageServer.stop()
         testhelp.TestCase.tearDown(self)
 
     def getHandler(self, buildType):
