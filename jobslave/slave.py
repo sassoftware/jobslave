@@ -259,7 +259,7 @@ class JobSlave(object):
         self.imageIdle = time.time()
         self.outstandingJobs[jobId] = UUID
 
-    def postJobOutput(self, jobId, buildId, destUrl, files):
+    def postJobOutput(self, jobId, buildId, destUrl, outputHash, files):
         from conary.repository.transport import XMLOpener
         import urllib
         import xmlrpclib
@@ -278,6 +278,7 @@ class JobSlave(object):
 
             size = os.stat(files[0][0])[stat.ST_SIZE]
             c.putheader('Content-length', str(size))
+            c.putheader('X-rBuilder-OutputHash', outputHash)
             c.endheaders()
 
             sha1 = sha.new()
