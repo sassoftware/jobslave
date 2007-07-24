@@ -6,6 +6,7 @@
 
 import os, sys
 import time
+import sha
 import simplejson
 import stat
 import httplib
@@ -21,6 +22,7 @@ from jobslave.helperfuncs import getIP, getSlaveRuntimeConfig
 from mcp import client, queue, response, jobstatus, slavestatus
 
 from conary.lib import cfgtypes, util
+from conary.lib.sha1helper import sha1ToString
 
 PROTOCOL_VERSIONS = set([1])
 BUFFER = 256 * 1024
@@ -278,10 +280,13 @@ class JobSlave(object):
             c.putheader('Content-length', str(size))
             c.endheaders()
 
+            sha1 = sha.new()
             f = open(fn)
-            l = util.copyfileobj(f, c)
-            logging.debug("wrote %d bytes of %s" % (l, fn))
-            filenames.append((fn, desc, size, '')) # FIXME: put the sha1 in somehow
+            l = util.copyfileobj(f, c, digest = sha1)
+
+            sha1 = sha1ToString(sha1.digest())
+            filenames.append((fn, desc, size, sha1))
+            logging.info("wrote %d bytes of %s (%s)" % (l, fn, sha1))
 
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
         rba.setBuildFilenames(buildId, filenames)
