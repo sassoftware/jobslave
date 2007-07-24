@@ -266,8 +266,9 @@ class JobSlave(object):
 
         filenames = []
         for fn, desc in files:
-            protocol, uri = urllib.splittype(destUrl + '/uploadBuild/%d/%s' % (buildId, fn))
-            c, urlstr, selector, headers = opener.createConnection(uri,
+            protocol, uri = urllib.splittype(destUrl + 'uploadBuild/%d/%s' % \
+                (buildId, os.path.basename(fn)))
+            c, urlstr, selector, headers = opener.createConnection(str(uri),
                 ssl = (protocol == "https"))
 
             c.connect()
