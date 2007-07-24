@@ -12,6 +12,7 @@ import httplib
 import signal
 import traceback
 import urlparse
+import logging
 
 from jobslave import jobhandler
 from jobslave.generators import constants
@@ -264,29 +265,26 @@ class JobSlave(object):
         opener = XMLOpener()
 
         filenames = []
-        protocol, uri = urllib.splittype(destUrl + '/uploadBuild')
         for fn, desc in files:
+            protocol, uri = urllib.splittype(destUrl + '/uploadBuild/%d/%s' % (buildId, fn))
             c, urlstr, selector, headers = opener.createConnection(uri,
                 ssl = (protocol == "https"))
 
             c.connect()
             c.putrequest("PUT", selector)
 
-            c.putheader("X-rBuilder-BuildId", str(buildId)) # replace this with a query arg?
-            c.putheader("X-rBuilder-Filename", os.path.basename(fn)) # replace this with a query arg
             size = os.stat(files[0][0])[stat.ST_SIZE]
             c.putheader('Content-length', str(size))
             c.endheaders()
 
             f = open(fn)
             l = util.copyfileobj(f, c)
-            print >> sys.stderr, "wrote %d bytes of %s" % (l, fn)
+            logging.debug("wrote %d bytes of %s" % (l, fn))
             filenames.append((fn, desc, size, '')) # FIXME: put the sha1 in somehow
 
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
         rba.setBuildFilenames(buildId, filenames)
-
-        
+        self.response.jobStatus(jobId, jobstatus.FINISHED, 'Job Finished')
 
     @controlMethod
     def checkVersion(self, protocols):
