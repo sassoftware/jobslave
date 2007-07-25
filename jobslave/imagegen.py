@@ -199,7 +199,7 @@ class Generator(threading.Thread):
         parent = self.parent and self.parent()
         if parent:
             parent.postJobOutput(self.jobId, self.jobData['buildId'], self.jobData['outputUrl'],
-                                 self.jobData['outputHash'], fileList)
+                                 self.jobData['outputToken'], fileList)
         else:
             log.error("couldn't post output")
 
