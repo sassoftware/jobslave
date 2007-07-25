@@ -37,7 +37,16 @@ class VMwareImage(raw_hd_image.RawHdImage):
         filecontents = infile.read()
         infile.close()
         #@NAME@ @MEM@ @FILENAME@
-        displayName = self.jobData['project']['name'].replace('"', '')
+
+        # Escape ", #, |, <, and >, strip out control characters
+        displayName = self.jobData['project']['name'].replace(
+                                          '|', '|7C').replace(
+                                          '#', '|23').replace(
+                                          '"', '|22').replace(
+                                          '<', '|3C').replace(
+                                          '>', '|3E')
+        displayName = ''.join([c for c in displayName if ord(c) >= 32])
+
         # Remove unwanted whitespace characters from title.
         displayName = ' '.join(displayName.strip())
         filecontents = filecontents.replace('@NAME@', displayName)
