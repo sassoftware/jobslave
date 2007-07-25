@@ -47,8 +47,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
                                           '>', '|3E')
         displayName = ''.join([c for c in displayName if ord(c) >= 32])
 
-        # Remove unwanted whitespace characters from title.
-        displayName = ' '.join(displayName.strip())
         filecontents = filecontents.replace('@NAME@', displayName)
         filecontents = filecontents.replace('@MEM@', str(self.vmMemory))
         filecontents = filecontents.replace('@FILENAME@', self.basefilename)
