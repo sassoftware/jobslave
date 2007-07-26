@@ -342,9 +342,14 @@ class BootableImage(ImageGenerator):
                      os.path.join(fakeRoot, 'etc', 'localtime'))
 
         # extend fstab based on the list of filesystems we have added
-        f = open(os.path.join(fakeRoot, 'etc', 'fstab'))
-        oldFstab = f.read()
-        f.close()
+        util.mkdirChain(os.path.join(fakeRoot, 'etc'))
+        fstab = os.path.join(fakeRoot, 'etc', 'fstab')
+        if os.path.exists(fstab):
+            f = open(fstab)
+            oldFstab = f.read()
+            f.close()
+        else:
+            oldFstab = ""
 
         fstabExtra = ""
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):

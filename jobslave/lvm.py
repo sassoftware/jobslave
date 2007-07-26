@@ -35,9 +35,9 @@ class LVMFilesystem(bootable_image.Filesystem):
 class LVMContainer:
     volGroupName = "vg00"
     loopDev = None
-    filesystems = []
 
     def __init__(self, totalSize, image = None, offset = 0):
+        self.filesystems = []
         assert image # for now
 
         self.loopDev = loophelpers.loopAttach(image, offset)

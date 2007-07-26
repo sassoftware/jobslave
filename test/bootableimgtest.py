@@ -194,6 +194,8 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
     def setUp(self):
         data = simplejson.loads(open('archive/jobdata.txt').read())
         self.mockJobSlave = MockJobSlave()
+        from jobslave.generators import constants
+        constants.finishedDir = "/tmp"
         bootable_image.BootableImage.status = lambda *args, **kwargs: None
         self.bootable = bootable_image.BootableImage(data, self.mockJobSlave)
         jobslave_helper.JobSlaveHelper.setUp(self)

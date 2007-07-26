@@ -72,9 +72,6 @@ class ThreadedJobSlave(slave.JobSlave, threading.Thread):
 
 class JobSlaveHelper(testhelp.TestCase):
     def setUp(self):
-        import logging
-        for x in logging._handlers:
-            logging.getLogger().removeHandler(x)
         testhelp.TestCase.setUp(self)
 
         self.slaveCfg = slave.SlaveConfig()
@@ -89,6 +86,11 @@ class JobSlaveHelper(testhelp.TestCase):
         self.entDir = tempfile.mkdtemp(prefix="jobslave-test-ent")
         generators.constants.finishedDir = self.finishedDir
         generators.constants.entDir = self.entDir
+
+        import logging
+        log = logging.getLogger()
+        logging.DEBUG = logging.FATAL
+        log.setLevel(logging.FATAL)
 
     def tearDown(self):
         util.rmtree(self.finishedDir)
@@ -139,6 +141,8 @@ class ExecuteLoggerTest(JobSlaveHelper):
         self.oldSubprocessCall = subprocess.call
         self.oldSubprocessPopen = subprocess.Popen
         self.callLog = []
+        self.mkdirs = []
+        self.oldOsMakeDirs = os.makedirs
 
         def osSystem(cmd):
             self.callLog.append(cmd)
@@ -151,6 +155,9 @@ class ExecuteLoggerTest(JobSlaveHelper):
             self.callLog.append(cmd)
             return 0
 
+        def osMakeDirs(path):
+            self.mkdirs.append(path)
+
         class FakePopen:
             def __init__(self2, cmd, *args, **kwargs):
                 self.callLog.append(cmd)
@@ -162,25 +169,31 @@ class ExecuteLoggerTest(JobSlaveHelper):
                 return True
 
         os.system = osSystem
+        os.makedirs = osMakeDirs
         subprocess.call = subprocessCall
         subprocess.Popen = FakePopen
         JobSlaveHelper.setUp(self)
 
     def injectPopen(self, output):
         self.oldPopen = os.popen
-        cs = StringIO()
-        cs.write(output)
-        cs.seek(0)
-
-        def popen(cmd):
-            os.popen = self.oldPopen
+        self.oldUtilPopen = util.popen
+        def popen(cmd, mode = 'w'):
+            cs = StringIO()
+            cs.write(output)
+            cs.seek(0)
             return cs
 
         os.popen = popen
+        util.popen = popen
+
+    def resetPopen(self):
+        os.popen = self.oldPopen
+        util.popen = self.oldUtilPopen
 
     def tearDown(self):
         JobSlaveHelper.tearDown(self)
         os.system = self.oldOsSystem
+        os.makedirs = self.oldOsMakeDirs
         subprocess.call = self.oldSubprocessCall
         subprocess.Popen = self.oldSubprocessPopen
 
