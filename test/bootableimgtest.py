@@ -18,6 +18,7 @@ from conary.deps import deps
 
 import jobslave_helper
 from jobslave import slave
+from jobslave import filesystems
 from jobslave.generators import bootable_image
 import jobslave.loophelpers
 
@@ -182,6 +183,13 @@ class MockJobSlave(object):
         self.response = MockResponse()
         self.cfg = slave.SlaveConfig()
 
+class StubFilesystem(object):
+    def mount(self, *args, **kwargs):
+        pass
+
+    def umount(self, *args, **kwargs):
+        pass
+
 class BootableImageTest(jobslave_helper.JobSlaveHelper):
     def setUp(self):
         data = simplejson.loads(open('archive/jobdata.txt').read())
@@ -333,6 +341,57 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "FilesystemOddsNEnds should have added /etc/fstab")
         finally:
             util.rmtree(tmpDir)
+
+    def testAddFilesystem(self):
+        self.bootable.addFilesystem('/boot', 'ext3')
+        self.failIf(self.bootable.filesystems != {'/boot': 'ext3'},
+            "addFilesystem did not operate correcly")
+
+    def testCreateTempRoot(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            self.bootable.createTemporaryRoot(tmpDir)
+            self.failIf(os.listdir(tmpDir) != \
+                    ['etc', 'boot', 'tmp', 'proc', 'sys', 'root', 'var'],
+                    "unexpect results from createTemporaryRoot")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testGetTroveSize(self):
+        createChangeSet = self.bootable.nc.createChangeSet
+        calculatePartitionSizes = filesystems.calculatePartitionSizes
+        try:
+            self.bootable.nc.createChangeSet = lambda *args, **kwargs: None
+            filesystems.calculatePartitionSizes = \
+                    lambda *args, **kwargs: (None, None)
+            self.failIf(self.bootable.getTroveSize(None) != (None, None),
+                    "results from getTroveSize did not come from filesystem")
+        finally:
+            self.bootable.nc.createChangeSet = createChangeSet
+            filesystems.calculatePartitionSizes = calculatePartitionSizes
+
+    def testMountAll(self):
+        self.bootable.workDir = tempfile.mkdtemp()
+        sortMountPoints = bootable_image.sortMountPoints
+        try:
+            bootable_image.sortMountPoints = lambda *args, **kwargs: ['/boot']
+            self.bootable.filesystems['/boot'] = StubFilesystem()
+            self.bootable.mountAll()
+            self.failIf(os.listdir(os.path.join(self.bootable.workDir,
+                'root')) != ['boot'],
+                "expected mountAll to create mount points")
+        finally:
+            bootable_image.sortMountPoints = sortMountPoints
+            util.rmtree(self.bootable.workDir)
+
+    def testUmountAll(self):
+        sortMountPoints = bootable_image.sortMountPoints
+        try:
+            bootable_image.sortMountPoints = lambda *args, **kwargs: ['/boot']
+            self.bootable.filesystems['/boot'] = StubFilesystem()
+            self.bootable.umountAll()
+        finally:
+            bootable_image.sortMountPoints = sortMountPoints
 
 
 if __name__ == "__main__":

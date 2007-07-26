@@ -229,9 +229,8 @@ class Filesystem:
 
 
 class BootableImage(ImageGenerator):
-    filesystems = {}
-
     def __init__(self, *args, **kwargs):
+        self.filesystems = {}
         self.scsiModules = False
 
         ImageGenerator.__init__(self, *args, **kwargs)
