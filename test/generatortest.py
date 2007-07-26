@@ -21,6 +21,9 @@ constants.tmpDir = "/tmp"
 
 from jobslave.generators import raw_fs_image
 from jobslave.generators import raw_hd_image
+from jobslave.generators import xen_ova
+from jobslave.generators import tarball
+
 
 class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
     bases = {}
@@ -32,9 +35,19 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.bases['RawHdImage'] = raw_hd_image.RawHdImage.__bases__
         raw_hd_image.RawHdImage.__bases__ = (bootable_stubs.BootableImageStub,)
 
+        self.bases['XenOVA'] = xen_ova.XenOVA.__bases__
+        xen_ova.XenOVA.__bases__ = (bootable_stubs.BootableImageStub,)
+
+        self.bases['Tarball'] = tarball.Tarball.__bases__
+        tarball.Tarball.__bases__ = (bootable_stubs.BootableImageStub,)
+
+
     def tearDown(self):
         raw_fs_image.RawFsImage.__bases__ = self.bases['RawFsImage']
         raw_hd_image.RawHdImage.__bases__ = self.bases['RawHdImage']
+        xen_ova.XenOVA.__bases__ = self.bases['XenOVA']
+        tarball.Tarball.__bases__ = self.bases['Tarball']
+
         jobslave_helper.ExecuteLoggerTest.tearDown(self)
 
     def testRawFsImage(self):
@@ -87,6 +100,20 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'losetup -d ']
         )
         self.resetPopen()
+
+    def testXenOVA(self):
+        raise testsuite.SkipTestException, "Not mocked out enough yet"
+        g = xen_ova.XenOVA([], {})
+        g.write()
+
+    def testTarball(self):
+        oldChdir = os.chdir
+        try:
+            os.chdir = lambda x: x
+            g = tarball.Tarball([], {})
+            g.write()
+        finally:
+            os.chdir = oldChdir
 
 
 if __name__ == "__main__":
