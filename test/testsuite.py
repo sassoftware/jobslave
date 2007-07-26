@@ -127,8 +127,11 @@ def setup():
     import jobslave_helper
     import stomp
     stomp.Connection = jobslave_helper.DummyConnection
-    from jobslave import imgserver
-    imgserver.TIMEOUT = 0.01
+    from jobslave.generators import bootable_image
+    bootable_image.BootableImage._orig_status = \
+            bootable_image.BootableImage.status
+    bootable_image.BootableImage.status = \
+            lambda *args, **kwargs: None
     #end MCP specific tweaks
 
     _setupPath = testPath

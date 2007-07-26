@@ -327,9 +327,13 @@ class BootableImage(ImageGenerator):
                                         self.basefilename), self.cc)
 
         if rnl5:
-            #tweak the inittab to start at level 5
-            cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % os.path.join(fakeRoot, 'etc', 'inittab')
-            logCall(cmd)
+            inittab = os.path.join(fakeRoot, 'etc', 'inittab')
+            if os.path.isfile(inittab):
+                #tweak the inittab to start at level 5
+                cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % inittab
+                logCall(cmd)
+            else:
+                log.warning("inittab does not appear to be present")
 
         # copy timezone data into /etc/localtime
         if os.path.exists(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC')):
@@ -408,6 +412,9 @@ class BootableImage(ImageGenerator):
     @timeMe
     def addScsiModules(self, dest):
         filePath = os.path.join(dest, 'etc', 'modprobe.conf')
+        if not os.path.exists(filePath):
+            log.warning('modprob.conf not found while adding scsi modules')
+            return
         f = open(filePath, 'a')
         if os.stat(filePath)[6]:
             f.write('\n')
@@ -506,7 +513,7 @@ class BootableImage(ImageGenerator):
         grubPath = os.path.join(fakeRoot, 'sbin', 'grub')
         if not os.path.exists(grubPath):
             log.info("grub not found. skipping execution.")
-            return
+            return False
 
         cylinders = size / constants.cylindersize
         grubCmds = "device (hd0) %s\n" \
@@ -520,6 +527,7 @@ class BootableImage(ImageGenerator):
 
         logCall('echo -e "%s" | '
                 '%s --no-floppy --batch' % (grubCmds, grubPath))
+        return True
 
     @timeMe
     def gzip(self, source, dest = None):
@@ -528,7 +536,6 @@ class BootableImage(ImageGenerator):
                 dest = source + '.tgz'
             parDir, targetDir = os.path.split(source)
             logCall('tar -czv -C %s %s > %s' % (parDir, targetDir, dest))
-            pass
         else:
             if not dest:
                 dest = source + '.gz'

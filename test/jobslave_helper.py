@@ -72,6 +72,9 @@ class ThreadedJobSlave(slave.JobSlave, threading.Thread):
 
 class JobSlaveHelper(testhelp.TestCase):
     def setUp(self):
+        import logging
+        for x in logging._handlers:
+            logging.getLogger().removeHandler(x)
         testhelp.TestCase.setUp(self)
 
         self.slaveCfg = slave.SlaveConfig()
@@ -123,6 +126,12 @@ class JobSlaveHelper(testhelp.TestCase):
             os.dup2(oldErr, sys.stderr.fileno())
             os.dup2(oldOut, sys.stdout.fileno())
 
+    def touch(self, path, contents = ''):
+        parDir, fn = os.path.split(path)
+        util.mkdirChain(parDir)
+        f = open(path, 'w')
+        f.write(contents)
+        f.close()
 
 class ExecuteLoggerTest(JobSlaveHelper):
     def setUp(self):
