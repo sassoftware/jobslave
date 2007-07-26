@@ -19,6 +19,7 @@ from conary.deps import deps
 import jobslave_helper
 from jobslave import slave
 from jobslave import filesystems
+from jobslave.generators import constants
 from jobslave.generators import bootable_image
 import jobslave.loophelpers
 
@@ -454,6 +455,70 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         finally:
             util.rmtree(tmpDir)
 
+    def testInstallFileTree(self):
+        self.bootable.scsiModules = True
+        tmpDir = tempfile.mkdtemp()
+        saved_tmpDir = constants.tmpDir
+        constants.tmpDir = tempfile.mkdtemp()
+        logCall = bootable_image.logCall
+        updateGroupChangeSet = self.bootable.updateGroupChangeSet
+        updateKernelChangeSet = self.bootable.updateKernelChangeSet
+        fileSystemOddsNEnds = self.bootable.fileSystemOddsNEnds
+        try:
+            self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script.in'))
+            self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
+            self.bootable.updateKernelChangeSet = \
+                    self.bootable.updateGroupChangeSet = \
+                    self.bootable.fileSystemOddsNEnds = \
+                    lambda *args, **kwargs: None
+            def mockLog(cmd):
+                self.cmds.append(cmd)
+            self.cmds = []
+            bootable_image.logCall = mockLog
+            self.bootable.installFileTree(tmpDir)
+            self.failIf('etc' not in os.listdir(tmpDir),
+                    "installFileTree did not run to completion")
+            self.failIf(len(self.cmds) != 10,
+                    "unexpected number of external calls")
+        finally:
+            util.rmtree(tmpDir)
+            util.rmtree(constants.tmpDir)
+            constants.tmpDir = saved_tmpDir
+            bootable_image.logCall = logCall
+            self.bootable.updateKernelChangeSet = updateKernelChangeSet
+            self.bootable.updateGroupChangeSet = updateGroupChangeSet
+            self.bootable.fileSystemOddsNEnds = fileSystemOddsNEnds
+
+    def getStubCClient(self):
+        class StubUpdateJob(object):
+            def __init__(x):
+                x.troveSource = x
+                x.db = x
+                x.lockFileObj = x
+                x.closed = False
+
+            def close(x, *args, **kwargs):
+                x.closed = True
+
+        class CClient(object):
+            def __init__(x):
+                x.uJob = StubUpdateJob()
+            def newUpdateJob(x):
+                return x.uJob
+            prepareUpdateJob = applyUpdateJob = lambda *args, **kwargs: None
+        return CClient()
+
+    def testUpdateGroupChangeSet(self):
+        cclient = self.getStubCClient()
+        self.bootable.updateGroupChangeSet(cclient)
+        self.failIf(not cclient.uJob.closed,
+                "updateGroupChangeSet did not run to completion")
+
+    def testUpdateKernelChangeSet(self):
+        cclient = self.getStubCClient()
+        self.bootable.updateKernelChangeSet(cclient)
+        self.failIf(not cclient.uJob.closed,
+                "updateKernelChangeSet did not run to completion")
 
 
 if __name__ == "__main__":

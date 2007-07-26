@@ -436,7 +436,6 @@ class BootableImage(ImageGenerator):
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False)
         cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = True,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script.in'))
-
         # clean up after Conary
         uJob.troveSource.db.close()
 
@@ -483,7 +482,8 @@ class BootableImage(ImageGenerator):
 
             # clean up some bits Conary leaves around
             cclient.db.close()
-            log.syslog.f.close()
+            if log.syslog.f:
+                log.syslog.f.close()
             log.syslog.f = None
 
             self.fileSystemOddsNEnds(dest)
