@@ -9,10 +9,15 @@ class GeneratorStub(object):
     def postOutput(self, fileList):
         pass
 
+    def getBuildData(self, key):
+        return 0
+
 class ImageGeneratorStub(GeneratorStub):
     pass
 
 class BootableImageStub(ImageGeneratorStub):
+    jobId = "jobid"
+    UUID = "abcd"
     def __init__(self, *args, **kwargs):
         self.filesystems = {}
         self.workDir = '/tmp/workdir'

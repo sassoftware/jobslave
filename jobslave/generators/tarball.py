@@ -19,6 +19,7 @@ class Tarball(bootable_image.BootableImage):
     fileType = buildtypes.typeNames[buildtypes.TARBALL]
 
     def write(self):
+        self.swapSize = self.getBuildData("swapSize") * 1048576
         topDir = os.path.join(constants.tmpDir, self.jobId)
         basePath = os.path.join(topDir, self.basefilename)
         if os.path.exists(basePath):
@@ -41,7 +42,3 @@ class Tarball(bootable_image.BootableImage):
             except:
                 # block all errors so that real ones can get through
                 pass
-
-    def __init__(self, *args, **kwargs):
-        bootable_image.BootableImage.__init__(self, *args, **kwargs)
-        self.swapSize = self.getBuildData("swapSize") * 1048576
