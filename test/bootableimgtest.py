@@ -393,6 +393,66 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         finally:
             bootable_image.sortMountPoints = sortMountPoints
 
+    def testMakeImage(self):
+        self.bootable.workDir = tempfile.mkdtemp()
+        installFileTree = self.bootable.installFileTree
+        try:
+            def dummyInstall(*args, **kwargs):
+                self.called = True
+            self.called = False
+            self.bootable.installFileTree = dummyInstall
+            self.bootable.makeImage()
+            self.failIf(not self.called, "installFileTree was not called")
+        finally:
+            self.bootable.installFileTree = installFileTree
+            util.rmtree(self.bootable.workDir)
+
+    def testSetupNoGrub(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            self.bootable.setupGrub(tmpDir)
+        finally:
+            util.rmtree(tmpDir)
+
+    def testSetupGrub(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
+            self.bootable.setupGrub(tmpDir)
+            self.failIf('etc' not in os.listdir(tmpDir),
+                    "setupGrub did not create expected dir structure")
+            self.failIf('boot' not in os.listdir(tmpDir),
+                    "setupGrub did not create expected dir structure")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testGrubName(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
+            self.touch(os.path.join(tmpDir, 'etc', 'issue'),
+                    contents = 'TEST_NAME')
+            self.bootable.setupGrub(tmpDir)
+            f = open(os.path.join(tmpDir, 'etc', 'grub.conf'))
+            data = f.read()
+            f.close()
+            self.failIf('TEST_NAME' not in data,
+                    "grub title not taken from /etc/issue")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testFindFile(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            self.touch(os.path.join(tmpDir, 'a', 'b'))
+            res = self.bootable.findFile(tmpDir, os.path.join('b'))
+            self.failIf(not res, "findFile didn't detect file")
+            res = self.bootable.findFile(tmpDir, os.path.join('c'))
+            self.failIf(res, "findFile incorrectly detected file")
+        finally:
+            util.rmtree(tmpDir)
+
+
 
 if __name__ == "__main__":
     testsuite.main()

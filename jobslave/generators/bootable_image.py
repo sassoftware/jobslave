@@ -265,8 +265,10 @@ class BootableImage(ImageGenerator):
         if not os.path.exists(os.path.join(fakeRoot, 'sbin', 'grub')):
             log.info("grub not found. skipping setup.")
             return
+        util.mkdirChain(os.path.join(fakeRoot, 'boot', 'grub'))
         util.copytree(os.path.join(fakeRoot, 'usr', 'share', 'grub', '*', '*'), os.path.join(fakeRoot, 'boot', 'grub'))
 
+        util.mkdirChain(os.path.join(fakeRoot, 'etc'))
         #Create a stub grub.conf
         if os.path.exists(os.path.join(fakeRoot, 'etc', 'issue')):
             f = open(os.path.join(fakeRoot, 'etc', 'issue'))
