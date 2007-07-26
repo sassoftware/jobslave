@@ -194,10 +194,10 @@ class Filesystem:
         self.mounted = True
 
     def umount(self):
-        if not self.loopDev or not self.mounted:
+        if self.fsType == "swap":
             return
 
-        if self.fsType == "swap":
+        if not self.loopDev or not self.mounted:
             return
 
         logCall("umount %s" % self.loopDev)

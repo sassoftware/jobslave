@@ -16,8 +16,9 @@ from conary.lib import util
 
 import jobslave_helper
 from jobslave.generators import bootable_image
+import jobslave.loophelpers
 
-class BootableImageTest(jobslave_helper.JobSlaveHelper):
+class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
     def testBasicGrubConf(self):
         data = bootable_image.getGrubConf('TEST_IMAGE')
         self.failIf(not re.search('title TEST_IMAGE \(template\)', data),
@@ -74,6 +75,115 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "expected file to be copied by copytree")
         finally:
             util.rmtree(tmpDir)
+
+    def testMount(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600)
+        logCall = bootable_image.logCall
+        loopAttach = jobslave.loophelpers.loopAttach
+        try:
+            bootable_image.logCall = lambda *args, **kwargs: None
+            jobslave.loophelpers.loopAttach = lambda *args, **kwargs: '/dev/loop0'
+            fsm.mount('/tmp')
+        finally:
+            bootable_image.logCall = logCall
+            jobslave.loophelpers.loopAttach = loopAttach
+        self.failIf(not fsm.mounted, "Couldn't mount an ext3 partition")
+
+    def testSwapMount(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'swap', 104857600)
+        fsm.mount('/tmp')
+        self.failIf(fsm.mounted, "Allowed to mount a swap partition")
+
+    def testSwapUnmount(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'swap', 104857600)
+        fsm.umount()
+        self.failIf(fsm.mounted, "Allowed to unmount a swap partition")
+
+    def testUmountNotMounted(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600)
+        fsm.loopDev = '/dev/loop0'
+        fsm.umount()
+        self.failIf(fsm.loopDev != '/dev/loop0',
+                "allowed to umount an unmounted partition")
+
+    def testUmount(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600)
+        logCall = bootable_image.logCall
+        loopDetach = jobslave.loophelpers.loopDetach
+        try:
+            bootable_image.logCall = lambda *args, **kwargs: None
+            jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
+            fsm.loopDev = '/dev/loop0'
+            fsm.mounted = True
+            fsm.umount()
+        finally:
+            bootable_image.logCall = logCall
+            jobslave.loophelpers.loopDetach = loopDetach
+        self.failIf(fsm.mounted, "Couldn't umount an ext3 partition")
+
+    def testFormatInvalid(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'notta_fs', 104857600)
+        logCall = bootable_image.logCall
+        loopDetach = jobslave.loophelpers.loopDetach
+        loopAttach = jobslave.loophelpers.loopAttach
+        try:
+            bootable_image.logCall = lambda *args, **kwargs: None
+            jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
+            jobslave.loophelpers.loopAttach = lambda *args, **kwargs: '/dev/loop0'
+            self.assertRaises(RuntimeError, fsm.format)
+        finally:
+            bootable_image.logCall = logCall
+            jobslave.loophelpers.loopDetach = loopDetach
+            jobslave.loophelpers.loopAttach = loopAttach
+
+    def testFormatSwap(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'swap', 104857600)
+        def DummyLogCall(cmd):
+            # this is the line that actually tests the format call
+            assert 'mkswap' in cmd
+        logCall = bootable_image.logCall
+        loopDetach = jobslave.loophelpers.loopDetach
+        loopAttach = jobslave.loophelpers.loopAttach
+        try:
+            bootable_image.logCall = DummyLogCall
+            jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
+            jobslave.loophelpers.loopAttach = lambda *args, **kwargs: '/dev/loop0'
+            fsm.format()
+        finally:
+            bootable_image.logCall = logCall
+            jobslave.loophelpers.loopDetach = loopDetach
+            jobslave.loophelpers.loopAttach = loopAttach
+
+    def testFormatExt3(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600,
+                offset = 512)
+        def DummyLoopDetach(*args, **kwargs):
+            self.detachCalled = True
+        self.detachCalled = False
+        logCall = bootable_image.logCall
+        loopDetach = jobslave.loophelpers.loopDetach
+        loopAttach = jobslave.loophelpers.loopAttach
+        try:
+            bootable_image.logCall = lambda *args, **kwargs: None
+            jobslave.loophelpers.loopDetach = DummyLoopDetach
+            jobslave.loophelpers.loopAttach = lambda *args, **kwargs: '/dev/loop0'
+            fsm.format()
+        finally:
+            bootable_image.logCall = logCall
+            jobslave.loophelpers.loopDetach = loopDetach
+            jobslave.loophelpers.loopAttach = loopAttach
+        self.failIf(not self.detachCalled,
+                "ext3 format did not reach completion")
+
+
+class BootableImageTest(jobslave_helper.JobSlaveHelper):
+    def setUp(self):
+        jobslave_helper.JobSlaveHelper.setUp(self)
+
+    def tearDown(self):
+        jobslave_helper.JobSlaveHelper.tearDown(self)
+
+    # tests to follow
 
 
 if __name__ == "__main__":
