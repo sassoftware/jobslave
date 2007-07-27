@@ -179,7 +179,8 @@ class TreeGenerator(TroveBucket):
         self._cslist = None
 
         if clientVersion:
-            self.changesetVersion = changeset.getNativeChangesetVersion(clientVersion)
+            self.changesetVersion = changeset.getNativeChangesetVersion(
+                clientVersion)
 
 
     def _getGroupChangeSet(self):
@@ -192,7 +193,8 @@ class TreeGenerator(TroveBucket):
 
         # Get a cscache as soon as possible.
         self.cscache = CsCache(self.client, self.groupcs,
-                               cacheDir=self.cacheDir, changesetVersion=self.changesetVersion)
+                               cacheDir=self.cacheDir,
+                               changesetVersion=self.changesetVersion)
 
     def _orderValidTroves(self, jobs):
         trvList = []
