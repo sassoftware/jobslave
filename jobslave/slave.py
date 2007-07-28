@@ -290,7 +290,7 @@ class JobSlave(object):
             logging.info("wrote %d bytes of %s (%s)" % (l, fn, sha1))
 
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
-        rba.setBuildFilenamesSafe(buildId, filenames)
+        rba.setBuildFilenamesSafe(buildId, outputToken, filenames)
         self.response.jobStatus(jobId, jobstatus.FINISHED, 'Job Finished')
 
     @controlMethod
