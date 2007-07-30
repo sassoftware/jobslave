@@ -200,7 +200,7 @@ class Filesystem:
         if not self.loopDev or not self.mounted:
             return
 
-        logCall("umount %s" % self.loopDev)
+        logCall("umount %s" % self.loopDev, ignoreErrors = True)
         loophelpers.loopDetach(self.loopDev)
         self.mounted = False
 

@@ -26,10 +26,7 @@ class LVMFilesystem(bootable_image.Filesystem):
         if not self.mounted:
             return
 
-        try:
-            logCall("umount %s" % (self.fsDev))
-        except RuntimeError, e:
-            log.warning("Error umounting device: %s" % str(e))
+        logCall("umount %s" % (self.fsDev), ignoreErrors = True)
         self.mounted = False
 
 class LVMContainer:
