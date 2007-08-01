@@ -469,9 +469,9 @@ class BootableImage(ImageGenerator):
             cclient = conaryclient.ConaryClient(self.conarycfg)
             if os.access(constants.tmpDir, os.W_OK):
                 util.settempdir(constants.tmpDir)
-                self.log.info("Using %s as tmpDir" % constants.tmpDir)
+                log.info("Using %s as tmpDir" % constants.tmpDir)
             else:
-                self.log.warning("Using system temporary directory")
+                log.warning("Using system temporary directory")
 
             cclient.setUpdateCallback(InstallCallback(self.status))
             self.updateGroupChangeSet(cclient)
