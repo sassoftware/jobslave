@@ -301,6 +301,7 @@ class JobSlave(object):
 def main():
     cfg = SlaveConfig()
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
-    jobData = open(os.path.join(os.path.sep, 'srv', 'jobslave', 'data')).read()
+    jobStr = open(os.path.join(os.path.sep, 'srv', 'jobslave', 'data')).read()
+    jobData = simplejson.loads(jobStr)
     slave = JobSlave(cfg, jobData)
     slave.run()
