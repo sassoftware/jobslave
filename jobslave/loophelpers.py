@@ -18,4 +18,4 @@ def loopAttach(image, offset = 0):
     return dev
 
 def loopDetach(dev):
-    logCall('losetup -d %s' % dev)
+    logCall('losetup -d %s' % dev, ignoreErrors = True)

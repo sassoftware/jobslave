@@ -354,9 +354,9 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         tmpDir = tempfile.mkdtemp()
         try:
             self.bootable.createTemporaryRoot(tmpDir)
-            self.failIf(os.listdir(tmpDir) != \
-                    ['etc', 'boot', 'tmp', 'proc', 'sys', 'root', 'var'],
-                    "unexpect results from createTemporaryRoot")
+            self.failUnlessEqual(set(os.listdir(tmpDir)),
+                    set(['etc', 'boot', 'tmp', 'proc', 'sys', 'root', 'var']),
+                    "unexpected results from createTemporaryRoot")
         finally:
             util.rmtree(tmpDir)
 
