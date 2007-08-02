@@ -102,7 +102,7 @@ class JobSlaveHelper(testhelp.TestCase):
 
     def getHandler(self, buildType):
         return jobhandler.getHandler( \
-            {'serialVersion': 1,
+            {'protocolVersion': 1,
              'type' : 'build',
              'project' : {'name': 'Foo',
                           'hostname' : 'foo',

@@ -122,9 +122,9 @@ class Generator(threading.Thread):
     def getBuildData(self, key):
         val = self.jobData.get('data', {}).get(key)
         if val is None:
-            serialVersion = \
-                self.jobData.get('serialVersion')
-            if serialVersion == 1:
+            protocolVersion = \
+                self.jobData.get('protocolVersion')
+            if protocolVersion == 1:
                 defaults = \
                     {'autoResolve': False,
                      'maxIsoSize': '681574400',
