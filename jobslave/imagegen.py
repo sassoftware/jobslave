@@ -249,6 +249,10 @@ class Generator(threading.Thread):
         os.waitpid(self.pid, 0)
 
     def kill(self):
+        if self.isAlive():
+            self.status('Job Killed', status = jobstatus.FAILED)
+            log.error('Job killed: %s' % self.jobId)
+
         if self.pid:
             try:
                 # send kill signal to entire process group
@@ -258,8 +262,7 @@ class Generator(threading.Thread):
                 if e.errno != 3:
                     raise
         self.join()
-        self.status('Job Killed', status = jobstatus.FAILED)
-        log.error('Job killed: %s' % self.jobId)
+
         util.rmtree(os.path.join(constants.finishedDir, self.UUID),
                     ignore_errors = True)
 
