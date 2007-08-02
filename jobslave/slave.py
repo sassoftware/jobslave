@@ -74,8 +74,6 @@ def watchdog():
 class SlaveConfig(client.MCPClientConfig):
     jobQueueName = (cfgtypes.CfgString, None)
     nodeName = (cfgtypes.CfgString, None)
-    TTL = (cfgtypes.CfgInt, 500)
-    imageTimeout = (cfgtypes.CfgInt, 600)
     proxy = (cfgtypes.CfgString, None)
 
 def catchErrors(func):
@@ -90,26 +88,20 @@ def catchErrors(func):
     return wrapper
 
 class JobSlave(object):
-    def __init__(self, cfg):
+    def __init__(self, cfg, jobData):
         self.cfg = cfg
+        self.jobData = jobData
         #assert None not in cfg.values()
-
-        self.jobQueue = queue.Queue(cfg.queueHost, cfg.queuePort,
-                                    cfg.jobQueueName, namespace = cfg.namespace,
-                                    timeOut = 0, queueLimit = 1)
 
         self.controlTopic = queue.Topic(cfg.queueHost, cfg.queuePort,
                                        'control', namespace = cfg.namespace,
                                        timeOut = 0)
 
-        self.jobControlQueue = None
+        self.jobControlQueue = queue.Queue( \
+            self.cfg.queueHost, self.cfg.queuePort, jobData['UUID'],
+            namespace = self.cfg.namespace, timeOut = 0)
 
         self.response = response.MCPResponse(self.cfg.nodeName, cfg)
-        self.timeIdle = time.time()
-        self.jobHandler = None
-        self.outstandingJobs = {}
-        self.imageIdle = 0
-        self.takingJobs = True
         signal.signal(signal.SIGTERM, self.catchSignal)
         signal.signal(signal.SIGINT, self.catchSignal)
 
@@ -117,14 +109,28 @@ class JobSlave(object):
         self.running = False
 
     def run(self):
-        print "Listening for jobs:", self.cfg.jobQueueName
         watchdog()
+        UUID = self.jobData['UUID']
+        print "serving job: %s" % UUID
         self.running = True
-        self.sendSlaveStatus()
+        try:
+            self.jobHandler = jobhandler.getHandler(self.jobData, self)
+            self.jobHandler.start()
+        except Exception, e:
+            self.jobHandler = None
+            print "Error starting job:", e
+            exc_class, exc, bt = sys.exc_info()
+            print ''.join(traceback.format_tb(bt))
+            self.response.jobStatus(UUID, jobstatus.FAILED,
+                                    'Image creation error: %s' % str(e))
+            self.running = False
+        else:
+            self.sendSlaveStatus()
+
         try:
             while self.running:
                 self.checkControlTopic()
-                self.checkJobQueue()
+                self.running = self.jobHandler.isAlive()
                 time.sleep(0.1)
         finally:
             self.disconnect()
@@ -132,22 +138,17 @@ class JobSlave(object):
     def disconnect(self):
         if self.jobHandler:
             self.jobHandler.kill()
-        for jobId, UUID in self.outstandingJobs.iteritems():
-            self.response.jobStatus(jobId, jobstatus.FAILED, 'Image not delivered')
-            util.rmtree(os.path.join(constants.finishedDir, UUID),
-                        ignore_errors = True)
-        mcpClient = client.MCPClient(self.cfg)
         try:
+            # client can fail to be instantiated if stompserver is not running
+            mcpClient = client.MCPClient(self.cfg)
             mcpClient.stopSlave(self.cfg.nodeName, delayed = False)
         except:
             # mask all errors. we're about to shutdown anyways
             pass
-        self.jobQueue.disconnect()
         self.controlTopic.disconnect()
         self.response.response.disconnect()
         del self.response
-        if self.jobControlQueue:
-            self.jobControlQueue.disconnect()
+        self.jobControlQueue.disconnect()
         # redundant protection: attempt to power off the machine in case
         # stop slave command does not get to master right away.
 
@@ -174,9 +175,6 @@ class JobSlave(object):
                     raise master_error.ProtocolError( \
                         "Control method %s does not exist" % action)
             dataStr = self.controlTopic.read()
-
-    def servingImages(self):
-        (time.time() - self.imageIdle) < self.cfg.imageTimeout
 
     # Note, ignoring errors at this level can have interesting side effects,
     # since this function is responsible for determining if a slave should go
@@ -228,9 +226,7 @@ class JobSlave(object):
 
     def sendSlaveStatus(self):
         self.response.slaveStatus(self.cfg.nodeName,
-                                  self.jobHandler \
-                                      and slavestatus.ACTIVE \
-                                      or slavestatus.IDLE,
+                                  slavestatus.ACTIVE,
                                   self.cfg.jobQueueName.replace('job', ''))
 
     def sendJobStatus(self):
@@ -240,20 +236,8 @@ class JobSlave(object):
     def handleStopJob(self, jobId):
         # ensure the jobId matches the jobId we're actually servicing to prevent
         # race conditions from killing the wrong job.
-        if jobId in self.outstandingJobs:
-            util.rmtree(os.path.join(constants.finishedDir,
-                                     self.outstandingJobs[jobId][1]),
-                        ignore_errors = True)
-            del self.outstandingJobs[jobId]
-            self.response.jobStatus(jobId, jobstatus.FINISHED, 'Job Finished')
-        elif self.jobHandler:
-            handlerJobId = self.jobHandler.jobId
-            if jobId == handlerJobId:
-                self.jobHandler.kill()
-                self.jobControlQueue.disconnect()
-                self.jobControlQueue = None
-        else:
-            self.response.jobStatus(jobId, jobstatus.FAILED, 'No Job')
+        if self.jobHandler and (jobId == self.jobHandler.jobId):
+            self.jobHandler.kill()
 
     def recordJobOutput(self, jobId, UUID):
         self.imageIdle = time.time()
@@ -299,11 +283,6 @@ class JobSlave(object):
 
     @controlMethod
     @protocols((1,))
-    def setTTL(self, TTL):
-        self.cfg.TTL = TTL
-
-    @controlMethod
-    @protocols((1,))
     def status(self):
         self.sendSlaveStatus()
 
@@ -320,5 +299,6 @@ class JobSlave(object):
 def main():
     cfg = SlaveConfig()
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
-    slave = JobSlave(cfg)
+    jobData = open(os.path.join(os.path.sep, 'srv', 'jobslave', 'data'))).read()
+    slave = JobSlave(cfg, jobData)
     slave.run()

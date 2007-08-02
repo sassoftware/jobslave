@@ -8,6 +8,7 @@
 import os, sys
 import testhelp
 
+import simplejson
 import subprocess
 import threading
 import tempfile
@@ -75,12 +76,14 @@ class JobSlaveHelper(testhelp.TestCase):
         testhelp.TestCase.setUp(self)
 
         self.slaveCfg = slave.SlaveConfig()
-        self.slaveCfg.configLine('TTL 0')
-        self.slaveCfg.configLine('imageTimeout 0')
         self.slaveCfg.configLine('namespace test')
         self.slaveCfg.configLine('nodeName testMaster:testSlave')
         self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
-        self.jobSlave = ThreadedJobSlave(self.slaveCfg)
+
+        f = open ('archive/jobdata.txt')
+        self.jobSlave = ThreadedJobSlave(self.slaveCfg,
+                simplejson.loads(f.read()))
+        f.close()
 
         self.finishedDir = tempfile.mkdtemp(prefix="jobslave-test-finished-images")
         self.entDir = tempfile.mkdtemp(prefix="jobslave-test-ent")

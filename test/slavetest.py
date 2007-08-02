@@ -17,14 +17,17 @@ from jobslave import slave
 from jobslave import jobhandler
 
 class DummyHandler(object):
-    def start(*args, **kwargs):
-        pass
+    def __init__(x, *args, **kwargs):
+        x.running = False
 
-    def isAlive(*args, **kwargs):
-        return False
+    def start(x, *args, **kwargs):
+        x.running = True
 
-    def kill(*args, **kwargs):
-        pass
+    def isAlive(x, *args, **kwargs):
+        return x.running
+
+    def kill(x, *args, **kwargs):
+        x.running = False
 
 class DummyQueue(object):
     def disconnect(self):
@@ -37,41 +40,30 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
         self.failIf(self.jobSlave.controlTopic.inbound != [],
                     "Control topic was not read")
 
-    def testEmptyJobQueue(self):
-        self.jobSlave.checkJobQueue()
-
-    def testJCSubscribe(self):
-        assert self.jobSlave.jobControlQueue is None
-
-        getHandler = jobhandler.getHandler
-        try:
-            jobhandler.getHandler = lambda *args, **kwargs: DummyHandler()
-            self.jobSlave.jobQueue.inbound = \
-                [simplejson.dumps({'UUID' : 'test.rpath.local-build-96'})]
-            self.jobSlave.checkJobQueue()
-            self.failIf(not self.jobSlave.jobControlQueue,
-                        "Job control queue was not created")
-            self.failIf(self.jobSlave.jobControlQueue.connectionName != \
-                            '/queue/test/test.rpath.local-build-96',
-                        "Unexpected connection name for job control queue")
-        finally:
-            jobhandler.getHandler = getHandler
-
-    def testJCUnsubscribe(self):
-        self.jobSlave.jobHandler = DummyHandler()
-        self.jobSlave.jobControlQueue = DummyQueue()
-        self.jobSlave.checkJobQueue()
-        self.failIf(self.jobSlave.jobControlQueue,
-                    "Job control queue was not unsubscribed on job completion")
-
-    def testJCStopJob(self):
+    def testStopJob(self):
         jobId = 'test.rpath.local-build-29'
         self.jobSlave.jobHandler = DummyHandler()
         self.jobSlave.jobHandler.jobId = jobId
         self.jobSlave.jobControlQueue = DummyQueue()
         self.jobSlave.handleStopJob(jobId)
-        self.failIf(self.jobSlave.jobControlQueue,
-                    "Job control queue was not unsubscribed on job stop")
+        self.failIf(self.jobSlave.jobHandler.running,
+            "Job was not killed on command")
+
+    def testJSRun(self):
+        disconnect = self.jobSlave.disconnect
+        try:
+            self.jobSlave.disconnect = lambda *args, **kwargs: None
+            self.jobSlave.run()
+        finally:
+            self.jobSlave.disconnect = disconnect
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     testsuite.main()
