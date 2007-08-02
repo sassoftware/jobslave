@@ -241,7 +241,6 @@ class JobSlave(object):
 
     def recordJobOutput(self, jobId, UUID):
         self.imageIdle = time.time()
-        self.outstandingJobs[jobId] = UUID
 
     def postJobOutput(self, jobId, buildId, destUrl, outputToken, files):
         from conary.repository.transport import XMLOpener
