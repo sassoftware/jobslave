@@ -176,50 +176,6 @@ class JobSlave(object):
                         "Control method %s does not exist" % action)
             dataStr = self.controlTopic.read()
 
-    # Note, ignoring errors at this level can have interesting side effects,
-    # since this function is responsible for determining if a slave should go
-    # away on it's own.
-    @catchErrors
-    def checkJobQueue(self):
-        # this function is designed to ensure that TTL checks can block
-        # the jobQueue from picking up a job when it's time to die. be careful
-        # to ensure this is honored when refactoring.
-        if (self.timeIdle is not None) and \
-                (time.time() - self.timeIdle) > self.cfg.TTL:
-            # avoid race conditions by setting queue limit to zero
-            self.jobQueue.setLimit(0)
-            # this check prevents setting takingJobs to false if one just
-            # came in.
-            if not self.jobQueue.inbound:
-                self.takingJobs = False
-        if self.jobHandler and not self.jobHandler.isAlive():
-            self.timeIdle = time.time()
-            self.jobControlQueue.disconnect()
-            self.jobControlQueue = None
-
-            self.jobHandler = None
-            if self.takingJobs:
-                self.jobQueue.incrementLimit()
-        if not (self.takingJobs or self.servingImages()):
-            self.running = False
-        # we're obligated to take a job if there is one.
-        dataStr = self.jobQueue.read()
-        if dataStr:
-            data = simplejson.loads(dataStr)
-            try:
-                self.jobHandler = jobhandler.getHandler(data, self)
-                self.jobHandler.start()
-                self.timeIdle = None
-                self.jobControlQueue = queue.Queue( \
-                    self.cfg.queueHost, self.cfg.queuePort, data['UUID'],
-                    namespace = self.cfg.namespace, timeOut = 0)
-            except Exception, e:
-                print "Error starting job:", e
-                exc_class, exc, bt = sys.exc_info()
-                print ''.join(traceback.format_tb(bt))
-                self.response.jobStatus(data['UUID'], jobstatus.FAILED,
-                                        'Image creation error: %s' % str(e))
-
     def getBestProtocol(self, protocols):
         common = PROTOCOL_VERSIONS.intersection(protocols)
         return common and max(common) or 0
@@ -227,7 +183,8 @@ class JobSlave(object):
     def sendSlaveStatus(self):
         self.response.slaveStatus(self.cfg.nodeName,
                                   slavestatus.ACTIVE,
-                                  self.cfg.jobQueueName.replace('job', ''))
+                                  self.cfg.jobQueueName.replace('job', ''),
+                                  jobId = self.jobData['UUID'])
 
     def sendJobStatus(self):
         if self.jobHandler:
