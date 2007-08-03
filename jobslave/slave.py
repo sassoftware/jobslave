@@ -141,7 +141,7 @@ class JobSlave(object):
         try:
             # client can fail to be instantiated if stompserver is not running
             mcpClient = client.MCPClient(self.cfg)
-            mcpClient.stopSlave(self.cfg.nodeName, delayed = False)
+            mcpClient.stopSlave(self.cfg.nodeName)
         except:
             # mask all errors. we're about to shutdown anyways
             pass
