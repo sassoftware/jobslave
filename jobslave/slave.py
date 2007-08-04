@@ -74,7 +74,7 @@ def watchdog():
 class SlaveConfig(client.MCPClientConfig):
     jobQueueName = (cfgtypes.CfgString, None)
     nodeName = (cfgtypes.CfgString, None)
-    proxy = (cfgtypes.CfgString, None)
+    conaryProxy = (cfgtypes.CfgString, None)
 
 def catchErrors(func):
     def wrapper(self, *args, **kwargs):

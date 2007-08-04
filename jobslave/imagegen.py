@@ -97,8 +97,8 @@ class Generator(threading.Thread):
 
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
 
-        if parent and parent.cfg.proxy:
-            self.conarycfg.configLine('proxy %s' % parent.cfg.proxy)
+        if parent and parent.cfg.conaryProxy:
+            self.conarycfg.configLine('conaryProxy %s' % parent.cfg.conaryProxy)
 
         #self.conarycfg.display() # dump conary config for debugging 
         self.cc = conaryclient.ConaryClient(self.conarycfg)
