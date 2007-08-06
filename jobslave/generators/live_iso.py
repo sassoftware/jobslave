@@ -285,4 +285,5 @@ class LiveIso(bootable_image.BootableImage):
 
         self.fallback = os.path.join(constants.fallbackDir, self.arch)
         self.zisofs = self.getBuildData('zisofs')
+        self.swapSize = 0
         return res

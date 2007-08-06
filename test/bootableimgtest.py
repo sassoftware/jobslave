@@ -199,6 +199,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         constants.finishedDir = "/tmp"
         bootable_image.BootableImage.status = lambda *args, **kwargs: None
         self.bootable = bootable_image.BootableImage(data, self.mockJobSlave)
+        self.bootable.swapSize = 40960
         jobslave_helper.JobSlaveHelper.setUp(self)
 
     def tearDown(self):

@@ -240,6 +240,7 @@ class BootableImage(ImageGenerator):
         self.workDir = os.path.join(constants.tmpDir, self.jobId)
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(self.outputDir)
+        self.swapSize = self.getBuildData("swapSize") * 1048576
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
@@ -310,6 +311,17 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def fileSystemOddsNEnds(self, fakeRoot):
+        #create a swap file
+        if self.swapSize:
+            swapFile = os.path.join(fakeRoot, 'var', 'swap')
+            util.mkdirChain(os.path.split(swapFile)[0])
+            swap = open(swapFile, 'w')
+            # sparse files cannot work for swap space
+            cmd = 'dd if=/dev/zero of=%s bs=4096 count=%d' % \
+                    (swapFile, self.swapSize / 4096)
+            util.execute(cmd)
+            cmd = '/sbin/mkswap %s' % swapFile
+            util.execute(cmd)
         rnl5 = False
         for svc in ('xdm', 'gdm', 'kdm'):
             rnl5 |= os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc))
@@ -350,6 +362,10 @@ class BootableImage(ImageGenerator):
             f.close()
         else:
             oldFstab = ""
+
+        if not self.swapSize:
+            oldFstab = '\n'.join([x for x in oldFstab.splitlines() \
+                    if 'swap' not in x])
 
         fstabExtra = ""
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
