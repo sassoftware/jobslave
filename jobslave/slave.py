@@ -75,6 +75,7 @@ class SlaveConfig(client.MCPClientConfig):
     jobQueueName = (cfgtypes.CfgString, None)
     nodeName = (cfgtypes.CfgString, None)
     conaryProxy = (cfgtypes.CfgString, None)
+    watchdog = (cfgtypes.CfgBool, True)
 
 def catchErrors(func):
     def wrapper(self, *args, **kwargs):
@@ -86,6 +87,21 @@ def catchErrors(func):
                 exc.__class__.__name__ + ')', str(exc))
             print >> sys.stderr, '\n'.join(traceback.format_tb(bt))
     return wrapper
+
+def alwaysExit(func):
+    def wrapper(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except:
+            exc_class, exc, bt = sys.exc_info()
+            print >> sys.stderr, "%s %s" % ("Uncaught Exception: (" + \
+                exc.__class__.__name__ + ')', str(exc))
+            print >> sys.stderr, '\n'.join(traceback.format_tb(bt))
+            os._exit(1)
+        else:
+            os._exit(0)
+    return wrapper
+
 
 class JobSlave(object):
     def __init__(self, cfg, jobData):
@@ -108,8 +124,10 @@ class JobSlave(object):
     def catchSignal(self, *args):
         self.running = False
 
+    @alwaysExit
     def run(self):
-        watchdog()
+        if self.cfg.watchdog:
+            watchdog()
         UUID = self.jobData['UUID']
         print "serving job: %s" % UUID
         self.running = True

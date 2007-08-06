@@ -8,6 +8,7 @@
 import testsuite
 testsuite.setup()
 
+import os
 import simplejson
 
 import jobslave_helper
@@ -51,19 +52,16 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
 
     def testJSRun(self):
         disconnect = self.jobSlave.disconnect
+        _exit = os._exit
+        def MockExit(exitCode):
+            raise SystemExit(exitCode)
         try:
+            os._exit = MockExit
             self.jobSlave.disconnect = lambda *args, **kwargs: None
-            self.jobSlave.run()
+            self.assertRaises(SystemExit, self.jobSlave.run)
         finally:
             self.jobSlave.disconnect = disconnect
-
-
-
-
-
-
-
-
+            os._exit = _exit
 
 if __name__ == "__main__":
     testsuite.main()

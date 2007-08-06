@@ -79,6 +79,7 @@ class JobSlaveHelper(testhelp.TestCase):
         self.slaveCfg.configLine('namespace test')
         self.slaveCfg.configLine('nodeName testMaster:testSlave')
         self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
+        self.slaveCfg.configLine('watchdog False')
 
         f = open ('archive/jobdata.txt')
         self.jobSlave = ThreadedJobSlave(self.slaveCfg,
@@ -96,8 +97,8 @@ class JobSlaveHelper(testhelp.TestCase):
         log.setLevel(logging.FATAL)
 
     def tearDown(self):
-        util.rmtree(self.finishedDir)
-        util.rmtree(self.entDir)
+        util.rmtree(self.finishedDir, ignore_errors = True)
+        util.rmtree(self.entDir, ignore_errors = True)
         testhelp.TestCase.tearDown(self)
 
     def getHandler(self, buildType):
