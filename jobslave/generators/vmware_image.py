@@ -11,6 +11,22 @@ from jobslave.generators import bootable_image, raw_hd_image, constants
 from jobslave.imagegen import logCall
 from conary.lib import util
 
+def vmEscape(data, eatNewlines = True):
+    data = data.replace('|', '|7C')
+    escapeDict = {
+            '#': '|23',
+            '"': '|22',
+            '<': '|3C',
+            '>': '|3E'}
+    for key, val in escapeDict.iteritems():
+        data = data.replace(key, val)
+    if eatNewlines:
+        delim = ''
+    else:
+        delim = '|0A'
+    data = delim.join(data.splitlines())
+    return ''.join([c for c in data if ord(c) >= 32])
+
 class VMwareImage(raw_hd_image.RawHdImage):
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
@@ -39,15 +55,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
         #@NAME@ @MEM@ @FILENAME@
 
         # Escape ", #, |, <, and >, strip out control characters
-        displayName = self.jobData['project']['name'].replace(
-                                          '|', '|7C').replace(
-                                          '#', '|23').replace(
-                                          '"', '|22').replace(
-                                          '<', '|3C').replace(
-                                          '>', '|3E')
-        displayName = ''.join([c for c in displayName if ord(c) >= 32])
+        displayName = vmEscape(self.jobData['project']['name'])
 
         filecontents = filecontents.replace('@NAME@', displayName)
+        filecontents = filecontents.replace('@DESCRIPTION@',
+                vmEscape(self.jobData['description'], eatNewlines = False))
         filecontents = filecontents.replace('@MEM@', str(self.vmMemory))
         filecontents = filecontents.replace('@FILENAME@', self.basefilename)
         filecontents = filecontents.replace('@NETWORK_CONNECTION@', \
