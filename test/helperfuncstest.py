@@ -10,8 +10,10 @@ testsuite.setup()
 
 import os
 import sys
+import copy
 
 from jobslave.slave import watchdog
+from jobslave import imagegen
 
 class HelperFunctionsTest(testsuite.TestCase):
     def captureAllOutput(self, func, *args, **kwargs):
@@ -59,6 +61,34 @@ class HelperFunctionsTest(testsuite.TestCase):
             os.fork = fork
             os._exit = _exit
             os.getppid = getppid
+
+    def testScrubUnicode(self):
+        data = {u'string' : u'val1',
+                u'dict' : { 'subkey' : u'subval'},
+                u'list' : [u'foo'],
+                u'set' : set([u'bar']),
+                u'tuple' : (u'baz',),
+                'normal': 'not unicode',
+                'double_nest': [[u'foo']]}
+        orig = copy.deepcopy(data)
+        res = imagegen.scrubUnicode(data)
+        self.failIf(data != orig,
+                "scrubUnicode caused side effects on orginal data")
+
+        self.failIf(type(res['string']) is unicode,
+                "failed to cast direct key/val")
+        self.failIf(type(res['dict']['subkey']) is unicode,
+                "failed to cast dict key/val")
+        self.failIf(type(res['list'][0]) is unicode,
+                "failed to cast list items")
+        self.failIf(type([x for x in res['set']][0]) is unicode,
+                "failed to cast set items")
+        self.failIf(type(res['tuple'][0]) is unicode,
+                "failed to cast tuple items")
+        self.failIf('normal' not in res, "non unicode item was not included")
+        self.failIf(type(res['double_nest'][0][0]) is unicode,
+                "failed to cast nested iterable items")
+
 
 if __name__ == "__main__":
     testsuite.main()

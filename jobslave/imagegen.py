@@ -64,35 +64,38 @@ def logCall(cmd, ignoreErrors = False):
     else:
         return p.returncode
 
+def scrubUnicode(data):
+    if isinstance(data, unicode):
+        return str(data)
+    elif isinstance(data, dict):
+        res = {}
+        for key, val in data.iteritems():
+            res[key] = scrubUnicode(val)
+        return res
+    elif isinstance(data, (list, set, tuple)):
+        return type(data)([scrubUnicode(x) for x in data])
+    else:
+        return data
+
 
 class Generator(threading.Thread):
     configObject = None
 
     def __init__(self, jobData, parent):
         self.pid = None
-        self.jobData = jobData
+        self.jobData = scrubUnicode(jobData)
         self.response = weakref.ref(parent.response)
         self.parent = weakref.ref(parent)
         self.workDir = None
 
-        # FIXME: once conary handles unicode better, remove these items
-        # coerce to str if possible due to conary not handling unicode well
-        for key, val in jobData.iteritems():
-            if type(val) is unicode:
-                jobData[key] = str(val)
-        self.jobId = str(jobData['UUID'])
-        #self.jobData['project']['name'] = str(self.jobData['project']['name'])
-        #self.jobData['project']['label'] = str(self.jobData['project']['label'])
-        #self.jobData['troveName'] = str(self.jobData['troveName'])
-        # end str coercions
-
+        self.jobId = self.jobData['UUID']
         self.UUID = \
             ''.join([hex(ord(os.urandom(1)))[2:] for x in range(16)]).upper()
 
         self.status('Initializing build...')
 
         self.conarycfg = conarycfg.ConaryConfiguration(False)
-        cfgData = StringIO.StringIO(jobData['project']['conaryCfg'])
+        cfgData = StringIO.StringIO(self.jobData['project']['conaryCfg'])
         self.conarycfg.readObject(cfgData, cfgData)
 
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
