@@ -69,7 +69,8 @@ class HelperFunctionsTest(testsuite.TestCase):
                 u'set' : set([u'bar']),
                 u'tuple' : (u'baz',),
                 'normal': 'not unicode',
-                'double_nest': [[u'foo']]}
+                'double_nest': [[u'foo']],
+                'unicode' : u'andr\xe9'}
         orig = copy.deepcopy(data)
         res = imagegen.scrubUnicode(data)
         self.failIf(data != orig,
@@ -88,6 +89,8 @@ class HelperFunctionsTest(testsuite.TestCase):
         self.failIf('normal' not in res, "non unicode item was not included")
         self.failIf(type(res['double_nest'][0][0]) is unicode,
                 "failed to cast nested iterable items")
+        self.failIf(res['unicode'] != 'Andr?',
+                "Unsafe replacement mode for unicode")
 
 
 if __name__ == "__main__":

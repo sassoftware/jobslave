@@ -66,7 +66,7 @@ def logCall(cmd, ignoreErrors = False):
 
 def scrubUnicode(data):
     if isinstance(data, unicode):
-        return str(data)
+        return data.encode('ascii', 'replace')
     elif isinstance(data, dict):
         res = {}
         for key, val in data.iteritems():
