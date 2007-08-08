@@ -70,7 +70,7 @@ class HelperFunctionsTest(testsuite.TestCase):
                 u'tuple' : (u'baz',),
                 'normal': 'not unicode',
                 'double_nest': [[u'foo']],
-                'unicode' : u'andr\xe9'}
+                'unicode' : u'Andr\xe9'}
         orig = copy.deepcopy(data)
         res = imagegen.scrubUnicode(data)
         self.failIf(data != orig,
