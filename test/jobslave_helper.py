@@ -16,6 +16,7 @@ import tempfile
 from cStringIO import StringIO
 from jobslave import jobhandler, slave, constants, generators
 from jobslave import imagegen
+from jobslave import buildtypes
 from conary.lib import util
 
 class DummyConnection(object):
@@ -102,22 +103,25 @@ class JobSlaveHelper(testhelp.TestCase):
         testhelp.TestCase.tearDown(self)
 
     def getHandler(self, buildType):
-        return jobhandler.getHandler( \
-            {'protocolVersion': 1,
-             'type' : 'build',
-             'project' : {'name': 'Foo',
-                          'hostname' : 'foo',
-                          'label': 'foo.rpath.local@rpl:devel',
-                          'conaryCfg': ''},
-             'UUID' : 'mint.rpath.local-build-25',
-             'troveName' : 'group-core',
-             'troveVersion' : '/conary.rpath.com@rpl:1/0:1.0.1-1-1',
-             'troveFlavor': '1#x86',
-             'data' : {'jsversion': '3.0.0'},
-             'outputQueue': 'test',
-             'entitlements': {'conary.rpath.com': ('class', 'key')},
-             'buildType' : buildType},
-            self.jobSlave)
+        data = {
+            'protocolVersion': 1,
+            'type' : 'build',
+            'project' : {'name': 'Foo',
+                         'hostname' : 'foo',
+                         'label': 'foo.rpath.local@rpl:devel',
+                         'conaryCfg': ''},
+            'UUID' : 'mint.rpath.local-build-25',
+            'troveName' : 'group-core',
+            'troveVersion' : '/conary.rpath.com@rpl:1/0:1.0.1-1-1',
+            'troveFlavor': '1#x86',
+            'data' : {'jsversion': '3.0.0'},
+            'outputQueue': 'test',
+            'entitlements': {'conary.rpath.com': ('class', 'key')},
+            'buildType' : buildType}
+        if buildType == buildtypes.AMI:
+            data['amiData'] = {'ec2Bucket' : 'test', 'ec2Certificate': '',
+                    'ec2CertificateKey': ''}
+        return jobhandler.getHandler(data, self.jobSlave)
 
     def supressOutput(self, func, *args, **kwargs):
         oldErr = os.dup(sys.stderr.fileno())

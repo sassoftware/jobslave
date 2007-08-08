@@ -22,7 +22,6 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
         handler = self.supressOutput(self.getHandler,
                                      buildtypes.RAW_FS_IMAGE)
         assert handler, "Failed to get Raw Filesystem Image"
-        handler.write()
 
     def testGetTarball(self):
         handler = self.supressOutput(self.getHandler,
