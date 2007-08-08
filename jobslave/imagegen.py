@@ -152,7 +152,8 @@ class Generator(threading.Thread):
                      'zisofs': True,
                      'diskAdapter': 'lsilogic',
                      'unionfs': False,
-                     'showMediaCheck': False}
+                     'showMediaCheck': False,
+                     'amiHugeDiskMountpoint': ''}
             else:
                 defaults = {}
             val = defaults.get(key)

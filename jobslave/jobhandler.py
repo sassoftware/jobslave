@@ -13,6 +13,7 @@ from jobslave.generators.parallels import ParallelsImage
 from jobslave.generators.virtual_iron import VirtualIronVHD
 from jobslave.generators.update_iso import UpdateIso
 from jobslave.generators.appliance_iso import ApplianceInstaller
+from jobslave.generators.ami import AMIImage
 
 from jobslave import buildtypes
 
@@ -32,6 +33,7 @@ jobHandlers = {
     buildtypes.PARALLELS:         ParallelsImage,
     buildtypes.UPDATE_ISO:        UpdateIso,
     buildtypes.APPLIANCE_ISO:     ApplianceInstaller,
+    buildtypes.AMI:               AMIImage,
 }
 
 import threading

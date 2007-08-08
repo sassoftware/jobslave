@@ -22,6 +22,7 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
         handler = self.supressOutput(self.getHandler,
                                      buildtypes.RAW_FS_IMAGE)
         assert handler, "Failed to get Raw Filesystem Image"
+        handler.write()
 
     def testGetTarball(self):
         handler = self.supressOutput(self.getHandler,
@@ -59,7 +60,6 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
         assert handler, "Failed to get Xen Enterprise Image"
 
     def testGetAMI(self):
-        raise testsuite.SkipTestException("No handler for AMI yet")
         handler = self.supressOutput(self.getHandler,
                                      buildtypes.AMI)
         assert handler, "Failed to get AMI"
