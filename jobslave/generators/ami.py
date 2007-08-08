@@ -29,11 +29,9 @@ class AMIRegistrationError(Exception):
         return "Failed to register the image with the Amazon EC2 Service"
 
 class AMIImage(raw_fs_image.RawFsImage):
-
     def __init__(self, *args, **kwargs):
 
         raw_fs_image.RawFsImage.__init__(self, *args, **kwargs)
-
         self.amiData = self.jobData.get('amiData')
         if not self.amiData:
             raise RuntimeError, 'Cannot build Amazon Machine Image without ' \
@@ -51,10 +49,12 @@ class AMIImage(raw_fs_image.RawFsImage):
         os.close(fd)
 
         # we want one single filesystem with the freespace allocated
-        # no swap is necessary, because EC2 provides us with all we 
+        # no swap is necessary, because EC2 provides us with all we
         # need on /dev/sda3
         freespace = self.getBuildData("freespace") * 1048576
         self.jobData['filesystems'] = [ ('/', 0, freespace, 'ext3'), ]
+
+        self.swapSize = 0
 
         self.mountDict = dict([(x[0], tuple(x[1:])) for x in self.jobData['filesystems'] if x[0]])
 
@@ -68,6 +68,7 @@ class AMIImage(raw_fs_image.RawFsImage):
         ec2ImagePrefix = "%s_%s.img" % \
                 (self.basefilename, self.jobData.get('buildId'))
         try:
+            # FIXME: Use a callout mechanism that honors return codes
             os.system('ec2-bundle-image -i %s -u %s -c %s -k %s -d %s -p %s' % \
                     (inputFSImage, self.ec2AccountId,
                         self.ec2CertPath, self.ec2CertKeyPath,
@@ -138,9 +139,4 @@ class AMIImage(raw_fs_image.RawFsImage):
         if not (amiId and amiManifestName):
             raise AMIRegistrationError
 
-        # return empty list because files aren't stored here, they're on
-        # Amazon's EC2 service
-        # TODO vet this with the experts -- will this do the appropriate thing?
-        # TODO figure out how to set build metadata
-        self.postOutput(())
-
+        self.postAmi(amiId, amiManifestName)
