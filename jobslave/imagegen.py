@@ -114,9 +114,6 @@ class Generator(threading.Thread):
         rootLogger.addHandler(self.logger)
         log.setVerbosity(logging.DEBUG)
 
-        self.doneStatus = jobstatus.FINISHED
-        self.doneStatusMessage = 'Finished'
-
         threading.Thread.__init__(self)
 
     def getCookData(self, key):
@@ -179,41 +176,35 @@ class Generator(threading.Thread):
         except:
             print >> sys.stderr, "Error logging status to MCP:", msg
 
-    def recordOutput(self):
-        # this function runs in parent process space to record that a build had
-        # output that needs to be tracked
-        parent = self.parent and self.parent()
-        if parent:
-            parent.recordJobOutput(self.jobId, self.UUID)
-        else:
-            log.error("couldn't record output")
-
     def postOutput(self, fileList):
         # this function runs in the child process to actually post the output
         # of a build.
-
-        # it doesn't matter what we send, just not ''
-        os.write(self.parentPipe, 'post')
-        self.doneStatus = jobstatus.FINISHED
-        self.doneStatusMessage = 'Job Finished'
         parent = self.parent and self.parent()
         if parent:
-            parent.postJobOutput(self.jobId, self.jobData['buildId'], self.jobData['outputUrl'],
-                                 self.jobData['outputToken'], fileList)
+            parent.postJobOutput(self.jobId, self.jobData['buildId'],
+                    self.jobData['outputUrl'], self.jobData['outputToken'],
+                    fileList)
+        else:
+            log.error("couldn't post output")
+
+    def postAmi(self, amiId, amiManifestName):
+        # this function runs in the child process to actually post the output
+        # of a build.
+        parent = self.parent and self.parent()
+        if parent:
+            parent.postAmiOutput(self.jobId, self.jobData['buildId'],
+                    self.jobData['outputUrl'], self.jobData['outputToken'],
+                    amiId, amiManifestName)
         else:
             log.error("couldn't post output")
 
     def run(self):
-        # use a pipe to communicate if a job posted build data
-        inF, outF = os.pipe()
         self.pid = os.fork()
         if not self.pid:
             # become session leader for clean job ending.
             os.setpgid(0, 0)
             try:
                 try:
-                    os.close(inF)
-                    self.parentPipe = outF
                     self.status('Starting job')
                     self.write()
                     try:
@@ -221,7 +212,6 @@ class Generator(threading.Thread):
                             util.rmtree(self.workDir)
                     except Exception, e:
                         log.error("couldn't clean up afterwards: %s" % str(e))
-                    os.close(outF)
                 except:
                     exc, e, bt = sys.exc_info()
                     btText = traceback.format_exc(bt)
@@ -231,8 +221,8 @@ class Generator(threading.Thread):
                     self.logger.flush()
                     raise
                 else:
-                    self.status(self.doneStatusMessage,
-                                status = self.doneStatus)
+                    self.status('Job Finished',
+                                status = jobstatus.FINISHED)
                     log.info('Finished job: %s' % self.jobId)
                     self.logger.flush()
             # place exit handlers in their own exception handling layer
@@ -242,14 +232,8 @@ class Generator(threading.Thread):
                 os._exit(1)
             else:
                 os._exit(0)
-        os.close(outF)
-        data = os.read(inF, 255)
-        if data:
-            self.recordOutput()
-        else:
-            util.rmtree(os.path.join(constants.finishedDir, self.UUID),
-                        ignore_errors = True)
-        os.close(inF)
+        util.rmtree(os.path.join(constants.finishedDir, self.UUID),
+            ignore_errors = True)
         os.waitpid(self.pid, 0)
 
     def kill(self):

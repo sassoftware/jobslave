@@ -24,6 +24,10 @@ from mcp import client, queue, response, jobstatus, slavestatus
 from conary.lib import cfgtypes, util
 from conary.lib.sha1helper import sha1ToString
 
+from conary.repository.transport import XMLOpener
+import urllib
+import xmlrpclib
+
 PROTOCOL_VERSIONS = set([1])
 BUFFER = 256 * 1024
 
@@ -214,14 +218,7 @@ class JobSlave(object):
         if self.jobHandler and (jobId == self.jobHandler.jobId):
             self.jobHandler.kill()
 
-    def recordJobOutput(self, jobId, UUID):
-        self.imageIdle = time.time()
-
     def postJobOutput(self, jobId, buildId, destUrl, outputToken, files):
-        from conary.repository.transport import XMLOpener
-        import urllib
-        import xmlrpclib
-
         opener = XMLOpener()
 
         filenames = []
@@ -249,6 +246,16 @@ class JobSlave(object):
 
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
         r = rba.setBuildFilenamesSafe(buildId, outputToken, filenames)
+        if r[0]:
+            raise RuntimeError(str(r[1]))
+
+        self.response.jobStatus(jobId, jobstatus.FINISHED, 'Job Finished')
+
+    def postAmiOutput(self, jobId, buildId, destUrl, outputToken, amiId,
+            amiManifestName):
+        rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
+        r = rba.setBuildAmiDataSafe(buildId, outputToken, amiId,
+                amiManifestName)
         if r[0]:
             raise RuntimeError(str(r[1]))
 
