@@ -48,6 +48,7 @@ class HDDContainer:
 class RawHdImage(bootable_image.BootableImage):
     def makeHDImage(self, image):
         totalSize, realSizes = self.getImageSize()
+        lvmContainer = None
 
         if os.path.exists(image):
             util.rmtree(image)
@@ -73,14 +74,16 @@ class RawHdImage(bootable_image.BootableImage):
 
         rootStart = constants.partitionOffset / constants.sectorSize
 
-        partitions = [
-            (rootStart, rootSize / constants.sectorSize, FSTYPE_LINUX, True),
-            (rootStart + (rootSize / constants.sectorSize), lvmSize / constants.sectorSize, FSTYPE_LINUX_LVM, False),
-        ]
+        # root partition
+        partitions = [(rootStart, rootSize / constants.sectorSize, FSTYPE_LINUX, True)]
+
+        if len(realSizes) > 1:
+            partitions.append((rootStart + (rootSize / constants.sectorSize), lvmSize / constants.sectorSize, FSTYPE_LINUX_LVM, False))
+
+            lvmContainer = lvm.LVMContainer(lvmSize, image, (rootStart * constants.sectorSize) + rootSize)
 
         container.partition(partitions)
 
-        lvmContainer = lvm.LVMContainer(lvmSize, image, (rootStart * constants.sectorSize) + rootSize)
 
         rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
             rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
@@ -90,7 +93,9 @@ class RawHdImage(bootable_image.BootableImage):
         for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
             if mountPoint == rootPart:
                 continue
-            fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
+
+            if lvmContainer:
+                fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
             fs.format()
 
             self.addFilesystem(mountPoint, fs)
