@@ -232,8 +232,6 @@ class Generator(threading.Thread):
                 os._exit(1)
             else:
                 os._exit(0)
-        util.rmtree(os.path.join(constants.finishedDir, self.UUID),
-            ignore_errors = True)
         os.waitpid(self.pid, 0)
 
     def kill(self):
@@ -250,9 +248,6 @@ class Generator(threading.Thread):
                 if e.errno != 3:
                     raise
         self.join()
-
-        util.rmtree(os.path.join(constants.finishedDir, self.UUID),
-                    ignore_errors = True)
 
 
 class ImageGenerator(Generator):
