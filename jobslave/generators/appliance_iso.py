@@ -142,7 +142,9 @@ class ApplianceInstaller(bootable_image.BootableImage,
             if self.maxIsoSize > 681574400:
                 self.maxIsoSize -= 1024 * 1024
 
-            csdir = self.prepareTemplates(topDir)
+            templateDir, clientVersion = self.retrieveTemplates()
+            csdir = self.prepareTemplates(topDir, templateDir)
+
             util.rmtree(csdir, ignore_errors=True)
 
             if self.arch == 'x86':
