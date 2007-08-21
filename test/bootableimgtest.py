@@ -257,8 +257,8 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
 
     def testAddMissingScsiModules(self):
         tmpDir = tempfile.mkdtemp()
+        util.mkdirChain(tmpDir + "/etc/")
         try:
-            # ensure this line doesn't backtrace if there's no /etc dir
             self.bootable.addScsiModules(tmpDir)
         finally:
             util.rmtree(tmpDir)
