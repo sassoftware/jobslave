@@ -242,6 +242,7 @@ class JobSlave(object):
 
             sha1 = sha1ToString(sha1.digest())
             filenames.append((fn, desc, size, sha1))
+            c.close()
             logging.info("wrote %d bytes of %s (%s)" % (l, fn, sha1))
 
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
