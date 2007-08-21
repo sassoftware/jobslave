@@ -497,7 +497,12 @@ class BootableImage(ImageGenerator):
             self.conarycfg.initializeFlavors()
             self.saveConaryRC(cfgPath)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
-                self.updateKernelChangeSet(cclient)
+                try:
+                    self.updateKernelChangeSet(cclient)
+                except conaryclient.NoNewTrovesError:
+                    log.info('strongly-included kernel found--no new kernel trove to sync')
+                except errors.TroveNotFound:
+                    log.info('no kernel found at all. skipping.')
             else:
                 log.info('Kernel detected, skipping.')
 
