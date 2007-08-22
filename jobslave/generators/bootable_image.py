@@ -64,6 +64,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False):
                    '#boot=%(bootDev)s',
                    'default=0',
                    'timeout=%(timeOut)s',
+                   'hiddenmenu',
                    'title %(name)s (%(kversion)s)',
                    '    root (hd0,0)',
                    '    %(kernelCmd)s',
