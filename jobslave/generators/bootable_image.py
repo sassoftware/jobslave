@@ -34,7 +34,7 @@ from conary.deps import deps
 from conary.lib import log, util
 from conary.repository import errors
 
-def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False):
+def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = ""):
     xen = xen or dom0
     macros = {'name': name,
               'kversion'  : 'template',
@@ -42,7 +42,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False):
               'moduleCmd' : '',
               'timeOut'   : '5',
               'bootDev'   : 'hda',
-              'kernelCmd' : 'kernel /boot/vmlinuz-%(kversion)s ro root=LABEL=/'}
+              'kernelCmd' : 'kernel /boot/vmlinuz-%%(kversion)s ro root=LABEL=/ %s' % clock}
     if hasInitrd:
         if dom0:
             macros['initrdCmd'] = 'module /boot/initrd-%(kversion)s.img'
@@ -283,7 +283,15 @@ class BootableImage(ImageGenerator):
         dom0 = bool([x for x in bootDirFiles if re.match('xen.gz-.*', x)])
         hasInitrd = bool([x for x in bootDirFiles \
                               if re.match('initrd-.*.img', x)])
-        conf = getGrubConf(name, hasInitrd, xen, dom0)
+
+        clock = ""
+        if self.jobData['buildType'] == buildtypes.VMWARE_IMAGE:
+            if self.arch == 'x86':
+                clock = "clock=pit"
+            elif self.arch == 'x86_64':
+                clock = "notsc"
+
+        conf = getGrubConf(name, hasInitrd, xen, dom0, clock)
 
         f = open(os.path.join(fakeRoot, 'boot', 'grub', 'grub.conf'), 'w')
         f.write(conf)

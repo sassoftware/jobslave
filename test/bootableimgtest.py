@@ -46,6 +46,11 @@ class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
         self.failIf(not re.search('timeout=0', data),
                 "timeout should be 0 on domU")
 
+    def testClockGrubConf(self):
+        data = bootable_image.getGrubConf('TEST_IMAGE', clock = "clock=pit")
+        self.failIf(not re.search('clock=pit', data),
+                "clock setting did not appear")
+
     def testCopyFile(self):
         tmpDir = tempfile.mkdtemp()
         try:
