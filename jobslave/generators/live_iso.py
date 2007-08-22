@@ -241,43 +241,41 @@ class LiveIso(bootable_image.BootableImage):
         util.mkdirChain(outputDir)
         finalIsoImage = os.path.join(outputDir, self.basefilename + '.iso')
         zippedIsoImage = finalIsoImage + '.gz'
-        try:
-            # instantiate contents of actual distro
-            self.installFileTree(fileTree)
-            # Symlink /proc/mounts to /etc/mtab
-            logCall('ln -s %s %s' % (os.path.join(os.path.sep, 'proc', 'mounts'), os.path.join(fileTree, 'etc', 'mtab')))
-            activeTree = fileTree
-            extraArgs = ''
 
-            # make the contents of the base iso. note there are side effects
-            # on the main file tree.
-            self.makeLiveCdTree(liveDir, fileTree)
+        # instantiate contents of actual distro
+        self.installFileTree(fileTree)
+        # Symlink /proc/mounts to /etc/mtab
+        logCall('ln -s %s %s' % (os.path.join(os.path.sep, 'proc', 'mounts'), os.path.join(fileTree, 'etc', 'mtab')))
+        activeTree = fileTree
+        extraArgs = ''
 
-            # and compress them if needed
-            if self.zisofs:
-                logCall('mkzftree %s %s' % (fileTree, zFileTree))
-                activeTree = zFileTree
-                extraArgs = '-z'
+        # make the contents of the base iso. note there are side effects
+        # on the main file tree.
+        self.makeLiveCdTree(liveDir, fileTree)
 
-            # make the inner image
-            logCall('mkisofs -v -J -R -U %s %s -o %s' % (extraArgs, activeTree, innerIsoImage))
-            os.chmod(innerIsoImage, 0755)
+        # and compress them if needed
+        if self.zisofs:
+            logCall('mkzftree %s %s' % (fileTree, zFileTree))
+            activeTree = zFileTree
+            extraArgs = '-z'
 
-            # make the outer image
-            logCall('mkisofs -v -o %s -J -R -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -V %s %s' % (finalIsoImage, self.getVolName(), liveDir))
-            os.chmod(finalIsoImage, 0755)
+        # make the inner image
+        logCall('mkisofs -quiet -v -J -R -U %s -o %s %s' % (extraArgs, innerIsoImage, activeTree))
+        os.chmod(innerIsoImage, 0755)
 
-            # If the inner image wasn't compressed, compress the final image
-            deliveryImage = finalIsoImage
-            if not self.zisofs:
-                logCall('gzip < %s > %s' % (finalIsoImage, zippedIsoImage))
-                os.chmod(zippedIsoImage, 0755)
-                deliveryImage = zippedIsoImage
+        # make the outer image
+        logCall('mkisofs -v -o %s -J -R -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -V %s %s' % (finalIsoImage, self.getVolName(), liveDir))
+        os.chmod(finalIsoImage, 0755)
 
-            # FIXME: make the name of cd or dvd based on disc size
-            self.postOutput(((deliveryImage, 'Demo CD/DVD'),))
-        finally:
-            util.rmtree(topDir, ignore_errors = True)
+        # If the inner image wasn't compressed, compress the final image
+        deliveryImage = finalIsoImage
+        if not self.zisofs:
+            logCall('gzip < %s > %s' % (finalIsoImage, zippedIsoImage))
+            os.chmod(zippedIsoImage, 0755)
+            deliveryImage = zippedIsoImage
+
+        # FIXME: make the name of cd or dvd based on disc size
+        self.postOutput(((deliveryImage, 'Demo CD/DVD'),))
 
     def __init__(self, *args, **kwargs):
         res = bootable_image.BootableImage.__init__(self, *args, **kwargs)
