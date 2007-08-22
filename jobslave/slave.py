@@ -222,8 +222,8 @@ class JobSlave(object):
         opener = XMLOpener()
 
         filenames = []
-        destUrl += '/uploadBuild/%d/%s' % (buildId, os.path.basename(fn))
         for fn, desc in files:
+            url = destUrl + '/uploadBuild/%d/%s' % (buildId, os.path.basename(fn))
             size = os.stat(fn)[stat.ST_SIZE]
 
             sha1 = sha.new()
