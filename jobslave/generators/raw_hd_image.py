@@ -106,7 +106,8 @@ class RawHdImage(bootable_image.BootableImage):
 
         try:
             self.umountAll()
-            lvmContainer.destroy()
+            if lvmContainer:
+                lvmContainer.destroy()
         except Exception, e:
             log.warning("Error tearing down LVM setup: %s" % str(e))
 
