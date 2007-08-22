@@ -227,7 +227,8 @@ class JobSlave(object):
             size = os.stat(fn)[stat.ST_SIZE]
 
             sha1 = sha.new()
-            httpPutFile(destUrl, fn, size, chunked = True,
+            inF = open(fn)
+            httpPutFile(destUrl, inF, size, chunked = True,
                 extraHeaders = [('X-rBuilder-OutputToken', outputToken)],
                 digest = sha1)
 
