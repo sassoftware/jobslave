@@ -223,7 +223,7 @@ class JobSlave(object):
 
         filenames = []
         for fn, desc in files:
-            url = destUrl + '/uploadBuild/%d/%s' % (buildId, os.path.basename(fn))
+            url = destUrl + 'uploadBuild/%d/%s' % (buildId, os.path.basename(fn))
             size = os.stat(fn)[stat.ST_SIZE]
 
             sha1 = sha.new()
