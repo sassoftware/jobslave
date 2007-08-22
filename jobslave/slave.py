@@ -228,7 +228,7 @@ class JobSlave(object):
 
             sha1 = sha.new()
             httpPutFile(destUrl, fn, size, chunked = True,
-                extraHeaders = {'X-rBuilder-OutputToken': outputToken},
+                extraHeaders = [('X-rBuilder-OutputToken': outputToken)],
                 digest = sha1)
 
             sha1 = sha1ToString(sha1.digest())
@@ -274,7 +274,7 @@ class JobSlave(object):
 
 def httpPutFile(url, inFile, size, rateLimit = None,
                 proxies = None, chunked=False,
-                extraHeaders = {}, digest = None):
+                extraHeaders = [], digest = None):
     """
     Send a file to a url.
     """
@@ -291,8 +291,7 @@ def httpPutFile(url, inFile, size, rateLimit = None,
     c.connect()
     c.putrequest("PUT", selector)
 
-    headers.update(extraHeaders)
-    for k, v in headers:
+    for k, v in headers + extraHeaders:
         c.putheader(k, v)
 
     if chunked:
