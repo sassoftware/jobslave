@@ -222,28 +222,18 @@ class JobSlave(object):
         opener = XMLOpener()
 
         filenames = []
+        destUrl += '/uploadBuild/%d/%s' % (buildId, os.path.basename(fn))
         for fn, desc in files:
-            protocol, uri = urllib.splittype(destUrl + 'uploadBuild/%d/%s' % \
-                (buildId, os.path.basename(fn)))
-            c, urlstr, selector, headers = opener.createConnection(str(uri),
-                ssl = (protocol == "https"))
-
-            c.connect()
-            c.putrequest("PUT", selector)
-
-            size = os.stat(files[0][0])[stat.ST_SIZE]
-            c.putheader('Content-length', str(size))
-            c.putheader('X-rBuilder-OutputToken', outputToken)
-            c.endheaders()
+            size = os.stat(fn)[stat.ST_SIZE]
 
             sha1 = sha.new()
-            f = open(fn)
-            l = util.copyfileobj(f, c, digest = sha1)
+            httpPutFile(destUrl, fn, size, chunked = True,
+                extraHeaders = {'X-rBuilder-OutputToken': outputToken},
+                digest = sha1)
 
             sha1 = sha1ToString(sha1.digest())
             filenames.append((fn, desc, size, sha1))
-            c.close()
-            logging.info("wrote %d bytes of %s (%s)" % (l, fn, sha1))
+            logging.info("wrote %d bytes of %s (%s)" % (size, fn, sha1))
 
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
         r = rba.setBuildFilenamesSafe(buildId, outputToken, filenames)
@@ -280,6 +270,64 @@ class JobSlave(object):
     @protocols((1,))
     def receivedJob(self, jobId):
         self.handleReceivedJob(jobId)
+
+
+def httpPutFile(url, inFile, size, rateLimit = None,
+                proxies = None, chunked=False,
+                extraHeaders = {}, digest = None):
+    """
+    Send a file to a url.
+    """
+
+    protocol, uri = urllib.splittype(url)
+    assert(protocol in ('http', 'https'))
+
+    opener = XMLOpener(proxies=proxies)
+    c, urlstr, selector, headers = opener.createConnection(uri,
+        ssl = (protocol == 'https'), withProxy=True)
+
+    BUFSIZE = 8192
+
+    c.connect()
+    c.putrequest("PUT", selector)
+
+    headers.update(extraHeaders)
+    for k, v in headers:
+        c.putheader(k, v)
+
+    if chunked:
+        c.putheader('Transfer-Encoding', 'chunked')
+        c.endheaders()
+
+        total = 0
+        while size:
+            # send in 256k chunks
+            chunk = 262144
+            if chunk > size:
+                chunk = size
+            # first send the hex-encoded size
+            c.send('%x\r\n' %chunk)
+            # then the chunk of data
+            util.copyfileobj(inFile, c, bufSize = chunk,
+                             rateLimit = rateLimit, sizeLimit = chunk,
+                             total = total, digest = digest)
+            # send \r\n after the chunked data
+            c.send("\r\n")
+            total =+ chunk
+            size -= chunk
+        # terminate the chunked encoding
+        c.send('0\r\n\r\n')
+    else:
+        c.putheader('Content-length', str(size))
+        c.endheaders()
+
+        util.copyfileobj(inFile, c, bufSize = BUFSIZE, rateLimit = rateLimit,
+                         sizeLimit = size, digest = digest)
+
+    resp = c.getresponse()
+    c.close()
+    return resp.status, resp.reason
+
 
 def main():
     cfg = SlaveConfig()
