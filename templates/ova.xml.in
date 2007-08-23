@@ -1,12 +1,12 @@
 <?xml version="1.0" ?>
-   <appliance version="0.1">
-     <vm name="vm">
+    <appliance version="0.1">
+        <vm name="vm">
             <label>@TITLE@</label>
-                <shortdesc>@DESCRIPTION@</shortdesc>
-                <config mem_set="@MEMORY@" vcpus="1"/>
-                <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/sda1 ro ">
-                </hacks>
-                <vbd device="sda" function="root" mode="w" vdi="vdi_sda"/>
+            <shortdesc>@DESCRIPTION@</shortdesc>
+            <config mem_set="@MEMORY@" vcpus="1"/>
+            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/sda1 ro ">
+            </hacks>
+@VDB_ENTRIES@
         </vm>
-        <vdi name="vdi_sda" size="@DISKSIZE@" source="file://sda" type="dir-gzipped-chunks" variety="system" />
+@VDI_ENTRIES@
 </appliance>
