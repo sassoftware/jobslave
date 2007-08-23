@@ -436,6 +436,8 @@ class BootableImage(ImageGenerator):
         filePath = os.path.join(dest, 'etc', 'modprobe.conf')
         if not os.path.exists(filePath):
             log.warning('modprobe.conf not found while adding scsi modules')
+
+        util.mkdirChain(os.path.split(filePath)[0])
         f = open(filePath, 'a')
         if os.stat(filePath)[6]:
             f.write('\n')
