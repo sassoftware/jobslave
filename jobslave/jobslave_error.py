@@ -6,7 +6,3 @@
 
 class JobSlaveError(Exception):
     pass
-
-class KernelTroveRequired(JobSlaveError):
-    def __str__(self):
-        return "Your group must include a kernel for proper operation."
