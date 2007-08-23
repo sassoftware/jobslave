@@ -18,14 +18,13 @@ class ImageGeneratorStub(GeneratorStub):
 class BootableImageStub(ImageGeneratorStub):
     jobId = "jobid"
     UUID = "abcd"
-    def __init__(self, *args, **kwargs):
+    def __init__(self, parent, jobData, *args, **kwargs):
         self.filesystems = {}
         self.workDir = '/tmp/workdir'
         self.outputDir = '/tmp/outputdir'
         self.basefilename = 'image'
         self.mountDict = {'/': (0, 100, 'ext3'), 'swap': (0, 100, 'swap')}
-
-        self.parentPipe = sys.stderr.fileno()
+        self.jobData = jobData
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
