@@ -150,7 +150,6 @@ class ExecuteLoggerTest(JobSlaveHelper):
         self.oldSubprocessPopen = subprocess.Popen
         self.callLog = []
         self.mkdirs = []
-        self.oldOsMakeDirs = os.makedirs
 
         def osSystem(cmd):
             self.callLog.append(cmd)
@@ -163,9 +162,6 @@ class ExecuteLoggerTest(JobSlaveHelper):
             self.callLog.append(cmd)
             return 0
 
-        def osMakeDirs(path):
-            self.mkdirs.append(path)
-
         class FakePopen:
             def __init__(self2, cmd, *args, **kwargs):
                 self.callLog.append(cmd)
@@ -177,7 +173,6 @@ class ExecuteLoggerTest(JobSlaveHelper):
                 return True
 
         os.system = osSystem
-        os.makedirs = osMakeDirs
         subprocess.call = subprocessCall
         subprocess.Popen = FakePopen
         JobSlaveHelper.setUp(self)
@@ -201,7 +196,6 @@ class ExecuteLoggerTest(JobSlaveHelper):
     def tearDown(self):
         JobSlaveHelper.tearDown(self)
         os.system = self.oldOsSystem
-        os.makedirs = self.oldOsMakeDirs
         subprocess.call = self.oldSubprocessCall
         subprocess.Popen = self.oldSubprocessPopen
 
