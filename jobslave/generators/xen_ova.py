@@ -87,7 +87,7 @@ class XenOVA(raw_fs_image.RawFsImage):
         deliverable = os.path.join(outputDir, self.basefilename + self.suffix)
 
         # image building stage.
-        sizes = self.getImageSize()
+        totalSize, sizes = self.getImageSize()
         self.makeFSImage(sizes)
 
         self.mountLabels = sortMountPoints(self.mountDict)
