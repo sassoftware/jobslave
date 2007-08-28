@@ -25,7 +25,7 @@ class TarSplit(object):
         self.prefix = 'tar-chunk.'
         self.files = []
         self.tblist = []
-        self.chunkSize = 50*1024*1024
+        self.chunkSize = 10*1024*1024
 
         self.tarfh.seek(0, 2)
         self.tarEnd = self.tarfh.tell()
