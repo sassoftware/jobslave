@@ -167,7 +167,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                 f.write('test')
                 f.close()
         g.makeFSImage = MockMakeFSImage
-        g.getImageSize = lambda: (100, {'/': 100, '/mnt': 100})
+        g.getImageSize = lambda *args, **kwargs: (100, {'/': 100, '/mnt': 100})
         g.write()
         self.failIf([x.split()[0] for x in self.callLog] != \
                 ['split', 'for', 'split', 'for', 'tar'],
