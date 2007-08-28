@@ -25,6 +25,13 @@ class RawFsImage(bootable_image.BootableImage):
         fs.format()
         return fs
 
+    def mntPointFileName(self, mountPoint):
+        fsType = self.mountDict[mountPoint][-1]
+        tag = mountPoint[mountPoint.startswith('/') and 1 or 0:]
+        tag = tag.replace("/", "_")
+        tag = tag and tag or "root"
+        return os.path.join(self.workDir, self.basefilename, "%s-%s.%s" % (self.basefilename, tag, fsType))
+
     def makeFSImage(self, sizes):
         root = self.workDir + "/root"
         try:
@@ -38,7 +45,7 @@ class RawFsImage(bootable_image.BootableImage):
 
                 tag = mountPoint.replace("/", "")
                 tag = tag and tag or "root"
-                imgFiles[mountPoint] = os.path.join(self.workDir, self.basefilename, "%s-%s.%s" % (self.basefilename, tag, fsType))
+                imgFiles[mountPoint] = self.mntPointFileName(mountPoint)
                 log.info("creating mount point %s as %s size of %d" % (mountPoint, imgFiles[mountPoint], requestedSize))
                 fs = self.makeBlankFS(imgFiles[mountPoint], fsType, requestedSize, fsLabel = mountPoint)
 

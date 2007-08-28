@@ -164,17 +164,13 @@ class JobSlave(object):
             # client can fail to be instantiated if stompserver is not running
             mcpClient = client.MCPClient(self.cfg)
             mcpClient.stopSlave(self.cfg.nodeName)
+            self.controlTopic.disconnect()
+            self.response.response.disconnect()
+            del self.response
+            self.jobControlQueue.disconnect()
         except:
             # mask all errors. we're about to shutdown anyways
             pass
-        self.controlTopic.disconnect()
-        self.response.response.disconnect()
-        del self.response
-        self.jobControlQueue.disconnect()
-        # redundant protection: attempt to power off the machine in case
-        # stop slave command does not get to master right away.
-
-        os.system('poweroff -h')
 
     @catchErrors
     def checkControlTopic(self):
