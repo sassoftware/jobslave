@@ -124,6 +124,7 @@ class JobSlave(object):
         self.response = response.MCPResponse(self.cfg.nodeName, cfg)
         signal.signal(signal.SIGTERM, self.catchSignal)
         signal.signal(signal.SIGINT, self.catchSignal)
+        self.lastHeartbeat = 0
 
     def catchSignal(self, *args):
         self.running = False
@@ -146,13 +147,12 @@ class JobSlave(object):
             self.response.jobStatus(UUID, jobstatus.FAILED,
                                     'Image creation error: %s' % str(e))
             self.running = False
-        else:
-            self.sendSlaveStatus()
 
         try:
             while self.running:
                 self.checkControlTopic()
                 self.running = self.jobHandler.isAlive()
+                self.heartbeat()
                 time.sleep(0.1)
         finally:
             self.disconnect()
@@ -171,6 +171,13 @@ class JobSlave(object):
         except:
             # mask all errors. we're about to shutdown anyways
             pass
+
+    @catchErrors
+    def heartbeat(self):
+        curTime = time.time()
+        if (curTime - self.lastHeartbeat) > 30:
+            self.lastHeartbeat = curTime
+            self.sendSlaveStatus()
 
     @catchErrors
     def checkControlTopic(self):

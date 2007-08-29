@@ -10,6 +10,7 @@ testsuite.setup()
 
 import os
 import simplejson
+import time
 
 import jobslave_helper
 from jobslave import buildtypes
@@ -62,6 +63,17 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
         finally:
             self.jobSlave.disconnect = disconnect
             os._exit = _exit
+
+    def testInitialStatus(self):
+        savedTime = time.time
+        try:
+            time.time = lambda: 300
+            self.jobSlave.heartbeat()
+            self.failIf(self.jobSlave.lastHeartbeat != 300,
+                    "heartbeat timestamp was not recorded")
+        finally:
+            time.time = savedTime
+
 
 if __name__ == "__main__":
     testsuite.main()
