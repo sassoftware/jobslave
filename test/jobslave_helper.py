@@ -123,7 +123,7 @@ class JobSlaveHelper(testhelp.TestCase):
                     'ec2CertificateKey': ''}
         return jobhandler.getHandler(data, self.jobSlave)
 
-    def supressOutput(self, func, *args, **kwargs):
+    def suppressOutput(self, func, *args, **kwargs):
         oldErr = os.dup(sys.stderr.fileno())
         oldOut = os.dup(sys.stdout.fileno())
         fd = os.open(os.devnull, os.W_OK)
