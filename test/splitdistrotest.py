@@ -16,24 +16,6 @@ from conary.lib import util
 ISOBLOCK_SIZE = 2048
 
 class SplitDistroTest(jobslave_helper.JobSlaveHelper):
-    def setUp(self):
-        self.created = []
-        self.realMkdtemp = tempfile.mkdtemp
-
-        def fakeMkdtemp(*args, **kwargs):
-            kwargs["prefix"] = self._TestCase__testMethodName
-            d = self.realMkdtemp(*args, **kwargs)
-            self.created.append(d)
-            return d
-
-        tempfile.mkdtemp = fakeMkdtemp
-
-    def tearDown(self):
-        for x in self.created:
-            self.suppressOutput(util.rmtree, x, ignore_errors = True)
-        self.created = []
-        tempfile.mkdtemp = self.realMkdtemp
-
     def testSpaceUsed(self):
         tmpdir = tempfile.mkdtemp()
         assert splitdistro.spaceused(tmpdir, ISOBLOCK_SIZE) == 0

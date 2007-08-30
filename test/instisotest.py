@@ -16,6 +16,8 @@ import simplejson
 from conary.lib import util, sha1helper
 from conary.deps import deps
 
+from mint import buildtypes
+
 import jobslave_helper
 from jobslave.generators import installable_iso
 from jobslave import flavors
@@ -83,36 +85,65 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
 
     def testAnacondaImages(self):
         tmpDir = tempfile.mkdtemp()
-        try:
-            ai = anaconda_images.AnacondaImages("Mint Test Suite",
-                "../pixmaps/", tmpDir,
-                "/usr/share/fonts/bitstream-vera/Vera.ttf")
-            ai.processImages()
+        ai = anaconda_images.AnacondaImages("Mint Test Suite",
+            "../pixmaps/", tmpDir,
+            "/usr/share/fonts/bitstream-vera/Vera.ttf")
+        ai.processImages()
 
-            files = set(['first-lowres.png', 'anaconda_header.png',
-                'progress_first.png', 'syslinux-splash.png',
-                'first.png', 'splash.png', 'progress_first-375.png'])
-            self.failUnlessEqual(files, set(os.listdir(tmpDir)))
-        finally:
-            util.rmtree(tmpDir)
+        files = set(['first-lowres.png', 'anaconda_header.png',
+            'progress_first.png', 'syslinux-splash.png',
+            'first.png', 'splash.png', 'progress_first-375.png'])
+        self.failUnlessEqual(files, set(os.listdir(tmpDir)))
 
     def testLinkRecurse(self):
         d1 = tempfile.mkdtemp()
         d2 = tempfile.mkdtemp()
 
-        try:
-            util.mkdirChain(d1 + "/bar")
-            file(d1 + "/foo", "w").write("hello world")
-            file(d1 + "/bar/baz", "w").write("goodbye world")
+        util.mkdirChain(d1 + "/bar")
+        file(d1 + "/foo", "w").write("hello world")
+        file(d1 + "/bar/baz", "w").write("goodbye world")
 
-            installable_iso._linkRecurse(d1, d2)
+        installable_iso._linkRecurse(d1, d2)
 
-            # make sure that linkRecurse recursively links files and dirs
-            assert(os.path.exists(d2 + "/foo"))
-            assert(os.path.exists(d2 + "/bar/baz"))
-        finally:
-            util.rmtree(d1)
-            util.rmtree(d2)
+        # make sure that linkRecurse recursively links files and dirs
+        assert(os.path.exists(d2 + "/foo"))
+        assert(os.path.exists(d2 + "/bar/baz"))
+
+    def testBuildStamp(self):
+        ii = self.getHandler(buildtypes.INSTALLABLE_ISO)
+
+        d = tempfile.mkdtemp()
+
+        ii.writeBuildStamp(d)
+        x = open(d + "/.buildstamp").read()
+        self.failUnless('Test Project' in x)
+        self.failUnless('group-core /conary.rpath.com@rpl:1/0:1.0.1-1-1 1#x86' in x)
+
+    def testConaryClient(self):
+        ii = self.getHandler(buildtypes.INSTALLABLE_ISO)
+        ii._setupTrove()
+
+        # check the returned conary client cfg for sanity
+        cc = ii.getConaryClient('/', '1#x86')
+        self.failUnlessEqual(str(cc.cfg.installLabelPath), "[Label('conary.rpath.com@rpl:1')]")
+
+    def checkSha1(self, fileName, sum):
+        assert(sha1helper.sha1ToString(sha1helper.sha1FileBin(fileName)) == sum)
+
+    def testConvertSplash(self):
+        ii = self.getHandler(buildtypes.INSTALLABLE_ISO)
+
+        d1 = tempfile.mkdtemp()
+        d2 = tempfile.mkdtemp()
+
+        util.mkdirChain(os.path.join(d1, 'isolinux'))
+        util.mkdirChain(os.path.join(d2, 'pixmaps'))
+        util.copyfile(os.path.join(self.testDir, 'archive', 'syslinux-splash.png'),
+                      os.path.join(d2, 'pixmaps', 'syslinux-splash.png'))
+        self.suppressOutput(ii.convertSplash, d1, d2)
+
+        result = os.path.join(d1, 'isolinux', 'splash.lss')
+        self.checkSha1(result, 'b36af127d5336db0a39a9955cd44b3a8466aa048')
 
 
 if __name__ == "__main__":

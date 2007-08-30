@@ -92,14 +92,32 @@ class JobSlaveHelper(testhelp.TestCase):
         generators.constants.finishedDir = self.finishedDir
         generators.constants.entDir = self.entDir
 
+        self.testDir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+
         import logging
         log = logging.getLogger()
         logging.DEBUG = logging.FATAL
         log.setLevel(logging.FATAL)
 
+        # make sure we always delete mkdtemp directories
+        self.mkdCreated = []
+        self.realMkdtemp = tempfile.mkdtemp
+
+        def fakeMkdtemp(*args, **kwargs):
+            kwargs["prefix"] = self._TestCase__testMethodName
+            d = self.realMkdtemp(*args, **kwargs)
+            self.mkdCreated.append(d)
+            return d
+        tempfile.mkdtemp = fakeMkdtemp
+
     def tearDown(self):
-        util.rmtree(self.finishedDir, ignore_errors = True)
-        util.rmtree(self.entDir, ignore_errors = True)
+        self.suppressOutput(util.rmtree, self.finishedDir, ignore_errors = True)
+        self.suppressOutput(util.rmtree, self.entDir, ignore_errors = True)
+
+        for x in self.mkdCreated:
+            self.suppressOutput(util.rmtree, x, ignore_errors = True)
+        tempfile.mkdtemp = self.realMkdtemp
+
         testhelp.TestCase.tearDown(self)
 
     def getHandler(self, buildType):
@@ -116,6 +134,7 @@ class JobSlaveHelper(testhelp.TestCase):
             'troveFlavor': '1#x86',
             'data' : {'jsversion': '3.0.0'},
             'outputQueue': 'test',
+            'name': 'Test Project',
             'entitlements': {'conary.rpath.com': ('class', 'key')},
             'buildType' : buildType}
         if buildType == buildtypes.AMI:
