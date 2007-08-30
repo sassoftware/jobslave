@@ -42,6 +42,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.bases['Tarball'] = tarball.Tarball.__bases__
         tarball.Tarball.__bases__ = (bootable_stubs.BootableImageStub,)
 
+        constants.templateDir = os.path.join(os.path.dirname( \
+                os.path.dirname(os.path.abspath(__file__))), 'templates')
+
 
     def tearDown(self):
         raw_fs_image.RawFsImage.__bases__ = self.bases['RawFsImage']
@@ -194,10 +197,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g.mountDict = {'/mnt': (0, 100, 'ext3'), '/': (0, 100, 'ext3')}
         g.mountLabels = xen_ova.sortMountPoints(g.mountDict)
         fd, tmpFile = tempfile.mkstemp()
-        templateDir = constants.templateDir
         try:
-            constants.templateDir = os.path.join(os.path.dirname( \
-                    os.path.dirname(os.path.abspath(__file__))), 'templates')
             g.createXVA(tmpFile, {'/mnt' : 100, '/' : 100})
             f = open(tmpFile)
             data = f.read()
@@ -220,8 +220,6 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(data != ref, "malformed XVA")
         finally:
             os.unlink(tmpFile)
-            constants.templateDir = templateDir
-
 
     def testTarball(self):
         oldChdir = os.chdir
