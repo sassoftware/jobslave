@@ -46,7 +46,6 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
         jobId = 'test.rpath.local-build-29'
         self.jobSlave.jobHandler = DummyHandler()
         self.jobSlave.jobHandler.jobId = jobId
-        self.jobSlave.jobControlQueue = DummyQueue()
         self.jobSlave.handleStopJob(jobId)
         self.failIf(self.jobSlave.jobHandler.running,
             "Job was not killed on command")
