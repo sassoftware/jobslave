@@ -117,10 +117,6 @@ class JobSlave(object):
                                        'control', namespace = cfg.namespace,
                                        timeOut = 0)
 
-        self.jobControlQueue = queue.Queue( \
-            self.cfg.queueHost, self.cfg.queuePort, jobData['UUID'],
-            namespace = self.cfg.namespace, timeOut = 0)
-
         self.response = response.MCPResponse(self.cfg.nodeName, cfg)
         signal.signal(signal.SIGTERM, self.catchSignal)
         signal.signal(signal.SIGINT, self.catchSignal)
@@ -167,7 +163,6 @@ class JobSlave(object):
             self.controlTopic.disconnect()
             self.response.response.disconnect()
             del self.response
-            self.jobControlQueue.disconnect()
         except:
             # mask all errors. we're about to shutdown anyways
             pass
@@ -181,8 +176,7 @@ class JobSlave(object):
 
     @catchErrors
     def checkControlTopic(self):
-        dataStr = self.controlTopic.read() or \
-            (self.jobControlQueue and self.jobControlQueue.read())
+        dataStr = self.controlTopic.read()
         while dataStr:
             data = simplejson.loads(dataStr)
             if data.get('node') in ('slaves', self.cfg.nodeName):
