@@ -80,7 +80,7 @@ class JobSlaveHelper(testhelp.TestCase):
         self.slaveCfg.configLine('namespace test')
         self.slaveCfg.configLine('nodeName testMaster:testSlave')
         self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
-        self.slaveCfg.configLine('watchdog False')
+        self.slaveCfg.configLine('debugMode True')
 
         f = open ('archive/jobdata.txt')
         self.jobSlave = ThreadedJobSlave(self.slaveCfg,
