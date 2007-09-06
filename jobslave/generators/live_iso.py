@@ -260,7 +260,7 @@ class LiveIso(bootable_image.BootableImage):
             extraArgs = '-z'
 
         # make the inner image
-        logCall('mkisofs -quiet -v -J -R -U %s -o %s %s' % (extraArgs, innerIsoImage, activeTree))
+        logCall('mkisofs -quiet -J -R -U %s -o %s %s' % (extraArgs, innerIsoImage, activeTree))
         os.chmod(innerIsoImage, 0755)
 
         # make the outer image
