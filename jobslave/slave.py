@@ -79,7 +79,7 @@ class SlaveConfig(client.MCPClientConfig):
     jobQueueName = (cfgtypes.CfgString, None)
     nodeName = (cfgtypes.CfgString, None)
     conaryProxy = (cfgtypes.CfgString, None)
-    watchdog = (cfgtypes.CfgBool, True)
+    debugMode = (cfgtypes.CfgBool, True)
 
 def catchErrors(func):
     def wrapper(self, *args, **kwargs):
@@ -127,7 +127,7 @@ class JobSlave(object):
 
     @alwaysExit
     def run(self):
-        if self.cfg.watchdog:
+        if not self.cfg.debugMode:
             watchdog()
         UUID = self.jobData['UUID']
         print "serving job: %s" % UUID
@@ -158,8 +158,9 @@ class JobSlave(object):
             self.jobHandler.kill()
         try:
             # client can fail to be instantiated if stompserver is not running
-            mcpClient = client.MCPClient(self.cfg)
-            mcpClient.stopSlave(self.cfg.nodeName)
+            if not self.cfg.debugMode:
+                mcpClient = client.MCPClient(self.cfg)
+                mcpClient.stopSlave(self.cfg.nodeName)
             self.controlTopic.disconnect()
             self.response.response.disconnect()
             del self.response
