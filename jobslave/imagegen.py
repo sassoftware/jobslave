@@ -215,7 +215,7 @@ class Generator(threading.Thread):
                 except:
                     exc, e, bt = sys.exc_info()
                     btText = traceback.format_exc(bt)
-                    self.status('Job failed (%s)' % (btText.split('\n')[-2]), status = jobstatus.FAILED)
+                    self.status('Job failed (%s)' % (str(e).replace('\n', ' ')), status = jobstatus.FAILED)
                     log.error(btText)
                     log.error('Failed job: %s' % self.jobId)
                     self.logger.flush()
