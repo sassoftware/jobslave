@@ -547,8 +547,12 @@ class BootableImage(ImageGenerator):
         # remove root password
         logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 --enableshadow --disablecache" % dest)
         logCall("chroot %s /usr/sbin/usermod -p '' root" % dest)
+        self.runGrubby(dest)
 
-        # remove template kernel entry
+    @timeMe
+    def runGrubby(self, dest):
+        # remove template kernel entry. This has been moved to a separate
+        # function call so that AMI images can skip this step.
         logCall('chroot %s /sbin/grubby --remove-kernel=/boot/vmlinuz-template' % dest)
 
     @timeMe

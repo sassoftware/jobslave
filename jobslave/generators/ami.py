@@ -110,6 +110,10 @@ class AMIImage(raw_fs_image.RawFsImage):
         # AMIs don't need a kernel
         pass
 
+    def runGrubby(self, dest):
+        # AMI's don't have a kernel
+        pass
+
     def fileSystemOddsNEnds(self, fakeroot):
         raw_fs_image.RawFsImage.fileSystemOddsNEnds(self, fakeroot)
 
