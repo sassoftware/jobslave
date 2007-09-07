@@ -207,11 +207,6 @@ class Generator(threading.Thread):
                 try:
                     self.status('Starting job')
                     self.write()
-                    try:
-                        if self.workDir and os.path.exists(self.workDir):
-                            util.rmtree(self.workDir)
-                    except Exception, e:
-                        log.error("couldn't clean up afterwards: %s" % str(e))
                 except:
                     exc, e, bt = sys.exc_info()
                     btText = traceback.format_exc(bt)
