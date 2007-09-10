@@ -17,6 +17,7 @@ from jobslave import buildtypes
 from jobslave import slave
 
 from jobslave import jobhandler
+from jobslave import jobslave_error
 
 class DummyHandler(object):
     def __init__(x, *args, **kwargs):
@@ -72,6 +73,32 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
                     "heartbeat timestamp was not recorded")
         finally:
             time.time = savedTime
+
+    def testProtocols(self):
+        @slave.protocols(1)
+        def testFunction(*args, **kwargs):
+            return 5
+
+        self.assertRaises(jobslave_error.ProtocolError, testFunction, self)
+        self.assertRaises(jobslave_error.ProtocolError, testFunction, self,
+                protocolVersion = 2)
+        self.failIf(testFunction(self, protocolVersion = 1) != 5,
+                "Unexpected return value")
+
+    def testGetBestProtocol(self):
+        self.failIf(self.jobSlave.getBestProtocol((1,)) != 1,
+                "Expected common protocol version of 1")
+
+    def testSendJobStatus(self):
+        class DummyHandler(object):
+            def __init__(x):
+                x.sentStatus = False
+            def status(x):
+                x.sentStatus = True
+        self.jobSlave.jobHandler = DummyHandler()
+        self.jobSlave.sendJobStatus()
+        self.failIf(not self.jobSlave.jobHandler.sentStatus,
+                "Expected status to be sent")
 
 
 if __name__ == "__main__":
