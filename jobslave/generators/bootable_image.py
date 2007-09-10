@@ -553,23 +553,14 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def installGrub(self, fakeRoot, image, size):
-        grubPath = os.path.join(fakeRoot, 'sbin', 'grub')
-        if not os.path.exists(grubPath):
-            log.info("grub not found. skipping execution.")
-            return False
-
         cylinders = size / constants.cylindersize
         grubCmds = "device (hd0) %s\n" \
                    "geometry (hd0) %d %d %d\n" \
                    "root (hd0,0)\n" \
                    "setup (hd0)" % (image, cylinders, constants.heads, constants.sectors)
 
-        # add fakeRoot's libraries to LD_LIBRARY_PATH for grub
-        libPaths = [('lib',), ('lib64',), ('usr', 'lib'), ('usr', 'lib64')]
-        os.environ['LD_LIBRARY_PATH'] = ":".join(os.path.join(fakeRoot, *x) for x in libPaths)
-
         logCall('echo -e "%s" | '
-                '%s --no-floppy --batch' % (grubCmds, grubPath))
+                '/sbin/grub --no-floppy --batch' % (grubCmds))
         return True
 
     @timeMe
