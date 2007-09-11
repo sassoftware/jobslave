@@ -5,11 +5,12 @@
 # All rights reserved
 #
 
-import os
 import testsuite
-import sys
 testsuite.setup()
 
+import boto
+import os
+import sys
 import tempfile
 
 from conary.lib import util
@@ -17,6 +18,7 @@ import jobslave_helper
 import bootable_stubs
 
 from jobslave import buildtypes
+from jobslave import imagegen
 # Replace generator's old superclass, BootableImage, with our
 # stub, BootableImageStub
 from jobslave.generators import constants
@@ -25,6 +27,7 @@ from jobslave.generators import raw_fs_image
 from jobslave.generators import raw_hd_image
 from jobslave.generators import xen_ova
 from jobslave.generators import tarball
+from jobslave.generators import ami
 
 
 class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
@@ -143,7 +146,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.resetPopen()
 
     def testXenOVA(self):
-        g = xen_ova.XenOVA([], {'buildType': buildtypes.XEN_OVA,
+        g = xen_ova.XenOVA({'buildType': buildtypes.XEN_OVA,
             'outputToken': '580466f08ddfcfa130ee85f2d48c61ced992d4d4',
             'name': 'Test Linux',
             'type': 'build',
@@ -159,7 +162,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             'data': {'jsversion': '3.1.3',
                 'baseFileName': '',
                 'media-template': 'media-template=/test.rpath.local@rpl:devel/1.3.0-2-1[is: x86]'},
-            'description': 'this is a test'})
+            'description': 'this is a test'}, [])
         g.mountDict = {'/mnt': (0, 100, 'ext3'), '/': (0, 100, 'ext3')}
         def MockMakeFSImage(*args, **kwargs):
             for mountPoint in g.mountDict.keys():
@@ -177,7 +180,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                 "unexpected command sequnce")
 
     def testXenCreateXVA(self):
-        g = xen_ova.XenOVA([], {'buildType': buildtypes.XEN_OVA,
+        g = xen_ova.XenOVA({'buildType': buildtypes.XEN_OVA,
             'outputToken': '580466f08ddfcfa130ee85f2d48c61ced992d4d4',
             'name': 'Test Linux',
             'type': 'build',
@@ -193,7 +196,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             'data': {'jsversion': '3.1.3',
                 'baseFileName': '',
                 'media-template': 'media-template=/test.rpath.local@rpl:devel/1.3.0-2-1[is: x86]'},
-            'description': 'this is a test'})
+            'description': 'this is a test'}, [])
         g.mountDict = {'/mnt': (0, 100, 'ext3'), '/': (0, 100, 'ext3')}
         g.mountLabels = xen_ova.sortMountPoints(g.mountDict)
         fd, tmpFile = tempfile.mkstemp()
@@ -229,6 +232,122 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             g.write()
         finally:
             os.chdir = oldChdir
+
+    def testAMI(self):
+        g = self.getHandler(buildtypes.AMI)
+        g.createAMIBundle = lambda *args, **kwargs: '/fake/path'
+        g.uploadAMIBundle = lambda *args, **kwargs: True
+        g.registerAMI = lambda *args, **kwargs: ('testId', 'testManifest')
+        g.postAMIOutput = lambda amiID, amiManifestName: None
+        g.write()
+
+    def testCreateAMIBundle(self):
+        bundlePath = tempfile.mkdtemp()
+        try:
+            inputFSImage = os.path.join(bundlePath, 'trash')
+            fakeBundle = os.path.join(bundlePath, 'bundle.xml')
+            f = open(fakeBundle, 'w')
+            f.write('')
+            f.close()
+            g = self.getHandler(buildtypes.AMI)
+            ref = os.path.basename(fakeBundle)
+            res = g.createAMIBundle(inputFSImage, bundlePath)
+            self.failIf(ref != res, "expected %s but got %s" % (ref, res))
+            self.failIf(not self.callLog[0].startswith('ec2-bundle-image'),
+                    "Expected ec2 bundle call")
+        finally:
+            util.rmtree(bundlePath)
+
+    def testUploadAMIBundle(self):
+        g = self.getHandler(buildtypes.AMI)
+        pathToManifest = '/tmp/fake/path'
+
+        self.failIf(not g.uploadAMIBundle(pathToManifest),
+                "Unexpected error during upload")
+        self.failIf(self.callLog != \
+                ['ec2-upload-bundle -m /tmp/fake/path -b fake_s3_bucket ' \
+                '-a fake_public_key -s fake_private_key'],
+                "upload call not formed as expected")
+
+    def testRegisterAMI(self):
+        g = self.getHandler(buildtypes.AMI)
+        class FakeBoto(object):
+            register_image = lambda *args, **kwargs: 'fakeAMIId'
+            modify_image_attribute = lambda *args, **kwargs: None
+        connect_ec2 = boto.connect_ec2
+        try:
+            boto.connect_ec2 = lambda *args, **kwargs: FakeBoto()
+            res = g.registerAMI('/tmp/fake_path')
+            ref = ('fakeAMIId', 'fake_s3_bucket/fake_path')
+            self.failIf(ref != res, "expected %s but got %s" % \
+                    (str(ref), str(res)))
+        finally:
+            boto.connect_ec2 = connect_ec2
+
+    def testAMIOddsNEnds(self):
+        g = self.getHandler(buildtypes.AMI)
+        tmpDir = tempfile.mkdtemp()
+        g.writeConaryRc = lambda *args, **kwargs: None
+        g.hugeDiskMountpoint = '/mnt/huge'
+        try:
+            g.fileSystemOddsNEnds(tmpDir)
+            f = open(os.path.join(tmpDir, 'etc', 'fstab'))
+            data = f.read()
+            self.failIf(data != \
+                    '/dev/sda2\t/mnt/huge\t\text3\tdefaults 1 2\n' \
+                    '/dev/sda3\tswap\t\tswap\tdefaults 0 0\n',
+                    "Unexpected mount structure")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testAMIBundleError(self):
+        g = self.getHandler(buildtypes.AMI)
+        def badCall(cmd):
+            raise RuntimeError
+        logCall = ami.logCall
+        try:
+            ami.logCall = badCall
+            # these calls aren't technically needed but protect the test suite
+            # from actually calling Amazon with busted data
+            g.uploadAMIBundle = lambda *args, **kwargs: True
+            g.registerAMI = lambda *args, **kwargs: ('testId', 'testManifest')
+            g.postAMIOutput = lambda amiID, amiManifestName: None
+            self.assertRaises(ami.AMIBundleError, g.write)
+        finally:
+            ami.logCall = logCall
+
+    def testAMIUploadError(self):
+        g = self.getHandler(buildtypes.AMI)
+        def badCall(cmd):
+            raise RuntimeError
+        logCall = ami.logCall
+        try:
+            ami.logCall = badCall
+            # these calls aren't technically needed but protect the test suite
+            # from actually calling Amazon with busted data
+            g.createAMIBundle = lambda *args, **kwargs: '/fake/path'
+            g.registerAMI = lambda *args, **kwargs: ('testId', 'testManifest')
+            g.postAMIOutput = lambda amiID, amiManifestName: None
+            self.assertRaises(ami.AMIUploadError, g.write)
+        finally:
+            ami.logCall = logCall
+
+    def testAMIRegisterError(self):
+        g = self.getHandler(buildtypes.AMI)
+        def badCall(cmd):
+            raise RuntimeError
+        connect_ec2 = boto.connect_ec2
+        try:
+            boto.connect_ec2 = badCall
+            # these calls aren't technically needed but protect the test suite
+            # from actually calling Amazon with busted data
+            g.createAMIBundle = lambda *args, **kwargs: '/fake/path'
+            g.uploadAMIBundle = lambda *args, **kwargs: True
+            g.postAMIOutput = lambda amiID, amiManifestName: None
+            self.assertRaises(ami.AMIRegistrationError, g.write)
+        finally:
+            boto.connect_ec2 = connect_ec2
+
 
 
 if __name__ == "__main__":

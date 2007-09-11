@@ -242,7 +242,7 @@ class JobSlave(object):
 
         self.response.jobStatus(jobId, jobstatus.FINISHED, 'Job Finished')
 
-    def postAmiOutput(self, jobId, buildId, destUrl, outputToken, amiId,
+    def postAMIOutput(self, jobId, buildId, destUrl, outputToken, amiId,
             amiManifestName):
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
         r = rba.setBuildAmiDataSafe(buildId, outputToken, amiId,

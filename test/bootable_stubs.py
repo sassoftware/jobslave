@@ -18,7 +18,7 @@ class ImageGeneratorStub(GeneratorStub):
 class BootableImageStub(ImageGeneratorStub):
     jobId = "jobid"
     UUID = "abcd"
-    def __init__(self, parent, jobData, *args, **kwargs):
+    def __init__(self, jobData, parent, *args, **kwargs):
         self.filesystems = {}
         self.workDir = '/tmp/workdir'
         self.outputDir = '/tmp/outputdir'
@@ -74,3 +74,6 @@ class BootableImageStub(ImageGeneratorStub):
 
     def gzip(self, source, dest = None):
         return dest
+
+    def status(self, status, statusMessage = None):
+        pass
