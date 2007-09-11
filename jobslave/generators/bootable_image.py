@@ -557,6 +557,15 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def installGrub(self, fakeRoot, image, size):
+        # we use the slave's copy of grub to avoid any library compatibility problems
+        # with the image tree, but we only run this code if the image tree itself
+        # has its own copy of grub.
+
+        grubPath = os.path.join(fakeRoot, 'sbin', 'grub')
+        if not os.path.exists(grubPath):
+            log.info("grub not found. skipping execution.")
+            return False
+
         cylinders = size / constants.cylindersize
         grubCmds = "device (hd0) %s\n" \
                    "geometry (hd0) %d %d %d\n" \
