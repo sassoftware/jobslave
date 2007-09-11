@@ -8,11 +8,13 @@
 import testsuite
 testsuite.setup()
 
+import copy
 import os
 import sys
-import copy
+import tempfile
 
 from jobslave.slave import watchdog
+from jobslave import helperfuncs
 from jobslave import imagegen
 
 class HelperFunctionsTest(testsuite.TestCase):
@@ -91,6 +93,40 @@ class HelperFunctionsTest(testsuite.TestCase):
                 "failed to cast nested iterable items")
         self.failIf(res['unicode'] != 'Andr?',
                 "Unsafe replacement mode for unicode")
+
+    def testGetIp(self):
+        refIP = '127.0.0.1'
+        class MockPipe(object):
+            def read(x):
+                return '%s\n' % refIP
+            close = lambda *args: None
+        popen = os.popen
+        try:
+            os.popen = lambda *args, **kwargs: MockPipe()
+            IP = helperfuncs.getIP()
+            self.failIf(IP != refIP, "expected %s, but got %s" % (refIP, IP))
+        finally:
+            os.popen = popen
+
+    def testGetSlaveRuntimeConfig(self):
+        fd, tmpFile = tempfile.mkstemp()
+        os.close(fd)
+        f = open(tmpFile, 'w')
+        f.write('\n'.join(('# test',
+            '     a  = b', ' test = 1 ')))
+        f.close()
+        res = helperfuncs.getSlaveRuntimeConfig(cfgPath = tmpFile)
+        ref = {'a': 'b', 'test': '1'}
+        self.failIf(res != ref, "expected %s but got %s" % \
+                (str(ref), str(res)))
+
+    def testGetMissingSlaveConfig(self):
+        tmpDir = tempfile.mkdtemp()
+        tmpFile = os.path.join(tmpDir, 'missing')
+        res = helperfuncs.getSlaveRuntimeConfig(cfgPath = tmpFile)
+        ref = {}
+        self.failIf(res != ref, "expected %s but got %s" % \
+                (str(ref), str(res)))
 
 
 if __name__ == "__main__":
