@@ -16,6 +16,7 @@ import urlparse
 import logging
 
 from jobslave import jobhandler
+from jobslave import jobslave_error
 from jobslave.generators import constants
 from jobslave.helperfuncs import getIP, getSlaveRuntimeConfig
 
@@ -46,7 +47,7 @@ def protocols(protocolList):
                 return func(self, *args,
                             **(filterArgs(kwargs, 'protocolVersion')))
             else:
-                raise master_error.ProtocolError(\
+                raise jobslave_error.ProtocolError(\
                     'Unsupported ProtocolVersion: %s' % \
                         str(kwargs.get('protocolVersion')))
         return wrapper
@@ -189,10 +190,10 @@ class JobSlave(object):
                     if '_controlMethod' in func.__dict__:
                         return func(self, **kwargs)
                     else:
-                        raise master_error.ProtocolError( \
+                        raise jobslave_error.ProtocolError( \
                             'Control method %s is not valid' % action)
                 else:
-                    raise master_error.ProtocolError( \
+                    raise jobslave_error.ProtocolError( \
                         "Control method %s does not exist" % action)
             dataStr = self.controlTopic.read()
 
