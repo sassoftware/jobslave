@@ -224,11 +224,8 @@ class LiveIso(bootable_image.BootableImage):
         f = os.popen('isosize %s' % file, 'r')
         size = int(f.read())
         f.close()
-        if size > 734003200:
-            return self.fileType.replace('CD/DVD', 'DVD')
-        else:
-            return self.fileType.replace('CD/DVD', 'CD')
-
+        return self.fileType.replace('CD/DVD', \
+                (size > 734003200) and 'DVD' or 'CD')
 
     def write(self):
         topDir = os.path.join(constants.tmpDir, self.jobId)
@@ -274,11 +271,10 @@ class LiveIso(bootable_image.BootableImage):
             os.chmod(zippedIsoImage, 0755)
             deliveryImage = zippedIsoImage
 
-        # FIXME: make the name of cd or dvd based on disc size
-        self.postOutput(((deliveryImage, 'Demo CD/DVD'),))
+        self.postOutput(((deliveryImage, self.isoName(deliveryImage)),))
 
     def __init__(self, *args, **kwargs):
-        res = bootable_image.BootableImage.__init__(self, *args, **kwargs)
+        res = self.__class__.__base__.__init__(self, *args, **kwargs)
         self.swapSize = 0
 
         self.fallback = os.path.join(constants.fallbackDir, self.arch)

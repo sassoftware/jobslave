@@ -15,7 +15,7 @@ class UpdateIso(installable_iso.InstallableIso):
     def __init__(self, *args, **kwargs):
         # skip the InstallableISO init. it tries to access 'showMediaCheck'
         # from build Data, which isn't there.
-        ImageGenerator.__init__(self, *args, **kwargs)
+        self.__class__.__base__.__base__.__init__(self, *args, **kwargs)
         self.showMediaCheck = False
         self.maxIsoSize = 0
 

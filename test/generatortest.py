@@ -10,12 +10,13 @@ testsuite.setup()
 
 import boto
 import os
+import stat
 import sys
 import tempfile
 
 from conary.lib import util
 import jobslave_helper
-import bootable_stubs
+import image_stubs
 
 from jobslave import buildtypes
 from jobslave import imagegen
@@ -28,6 +29,11 @@ from jobslave.generators import raw_hd_image
 from jobslave.generators import xen_ova
 from jobslave.generators import tarball
 from jobslave.generators import ami
+from jobslave.generators import virtual_iron
+from jobslave.generators import vpc
+from jobslave.generators import vmware_image
+from jobslave.generators import installable_iso
+from jobslave.generators import update_iso
 
 
 class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
@@ -37,13 +43,16 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         constants.tmpDir = tempfile.mkdtemp()
         jobslave_helper.ExecuteLoggerTest.setUp(self)
         self.bases['RawFsImage'] = raw_fs_image.RawFsImage.__bases__
-        raw_fs_image.RawFsImage.__bases__ = (bootable_stubs.BootableImageStub,)
+        raw_fs_image.RawFsImage.__bases__ = (image_stubs.BootableImageStub,)
 
         self.bases['RawHdImage'] = raw_hd_image.RawHdImage.__bases__
-        raw_hd_image.RawHdImage.__bases__ = (bootable_stubs.BootableImageStub,)
+        raw_hd_image.RawHdImage.__bases__ = (image_stubs.BootableImageStub,)
 
         self.bases['Tarball'] = tarball.Tarball.__bases__
-        tarball.Tarball.__bases__ = (bootable_stubs.BootableImageStub,)
+        tarball.Tarball.__bases__ = (image_stubs.BootableImageStub,)
+
+        self.bases['UpdateISO'] = update_iso.UpdateIso.__bases__
+        update_iso.UpdateIso.__bases__ = (image_stubs.InstallableIsoStub,)
 
         constants.templateDir = os.path.join(os.path.dirname( \
                 os.path.dirname(os.path.abspath(__file__))), 'templates')
@@ -53,6 +62,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         raw_fs_image.RawFsImage.__bases__ = self.bases['RawFsImage']
         raw_hd_image.RawHdImage.__bases__ = self.bases['RawHdImage']
         tarball.Tarball.__bases__ = self.bases['Tarball']
+        update_iso.UpdateIso.__bases__ = self.bases['UpdateISO']
 
         util.rmtree(constants.tmpDir, ignore_errors = True)
         constants.tmpDir = self.savedTmpDir
@@ -66,7 +76,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             os.path.exists = lambda x: True
             util.rmtree = lambda x, **kwargs: True
 
-            g = raw_fs_image.RawFsImage([], {})
+            g = raw_fs_image.RawFsImage({}, [])
             g.write()
         finally:
             os.path.exists = o1
@@ -84,7 +94,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.failUnlessEqual(g.filesystems.keys(), ['swap', '/'])
 
     def testRawFsImageNames(self):
-        g = raw_fs_image.RawFsImage([], {})
+        g = raw_fs_image.RawFsImage({}, [])
         mountPoint = '/'
         g.mountDict = {mountPoint: (0, 100, 'ext3')}
         ref = '/tmp/workdir/image/image-root.ext3'
@@ -93,7 +103,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                 (ref, mountPoint, res))
 
     def testRawFsImageNames2(self):
-        g = raw_fs_image.RawFsImage([], {})
+        g = raw_fs_image.RawFsImage({}, [])
         mountPoint = 'swap'
         g.mountDict = {mountPoint: (0, 100, 'swap')}
         ref = '/tmp/workdir/image/image-swap.swap'
@@ -102,7 +112,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                 (ref, mountPoint, res))
 
     def testRawFsImageNames3(self):
-        g = raw_fs_image.RawFsImage([], {})
+        g = raw_fs_image.RawFsImage({}, [])
         mountPoint = '/mnt/test'
         g.mountDict = {mountPoint: (0, 100, 'ext3')}
         ref = '/tmp/workdir/image/image-mnt_test.ext3'
@@ -111,7 +121,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                 (ref, mountPoint, res))
 
     def testRawFsImageNames4(self):
-        g = raw_fs_image.RawFsImage([], {})
+        g = raw_fs_image.RawFsImage({}, [])
         mountPoint = 'swap2'
         g.mountDict = {mountPoint: (0, 100, 'swap')}
         ref = '/tmp/workdir/image/image-swap2.swap'
@@ -121,7 +131,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
     def testRawHdImage(self):
         self.injectPopen("")
-        g = raw_hd_image.RawHdImage([], {})
+        g = raw_hd_image.RawHdImage({}, [])
         g.write()
 
         self.failUnlessEqual(
@@ -144,6 +154,97 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'losetup -d ']
         )
         self.resetPopen()
+
+    def testVirtualIronImage(self):
+        self.injectPopen("")
+        g = virtual_iron.VirtualIronVHD({}, [])
+        g.createVHD = lambda *args, **kwargs: None
+        g.write()
+
+        self.failUnlessEqual(
+            self.callLog,
+            ['dd if=/dev/zero of=/tmp/workdir/image.hdd count=1 seek=125 bs=4096',
+             'losetup -o65636  /tmp/workdir/image.hdd',
+             'sync',
+             'pvcreate ',
+             'vgcreate vg00 ',
+             'losetup -o65536  /tmp/workdir/image.hdd',
+             'sync',
+             'mke2fs -L / -F -b 4096  0',
+             'tune2fs -i 0 -c 0 -j -L "/" ',
+             'losetup -d ',
+             'lvcreate -n swap -L0K vg00',
+             'mkswap -L swap /dev/vg00/swap',
+             'lvchange -a n /dev/vg00/swap',
+             'vgchange -a n vg00',
+             'pvchange -x n ',
+             'losetup -d ']
+        )
+        self.resetPopen()
+
+    def testCreateFixedVHD(self):
+        self.injectPopen("")
+        tmpDir = tempfile.mkdtemp()
+        try:
+            baseFileName = os.path.join(tmpDir, 'base.hdd')
+            f = open(baseFileName, 'w')
+            f.write('')
+            f.close()
+            fileBase = os.path.join(tmpDir, 'output')
+            g = virtual_iron.VirtualIronVHD({}, [])
+            g.getBuildData = lambda *args, **kwargs: 'fixed'
+            g.createVHD(baseFileName, fileBase)
+            self.failIf(not os.path.exists(fileBase + '.vhd'),
+                    "expected output not created")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testCreateDifferenceVHD(self):
+        self.injectPopen("")
+        tmpDir = tempfile.mkdtemp()
+        try:
+            baseFileName = os.path.join(tmpDir, 'base.hdd')
+            f = open(baseFileName, 'w')
+            f.write('')
+            f.close()
+            fileBase = os.path.join(tmpDir, 'output')
+            g = virtual_iron.VirtualIronVHD({}, [])
+            g.getBuildData = lambda *args, **kwargs: 'difference'
+            g.createVHD(baseFileName, fileBase)
+            os.listdir(tmpDir)
+            self.failIf(os.listdir(tmpDir) != \
+                    ['base.hdd', 'output-base.vhd', 'output.vhd'],
+                    "unexepcted output")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testCreateDynamicVHD(self):
+        self.injectPopen("")
+        tmpDir = tempfile.mkdtemp()
+        try:
+            baseFileName = os.path.join(tmpDir, 'base.hdd')
+            f = open(baseFileName, 'w')
+            f.write('')
+            f.close()
+            fileBase = os.path.join(tmpDir, 'output')
+            g = virtual_iron.VirtualIronVHD({}, [])
+            g.getBuildData = lambda *args, **kwargs: 'dynamic'
+            g.createVHD(baseFileName, fileBase)
+            self.failIf(not os.path.exists(fileBase + '.vhd'),
+                    "expected output not created")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testCreateVMC(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            fileBase = os.path.join(tmpDir, 'filebase')
+            g = vpc.VirtualPCImage({}, [])
+            g.createVMC(fileBase)
+            self.failIf(not os.path.exists(os.path.join( \
+                    tmpDir, fileBase + '.vmc')), "output file not created")
+        finally:
+            util.rmtree(tmpDir)
 
     def testXenOVA(self):
         g = xen_ova.XenOVA({'buildType': buildtypes.XEN_OVA,
@@ -228,8 +329,19 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         oldChdir = os.chdir
         try:
             os.chdir = lambda x: x
-            g = tarball.Tarball([], {})
+            g = tarball.Tarball({}, [])
             g.write()
+        finally:
+            os.chdir = oldChdir
+
+    def testTarballChdir(self):
+        def BadChdir(chd):
+            raise RuntimeError
+        oldChdir = os.chdir
+        try:
+            os.chdir = BadChdir
+            g = tarball.Tarball({}, [])
+            self.assertRaises(RuntimeError, g.write)
         finally:
             os.chdir = oldChdir
 
@@ -348,6 +460,100 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         finally:
             boto.connect_ec2 = connect_ec2
 
+    def testVMwareImage(self):
+        self.injectPopen("")
+        g = vmware_image.VMwareImage({}, [])
+
+        g.makeHDImage = lambda x: open(x, 'w').write('')
+        g.adapter = 'ide'
+        tmpDir = tempfile.mkdtemp()
+        g.workDir = tmpDir
+        g.outputDir = tmpDir
+        try:
+            g.write()
+            ref = ['image.vmx']
+            res = os.listdir(os.path.join(tmpDir, 'image'))
+            self.failIf(ref != res, "expected %s, but got %s" % \
+                    (str(ref), str(res)))
+            self.failIf(not self.callLog[0].startswith( \
+                    'raw2vmdk -C 0 -H 16 -S 63 -A ide'),
+                    "expected call to make vmdk")
+        finally:
+            util.rmtree(tmpDir)
+        self.resetPopen()
+
+    def testSCSIVMwareImage(self):
+        self.injectPopen("")
+        g = vmware_image.VMwareImage({}, [])
+
+        g.makeHDImage = lambda x: open(x, 'w').write('')
+        g.adapter = 'lsilogic'
+        tmpDir = tempfile.mkdtemp()
+        g.workDir = tmpDir
+        g.outputDir = tmpDir
+        try:
+            g.write()
+            ref = ['image.vmx']
+            res = os.listdir(os.path.join(tmpDir, 'image'))
+            self.failIf(ref != res, "expected %s, but got %s" % \
+                    (str(ref), str(res)))
+            self.failIf(not self.callLog[0].startswith( \
+                    'raw2vmdk -C 0 -H 128 -S 32 -A lsilogic'),
+                    "expected call to make vmdk")
+        finally:
+            util.rmtree(tmpDir)
+        self.resetPopen()
+
+    def testVMwareSetModes(self):
+        g = vmware_image.VMwareImage({}, [])
+        tmpDir = tempfile.mkdtemp()
+        try:
+            file1 = os.path.join(tmpDir, 'file1')
+            file2 = os.path.join(tmpDir, 'file2')
+            vmxFile = os.path.join(tmpDir, 'file.vmx')
+            for fn in (file1, file2, vmxFile):
+                open(fn, 'w').write('')
+            g.setModes(tmpDir)
+            self.failIf(os.stat(file1)[stat.ST_MODE] != 0100600,
+                    "Incorrect file mode")
+            self.failIf(os.stat(file2)[stat.ST_MODE] != 0100600,
+                    "Incorrect file mode")
+            self.failIf(os.stat(vmxFile)[stat.ST_MODE] != 0100755,
+                    "Incorrect file mode")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testESXVMDK(self):
+        g = vmware_image.VMwareESXImage({}, [])
+        tmpDir = tempfile.mkdtemp()
+        try:
+            hdImage = os.path.join(tmpDir, 'hdimage.hdd')
+            open(hdImage, 'w').write('')
+            outFile = os.path.join(tmpDir, 'outfile.vmdk')
+            size = 1024 * 1024
+            g.createVMDK(hdImage, outFile, size)
+            self.failIf(os.listdir(tmpDir) != \
+                    ['outfile.vmdk', 'outfile-flat.vmdk'],
+                    "expected vmdk to be produced")
+        finally:
+            util.rmtree(tmpDir)
+
+    def testUpdateISOTemplates(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            g = update_iso.UpdateIso({}, [])
+            ref = os.path.join(tmpDir, g.productDir, 'changesets')
+            res = g.prepareTemplates(tmpDir)
+            self.failIf(os.listdir(tmpDir) != ['rPath'],
+                    "productDir not created")
+            self.failIf(os.listdir(os.path.join(tmpDir, g.productDir)) != \
+                    ['base', 'changesets'], "subdirs not created")
+            self.failIf(ref != res, "expected %s but got %s" % (ref, res))
+            self.failIf(g.setupKickStart() != None, "expected stubbed function")
+            self.failIf(g.writeProductImage() != None,
+                    "expected stubbed function")
+        finally:
+            util.rmtree(tmpDir)
 
 
 if __name__ == "__main__":

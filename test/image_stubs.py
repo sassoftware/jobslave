@@ -12,8 +12,11 @@ class GeneratorStub(object):
     def getBuildData(self, key):
         return 0
 
+    def status(self, status, statusMessage = None):
+        pass
+
 class ImageGeneratorStub(GeneratorStub):
-    pass
+    arch = 'x86'
 
 class BootableImageStub(ImageGeneratorStub):
     jobId = "jobid"
@@ -75,5 +78,7 @@ class BootableImageStub(ImageGeneratorStub):
     def gzip(self, source, dest = None):
         return dest
 
-    def status(self, status, statusMessage = None):
-        pass
+class InstallableIsoStub(ImageGeneratorStub):
+    jobId = "jobid"
+    UUID = "abcd"
+    productDir = 'rPath'
