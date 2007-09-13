@@ -4,8 +4,10 @@
 # All Rights Reserved
 #
 import sys
+from conary import versions
 
 class GeneratorStub(object):
+    UUID = "abcd"
     def postOutput(self, fileList):
         pass
 
@@ -17,10 +19,19 @@ class GeneratorStub(object):
 
 class ImageGeneratorStub(GeneratorStub):
     arch = 'x86'
+    jobId = '1234'
+
+    def __init__(self, jobData, parent, *args, **kwargs):
+        self.jobData = jobData
+        self.jobData.setdefault('troveVersion',
+                '/test.rpath.local@rpl:1/0.000:1-1-1')
+        self.troveVersion = versions.ThawVersion(self.jobData['troveVersion'])
+
+    def writeConaryRc(self, path, client):
+        pass
 
 class BootableImageStub(ImageGeneratorStub):
     jobId = "jobid"
-    UUID = "abcd"
     def __init__(self, jobData, parent, *args, **kwargs):
         self.filesystems = {}
         self.workDir = '/tmp/workdir'
