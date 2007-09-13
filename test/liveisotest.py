@@ -199,12 +199,16 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
         fakeroot = tempfile.mkdtemp()
         g.findFile = lambda x, y: os.path.join(x, y)
         unlink = os.unlink
+        copyfile = util.copyfile
         try:
             os.unlink = lambda x: None
             self.touch(os.path.join(fakeroot, 'etc', 'udev', 'udev.conf'))
             self.touch(os.path.join(fakeroot, 'lib', 'modules', 'loop.ko'))
             self.touch(os.path.join(fakeroot, 'lib', 'modules', 'unionfs.ko'))
             g.getBuildData = lambda x: True
+            g.copyFallback = lambda src, dest: self.touch(dest)
+            util.copyfile = lambda src, dest: self.touch(dest)
+
             g.mkinitrd(liveDir, fakeroot)
             self.failIf(len(self.callLog) != 2, "Unexpected number of calls")
             self.failIf(not self.callLog[0].startswith('e2fsimage'),
@@ -212,6 +216,7 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(not self.callLog[1].startswith('gzip'),
                     "expected gzip to be used")
         finally:
+            util.copyfile = copyfile
             util.rmtree(liveDir)
             util.rmtree(fakeroot)
             os.unlink = unlink
@@ -222,11 +227,15 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
         fakeroot = tempfile.mkdtemp()
         g.findFile = lambda x, y: os.path.join(x, y)
         unlink = os.unlink
+        copyfile = util.copyfile
         try:
             os.unlink = lambda x: None
             self.touch(os.path.join(fakeroot, 'etc', 'udev', 'udev.conf'))
             self.touch(os.path.join(fakeroot, 'lib', 'modules', 'loop.ko'))
             self.touch(os.path.join(fakeroot, 'lib', 'modules', 'unionfs.ko'))
+            g.copyFallback = lambda src, dest: self.touch(dest)
+            util.copyfile = lambda src, dest: self.touch(dest)
+
             g.mkinitrd(liveDir, fakeroot)
             self.failIf(len(self.callLog) != 2, "Unexpected number of calls")
             self.failIf(not self.callLog[0].startswith('e2fsimage'),
@@ -234,6 +243,7 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(not self.callLog[1].startswith('gzip'),
                     "expected gzip to be used")
         finally:
+            util.copyfile = copyfile
             util.rmtree(liveDir)
             util.rmtree(fakeroot)
             os.unlink = unlink
@@ -242,10 +252,15 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
         g = live_iso.LiveIso({}, [])
         liveDir = tempfile.mkdtemp()
         fakeroot = tempfile.mkdtemp()
+        copyfile = util.copyfile
         try:
             self.touch(os.path.join(fakeroot, 'etc', 'udev', 'udev.conf'))
+            g.copyFallback = lambda src, dest: self.touch(dest)
+            util.copyfile = lambda src, dest: self.touch(dest)
+
             self.assertRaises(AssertionError, g.mkinitrd, liveDir, fakeroot)
         finally:
+            util.copyfile = copyfile
             util.rmtree(liveDir)
             util.rmtree(fakeroot)
 
@@ -253,12 +268,16 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
         g = live_iso.LiveIso({}, [])
         liveDir = tempfile.mkdtemp()
         fakeroot = tempfile.mkdtemp()
+        copyfile = util.copyfile
         try:
             g.mkinitrd = lambda *args, **kwargs: None
             self.touch(os.path.join(fakeroot, 'boot', 'vmlinuz.bogus'))
             g.jobData['name'] = 'test build'
             g.jobData['project'] = {}
             g.jobData['project']['name'] = 'test project'
+            g.copyFallback = lambda src, dest: self.touch(dest)
+            util.copyfile = lambda src, dest: self.touch(dest)
+
             g.makeLiveCdTree(liveDir, fakeroot)
             ref = '\n'.join(('say Welcome to test build.',
                 'default linux',
@@ -271,6 +290,7 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(data != ref, "expected:\n%s\nbut got:\n%s" % \
                     (ref, data))
         finally:
+            util.copyfile = copyfile
             util.rmtree(liveDir)
             util.rmtree(fakeroot)
 
