@@ -153,11 +153,12 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
             os.unlink(tmpFile)
             os.popen = popen
 
-    def testWriteZisofsZisofs(self):
+    def testWriteZisofs(self):
         self.injectPopen("")
         g = live_iso.LiveIso({}, [])
         g.jobData['project'] = {}
         g.jobData['project']['name'] = 'test name 123'
+        g.zisofs = True
         g.makeLiveCdTree = lambda *args, **kwargs: None
         g.isoName = lambda *args, **kwargs: 'DUmmy Name'
         chmod = os.chmod
@@ -166,6 +167,8 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
             g.write()
             self.failIf(len(self.callLog) != 4,
                     "wrong number of calls made")
+            self.failIf(len([x for x in self.callLog if 'mkzftree' in x]) != 1,
+                    "mkzftree was not called")
         finally:
             os.chmod = chmod
         self.resetPopen()
@@ -174,8 +177,8 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
         self.injectPopen("")
         g = live_iso.LiveIso({}, [])
         g.jobData['project'] = {}
-        g.zisofs = False
         g.jobData['project']['name'] = 'test name 123'
+        g.zisofs = False
         g.makeLiveCdTree = lambda *args, **kwargs: None
         g.isoName = lambda *args, **kwargs: 'DUmmy Name'
         chmod = os.chmod
@@ -184,9 +187,121 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
             g.write()
             self.failIf(len(self.callLog) != 4,
                     "wrong number of calls made")
+            self.failIf(len([x for x in self.callLog if 'mkzftree' in x]),
+                    "mkzftree was not called")
         finally:
             os.chmod = chmod
         self.resetPopen()
+
+    def testMkinitrdUnionfs(self):
+        g = live_iso.LiveIso({}, [])
+        liveDir = tempfile.mkdtemp()
+        fakeroot = tempfile.mkdtemp()
+        g.findFile = lambda x, y: os.path.join(x, y)
+        unlink = os.unlink
+        try:
+            os.unlink = lambda x: None
+            self.touch(os.path.join(fakeroot, 'etc', 'udev', 'udev.conf'))
+            self.touch(os.path.join(fakeroot, 'lib', 'modules', 'loop.ko'))
+            self.touch(os.path.join(fakeroot, 'lib', 'modules', 'unionfs.ko'))
+            g.getBuildData = lambda x: True
+            g.mkinitrd(liveDir, fakeroot)
+            self.failIf(len(self.callLog) != 2, "Unexpected number of calls")
+            self.failIf(not self.callLog[0].startswith('e2fsimage'),
+                    "expected e2fsimage to be used")
+            self.failIf(not self.callLog[1].startswith('gzip'),
+                    "expected gzip to be used")
+        finally:
+            util.rmtree(liveDir)
+            util.rmtree(fakeroot)
+            os.unlink = unlink
+
+    def testMkinitrd(self):
+        g = live_iso.LiveIso({}, [])
+        liveDir = tempfile.mkdtemp()
+        fakeroot = tempfile.mkdtemp()
+        g.findFile = lambda x, y: os.path.join(x, y)
+        unlink = os.unlink
+        try:
+            os.unlink = lambda x: None
+            self.touch(os.path.join(fakeroot, 'etc', 'udev', 'udev.conf'))
+            self.touch(os.path.join(fakeroot, 'lib', 'modules', 'loop.ko'))
+            self.touch(os.path.join(fakeroot, 'lib', 'modules', 'unionfs.ko'))
+            g.mkinitrd(liveDir, fakeroot)
+            self.failIf(len(self.callLog) != 2, "Unexpected number of calls")
+            self.failIf(not self.callLog[0].startswith('e2fsimage'),
+                    "expected e2fsimage to be used")
+            self.failIf(not self.callLog[1].startswith('gzip'),
+                    "expected gzip to be used")
+        finally:
+            util.rmtree(liveDir)
+            util.rmtree(fakeroot)
+            os.unlink = unlink
+
+    def testMkinitrdMissingMod(self):
+        g = live_iso.LiveIso({}, [])
+        liveDir = tempfile.mkdtemp()
+        fakeroot = tempfile.mkdtemp()
+        try:
+            self.touch(os.path.join(fakeroot, 'etc', 'udev', 'udev.conf'))
+            self.assertRaises(AssertionError, g.mkinitrd, liveDir, fakeroot)
+        finally:
+            util.rmtree(liveDir)
+            util.rmtree(fakeroot)
+
+    def testMakeLiveCdTree(self):
+        g = live_iso.LiveIso({}, [])
+        liveDir = tempfile.mkdtemp()
+        fakeroot = tempfile.mkdtemp()
+        try:
+            g.mkinitrd = lambda *args, **kwargs: None
+            self.touch(os.path.join(fakeroot, 'boot', 'vmlinuz.bogus'))
+            g.jobData['name'] = 'test build'
+            g.jobData['project'] = {}
+            g.jobData['project']['name'] = 'test project'
+            g.makeLiveCdTree(liveDir, fakeroot)
+            ref = '\n'.join(('say Welcome to test build.',
+                'default linux',
+                'timeout 100',
+                'prompt 1',
+                'label linux',
+                'kernel vmlinuz',
+                'append initrd=initrd.img root=LABEL=test_project'))
+            data = open(os.path.join(liveDir, 'isolinux.cfg')).read()
+            self.failIf(data != ref, "expected:\n%s\nbut got:\n%s" % \
+                    (ref, data))
+        finally:
+            util.rmtree(liveDir)
+            util.rmtree(fakeroot)
+
+    def testMakeLiveCdKernels(self):
+        g = live_iso.LiveIso({}, [])
+        liveDir = tempfile.mkdtemp()
+        fakeroot = tempfile.mkdtemp()
+        try:
+            g.mkinitrd = lambda *args, **kwargs: None
+            self.touch(os.path.join(fakeroot, 'boot', 'vmlinuz.bogus'))
+            self.touch(os.path.join(fakeroot, 'boot', 'vmlinuz.bogus1'))
+            self.assertRaises(AssertionError,
+                    g.makeLiveCdTree, liveDir, fakeroot)
+        finally:
+            util.rmtree(liveDir)
+            util.rmtree(fakeroot)
+
+    def testMakeLiveCdUnionfsKernels(self):
+        g = live_iso.LiveIso({}, [])
+        liveDir = tempfile.mkdtemp()
+        fakeroot = tempfile.mkdtemp()
+        try:
+            g.mkinitrd = lambda *args, **kwargs: None
+            self.touch(os.path.join(fakeroot, 'boot', 'vmlinuz.bogus'))
+            self.touch(os.path.join(fakeroot, 'boot', 'vmlinuz.bogus1'))
+            g.getBuildData = lambda x: True
+            self.assertRaises(AssertionError,
+                    g.makeLiveCdTree, liveDir, fakeroot)
+        finally:
+            util.rmtree(liveDir)
+            util.rmtree(fakeroot)
 
 
 if __name__ == "__main__":
