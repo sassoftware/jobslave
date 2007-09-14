@@ -8,9 +8,9 @@ stockFlavors = {
     "1#x86":
         "~MySQL-python.threadsafe, ~X, ~!alternatives, ~!bootstrap,"
         "~!builddocs, ~buildtests, ~desktop, ~dietlibc, ~emacs, ~gcj,"
-        "~glibc.tls, ~gnome, ~!grub.static, ~gtk, ~ipv6, ~kde,"
+        "~glibc.tls, ~gnome, ~!grub.static, ~gtk, ~ipv6, ~kde, ~!xen, ~!domU, ~!dom0,"
         "~!kernel.debug, ~!kernel.debugdata, ~!kernel.numa, ~krb, ~ldap,"
-        "~nptl, ~!openssh.smartcard, ~!openssh.static_libcrypto, ~pam,"
+        "~nptl, ~!openssh.smartcard, ~!openssh.static_libcrypto, ~pam, ~!kernel.pae,"
         "~pcre, ~perl, ~!pie, ~!postfix.mysql, ~python, ~qt, ~readline,"
         "~sasl, ~!selinux, ~sqlite.threadsafe, ~ssl, ~tcl, ~tcpwrappers,"
         "~tk, ~!xorg-x11.xprint is: x86(~cmov, ~i486, ~i586, ~i686, ~mmx,"
@@ -20,7 +20,7 @@ stockFlavors = {
         "~MySQL-python.threadsafe, ~X, ~!alternatives, ~!bootstrap,"
         "~!builddocs, ~buildtests,desktop, ~!dietlibc, ~emacs, ~gcj,"
         "~glibc.tls, ~gnome, ~grub.static, ~gtk, ~ipv6, ~kde, ~!kernel.debug,"
-        "~!kernel.debugdata, ~!kernel.numa, ~krb, ~ldap, ~nptl,"
+        "~!kernel.debugdata, ~!kernel.numa, ~krb, ~ldap, ~nptl, ~!xen, ~!domU, ~!dom0,"
         "~!openssh.smartcard,~!openssh.static_libcrypto, ~pam, ~pcre,"
         "~perl, ~!pie, ~!postfix.mysql, ~python, ~qt, ~readline, ~sasl,"
         "~!selinux, ~sqlite.threadsafe, ~ssl, ~tcl, ~tcpwrappers, ~tk,"
@@ -32,7 +32,7 @@ stockFlavorPaths = {
         ["~X, ~!alternatives, !bootstrap, ~builddocs,"
          "~buildtests, ~desktop, ~!dietlibc, ~emacs, ~gcj,"
          "~gnome, ~gtk, ~ipv6, ~kde, ~krb, ~ldap, ~nptl,"
-         "pam, ~pcre, ~perl, ~!pie, ~python, ~qt,"
+         "pam, ~pcre, ~perl, ~!pie, ~python, ~qt, ~!xen, ~!domU, ~!dom0,"
          "~readline, ~!sasl, ~!selinux, ssl, ~tcl,"
          "tcpwrappers, ~tk, ~!xen, ~!xfce is: x86_64(~nx)",
          "~X, ~!alternatives, !bootstrap, ~builddocs,"
@@ -46,7 +46,7 @@ stockFlavorPaths = {
     "1#x86":
         ["~MySQL-python.threadsafe, ~X, ~!alternatives, ~!bootstrap,"
         "~!builddocs, ~buildtests, ~desktop, ~dietlibc, ~emacs, ~gcj,"
-        "~glibc.tls, ~gnome, ~!grub.static, ~gtk, ~ipv6, ~kde,"
+        "~glibc.tls, ~gnome, ~!grub.static, ~gtk, ~ipv6, ~kde, ~!xen, ~!domU, ~!dom0,"
         "~!kernel.debug, ~!kernel.debugdata, ~!kernel.numa, ~krb, ~ldap,"
         "~nptl, ~!openssh.smartcard, ~!openssh.static_libcrypto, ~pam,"
         "~pcre, ~perl, ~!pie, ~!postfix.mysql, ~python, ~qt, ~readline,"
