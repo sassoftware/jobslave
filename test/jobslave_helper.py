@@ -161,12 +161,12 @@ class JobSlaveHelper(testhelp.TestCase):
             os.dup2(oldErr, sys.stderr.fileno())
             os.dup2(oldOut, sys.stdout.fileno())
 
-    def touch(self, path, contents = ''):
-        parDir, fn = os.path.split(path)
-        util.mkdirChain(parDir)
-        f = open(path, 'w')
-        f.write(contents)
-        f.close()
+    def touch(self, fn, contents = ''):
+        if not os.path.exists(fn):
+            util.mkdirChain(os.path.split(fn)[0])
+            f = open(fn, 'w')
+            f.write(contents)
+            f.close()
 
 class ExecuteLoggerTest(JobSlaveHelper):
     def setUp(self):

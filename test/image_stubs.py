@@ -8,11 +8,20 @@ from conary import versions
 
 class GeneratorStub(object):
     UUID = "abcd"
+    def __init__(self, jobData, parent, *args, **kwargs):
+        self.jobData = jobData
+
     def postOutput(self, fileList):
         pass
 
     def getBuildData(self, key):
         return 0
+
+    def getCookData(self, key):
+        return 0
+
+    def readConaryRc(self, cfg):
+        pass
 
     def status(self, status, statusMessage = None):
         pass

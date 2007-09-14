@@ -23,7 +23,7 @@ from conary import conaryclient
 from conary.repository import changeset
 from conary.lib import util
 
-def troveInGroup(self, trvItems, name, version, flavor):
+def troveInGroup(trvItems, name, version, flavor):
         trvDicts = [x for x in trvItems if x['trvName'] == name]
         for trvDict in trvDicts:
             flav = deps.ThawFlavor(flavor)

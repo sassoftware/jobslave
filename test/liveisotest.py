@@ -32,22 +32,11 @@ class LiveIsoTest(jobslave_helper.ExecuteLoggerTest):
         constants.templateDir = os.path.join(os.path.dirname( \
                 os.path.dirname(os.path.abspath(__file__))), 'templates')
 
-        constants.templateDir = os.path.join(os.path.dirname( \
-                os.path.dirname(os.path.abspath(__file__))), 'templates')
-
-
     def tearDown(self):
         live_iso.LiveIso.__bases__ = self.bases['LiveISO']
         util.rmtree(constants.tmpDir, ignore_errors = True)
         constants.tmpDir = self.savedTmpDir
         jobslave_helper.ExecuteLoggerTest.tearDown(self)
-
-    def touch(self, fn):
-        if not os.path.exists(fn):
-            util.mkdirChain(os.path.split(fn)[0])
-            f = open(fn, 'w')
-            f.write('')
-            f.close()
 
     def testIterFiles(self):
         tmpDir = tempfile.mkdtemp()
