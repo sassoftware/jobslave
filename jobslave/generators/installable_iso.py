@@ -110,7 +110,7 @@ class InstallableIso(ImageGenerator):
     productDir = 'rPath'
 
     def __init__(self, *args, **kwargs):
-        ImageGenerator.__init__(self, *args, **kwargs)
+        self.__class__.__base__.__init__(self, *args, **kwargs)
         self.showMediaCheck = self.getBuildData('showMediaCheck')
         self.maxIsoSize = int(self.getBuildData('maxIsoSize'))
 
@@ -478,7 +478,7 @@ class InstallableIso(ImageGenerator):
                     srcDir = os.path.join(tmpRoot, tDir)
                     destDir = os.path.join(topdir, 'media-template2')
                     if os.path.exists(srcDir):
-                        util.mkdirchain(destDir)
+                        util.mkdirChain(destDir)
                         call('cp', '-R', '--no-dereference', srcDir, destDir)
             else:
                 log.info("media-template not found on repository")
@@ -570,63 +570,55 @@ class InstallableIso(ImageGenerator):
 
         # set up the topdir
         topdir = os.path.join(constants.tmpDir, self.jobId, "unified")
-        try:
-            util.mkdirChain(topdir)
+        util.mkdirChain(topdir)
 
-            self._setupTrove()
+        self._setupTrove()
 
-            log.info("Building ISOs of size: %d Mb" % (self.maxIsoSize / 1048576))
+        log.info("Building ISOs of size: %d Mb" % (self.maxIsoSize / 1048576))
 
-            # FIXME: hack to ensure we don't trigger overburns.
-            # there are probably cleaner ways to do this.
-            if self.maxIsoSize > 681574400:
-                self.maxIsoSize -= 1024 * 1024
+        # FIXME: hack to ensure we don't trigger overburns.
+        # there are probably cleaner ways to do this.
+        if self.maxIsoSize > 681574400:
+            self.maxIsoSize -= 1024 * 1024
 
-            templateDir, clientVersion = self.retrieveTemplates()
-            csdir = self.prepareTemplates(topdir, templateDir)
-            tg = self.extractChangeSets(csdir, clientVersion)
+        templateDir, clientVersion = self.retrieveTemplates()
+        csdir = self.prepareTemplates(topdir, templateDir)
+        tg = self.extractChangeSets(csdir, clientVersion)
 
-            if self.arch == 'x86':
-                anacondaArch = 'i386'
-            else:
-                anacondaArch = self.arch
+        if self.arch == 'x86':
+            anacondaArch = 'i386'
+        else:
+            anacondaArch = self.arch
 
-            baseDir = os.path.join(topdir, self.productDir, 'base')
+        baseDir = os.path.join(topdir, self.productDir, 'base')
 
-            # write the cslist
-            tg.writeCsList(baseDir)
+        # write the cslist
+        tg.writeCsList(baseDir)
 
-            # write the group.ccs
-            tg.writeGroupCs(baseDir)
+        # write the group.ccs
+        tg.writeGroupCs(baseDir)
 
-            # write .discinfo
-            discInfoPath = os.path.join(topdir, ".discinfo")
-            if os.path.exists(discInfoPath):
-                os.unlink(discInfoPath)
-            discInfoFile = open(discInfoPath, "w")
-            print >> discInfoFile, time.time()
-            print >> discInfoFile, self.jobData['name']
-            print >> discInfoFile, anacondaArch
-            print >> discInfoFile, "1"
-            for x in ["base", "changesets", "pixmaps"]:
-                print >> discInfoFile, "%s/%s" % (self.productDir, x)
-            discInfoFile.close()
+        # write .discinfo
+        discInfoPath = os.path.join(topdir, ".discinfo")
+        if os.path.exists(discInfoPath):
+            os.unlink(discInfoPath)
+        discInfoFile = open(discInfoPath, "w")
+        print >> discInfoFile, time.time()
+        print >> discInfoFile, self.jobData['name']
+        print >> discInfoFile, anacondaArch
+        print >> discInfoFile, "1"
+        for x in ["base", "changesets", "pixmaps"]:
+            print >> discInfoFile, "%s/%s" % (self.productDir, x)
+        discInfoFile.close()
 
-            self.extractMediaTemplate(topdir)
-            self.extractPublicKeys('public_keys', topdir, csdir)
-            self.setupKickstart(topdir)
-            self.writeProductImage(topdir, getArchFlavor(self.baseFlavor).freeze())
+        self.extractMediaTemplate(topdir)
+        self.extractPublicKeys('public_keys', topdir, csdir)
+        self.setupKickstart(topdir)
+        self.writeProductImage(topdir, getArchFlavor(self.baseFlavor).freeze())
 
-            self.status("Building ISOs")
-            splitdistro.splitDistro(topdir, self.troveName, self.maxIsoSize)
-            isoList = self.buildIsos(topdir)
+        self.status("Building ISOs")
+        splitdistro.splitDistro(topdir, self.troveName, self.maxIsoSize)
+        isoList = self.buildIsos(topdir)
 
-            # notify client that images are ready
-            self.postOutput(isoList)
-
-            # clean up
-            self.status("Cleaning up...")
-        finally:
-            util.rmtree(os.path.normpath(os.path.join(topdir, "..")),
-                        ignore_errors = True)
-            util.rmtree(constants.cachePath, ignore_errors = True)
+        # notify client that images are ready
+        self.postOutput(isoList)

@@ -12,15 +12,17 @@ def getIP():
     p.close()
     return data
 
-def getSlaveRuntimeConfig():
+def getSlaveRuntimeConfig(cfgPath = os.path.join(os.path.sep, \
+        'etc', 'sysconfig', 'slave_runtime')):
     d = {}
+    runtimeCfg = None
     try:
         try:
-            runtimeCfg = open('/etc/sysconfig/slave_runtime')
+            runtimeCfg = open(cfgPath)
             for l in runtimeCfg:
                 if l.startswith('#'):
                     continue
-                k, v = l.split('=')[0:2]
+                k, v = [x.strip() for x in l.split('=')[0:2]]
                 d[k] = v
         except Exception:
             pass

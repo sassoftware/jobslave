@@ -138,8 +138,14 @@ class JobSlaveHelper(testhelp.TestCase):
             'entitlements': {'conary.rpath.com': ('class', 'key')},
             'buildType' : buildType}
         if buildType == buildtypes.AMI:
-            data['amiData'] = {'ec2Bucket' : 'test', 'ec2Certificate': '',
-                    'ec2CertificateKey': ''}
+            data['amiData'] = {'ec2S3Bucket' : 'fake_s3_bucket',
+                    'ec2Certificate' : 'fake_ec2_certificate',
+                    'ec2CertificateKey' : 'fake_ec2_cert_key',
+                    'ec2AccountId' : 'fake_ec2_account_id',
+                    'ec2PublicKey' : 'fake_public_key',
+                    'ec2PrivateKey' : 'fake_private_key',
+                    'ec2LaunchGroups' : True,
+                    'ec2LaunchUsers' : True}
         return jobhandler.getHandler(data, self.jobSlave)
 
     def suppressOutput(self, func, *args, **kwargs):
@@ -190,6 +196,9 @@ class ExecuteLoggerTest(JobSlaveHelper):
 
             def poll(self2):
                 return True
+
+            def wait(self):
+                return 0
 
         os.system = osSystem
         subprocess.call = subprocessCall

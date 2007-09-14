@@ -22,8 +22,6 @@ class Tarball(bootable_image.BootableImage):
         self.swapSize = self.getBuildData("swapSize") * 1048576
         topDir = os.path.join(constants.tmpDir, self.jobId)
         basePath = os.path.join(topDir, self.basefilename)
-        if os.path.exists(basePath):
-            util.rmtree(basePath)
         util.mkdirChain(basePath)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
@@ -36,7 +34,6 @@ class Tarball(bootable_image.BootableImage):
                              (basePath, tarball))
             self.postOutput(((tarball, 'Tar File'),))
         finally:
-            util.rmtree(topDir, ignore_errors = True)
             try:
                 os.chdir(cwd)
             except:

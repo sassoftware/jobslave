@@ -53,5 +53,15 @@ class VHDTest(testsuite.TestCase):
         finally:
             os.unlink(outFn)
 
+    def testPacketHeaderAttributes(self):
+        pkt = vhd.SparseDiskHeader()
+        self.assertRaises(AttributeError, pkt.__getattribute__,
+                "notarealattribute")
+
+    def testBlockTable(self):
+        blk = vhd.BlockAllocationTable(10)
+        self.failIf(blk[1] != 4294967295L, "enexpected return")
+
+
 if __name__ == "__main__":
     testsuite.main()

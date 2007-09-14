@@ -145,7 +145,7 @@ class BlockAllocationTable(object):
     def __setitem__(self, key, val):
         self.blocks[key] = val
 
-    def __getitem__(self, kek):
+    def __getitem__(self, key):
         return self.blocks[key]
 
     def pack(self):

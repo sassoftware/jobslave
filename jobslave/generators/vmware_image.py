@@ -55,11 +55,12 @@ class VMwareImage(raw_hd_image.RawHdImage):
         #@NAME@ @MEM@ @FILENAME@
 
         # Escape ", #, |, <, and >, strip out control characters
-        displayName = vmEscape(self.jobData['project']['name'])
+        displayName = vmEscape(self.jobData.get('project', {}).get('name', ''))
 
         filecontents = filecontents.replace('@NAME@', displayName)
         filecontents = filecontents.replace('@DESCRIPTION@',
-                vmEscape(self.jobData['description'], eatNewlines = False))
+                vmEscape(self.jobData.get('description', ''),
+                    eatNewlines = False))
         filecontents = filecontents.replace('@MEM@', str(self.vmMemory))
         filecontents = filecontents.replace('@FILENAME@', self.basefilename)
         filecontents = filecontents.replace('@NETWORK_CONNECTION@', \
@@ -91,8 +92,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         self.makeHDImage(image)
         self.status('Creating %s Image' % self.productName)
-        if os.path.exists(workingDir):
-            util.rmtree(workingDir)
         util.mkdirChain(workingDir)
         vmdkPath = os.path.join(workingDir, self.basefilename + '.vmdk')
         vmxPath = os.path.join(workingDir, self.basefilename + '.vmx')

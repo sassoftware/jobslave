@@ -4,21 +4,35 @@
 # All Rights Reserved
 #
 import sys
+from conary import versions
 
 class GeneratorStub(object):
+    UUID = "abcd"
     def postOutput(self, fileList):
         pass
 
     def getBuildData(self, key):
         return 0
 
+    def status(self, status, statusMessage = None):
+        pass
+
 class ImageGeneratorStub(GeneratorStub):
-    pass
+    arch = 'x86'
+    jobId = '1234'
+
+    def __init__(self, jobData, parent, *args, **kwargs):
+        self.jobData = jobData
+        self.jobData.setdefault('troveVersion',
+                '/test.rpath.local@rpl:1/0.000:1-1-1')
+        self.troveVersion = versions.ThawVersion(self.jobData['troveVersion'])
+
+    def writeConaryRc(self, path, client):
+        pass
 
 class BootableImageStub(ImageGeneratorStub):
     jobId = "jobid"
-    UUID = "abcd"
-    def __init__(self, parent, jobData, *args, **kwargs):
+    def __init__(self, jobData, parent, *args, **kwargs):
         self.filesystems = {}
         self.workDir = '/tmp/workdir'
         self.outputDir = '/tmp/outputdir'
@@ -74,3 +88,8 @@ class BootableImageStub(ImageGeneratorStub):
 
     def gzip(self, source, dest = None):
         return dest
+
+class InstallableIsoStub(ImageGeneratorStub):
+    jobId = "jobid"
+    UUID = "abcd"
+    productDir = 'rPath'

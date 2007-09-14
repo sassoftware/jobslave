@@ -12,6 +12,7 @@ import os
 import re
 import tempfile
 import simplejson
+import xmlrpclib
 
 from conary.lib import util
 from conary.deps import deps
@@ -21,6 +22,7 @@ from jobslave import slave
 from jobslave import filesystems
 from jobslave.generators import constants
 from jobslave.generators import bootable_image
+from jobslave.generators import ami
 import jobslave.loophelpers
 
 class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
@@ -525,6 +527,23 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         self.bootable.updateKernelChangeSet(cclient)
         self.failIf(not cclient.uJob.closed,
                 "updateKernelChangeSet did not run to completion")
+
+    def testPostAMIOutput(self):
+        class DummyProxy(object):
+            def setBuildAmiDataSafe(*args, **kwargs):
+                return False, True
+            def __init__(*args, **kwargs):
+                pass
+        ServerProxy = slave.xmlrpclib.ServerProxy
+        try:
+            xmlrpclib.ServerProxy = DummyProxy
+            self.jobSlave.postAMIOutput('jobId', 'buildIda', 'desturl',
+                    'outputToken', 'amiId', 'amiManifestName')
+        finally:
+            slave.xmlrpclib.ServerProxy = ServerProxy
+        self.failIf('Job Finished' not in \
+                self.jobSlave.response.response.connection.sent[0][1],
+                "post AMI output did not succeed")
 
 
 if __name__ == "__main__":

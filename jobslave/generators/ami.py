@@ -13,6 +13,8 @@ from conary.conarycfg import ConfigFile
 from conary.lib import cfgtypes
 from conary.lib import util
 
+from jobslave.imagegen import logCall
+
 from jobslave.generators import constants
 from jobslave.generators import raw_fs_image
 
@@ -30,7 +32,6 @@ class AMIRegistrationError(Exception):
 
 class AMIImage(raw_fs_image.RawFsImage):
     def __init__(self, *args, **kwargs):
-
         raw_fs_image.RawFsImage.__init__(self, *args, **kwargs)
         self.amiData = self.jobData.get('amiData')
         if not self.amiData:
@@ -68,41 +69,42 @@ class AMIImage(raw_fs_image.RawFsImage):
         ec2ImagePrefix = "%s_%s.img" % \
                 (self.basefilename, self.jobData.get('buildId'))
         try:
-            # FIXME: Use a callout mechanism that honors return codes
-            os.system('ec2-bundle-image -i %s -u %s -c %s -k %s -d %s -p %s' % \
+            logCall('ec2-bundle-image -i %s -u %s -c %s -k %s -d %s -p %s' % \
                     (inputFSImage, self.ec2AccountId,
                         self.ec2CertPath, self.ec2CertKeyPath,
                         bundlePath, ec2ImagePrefix))
-            for f in os.listdir(bundlePath):
-                if f.endswith('.xml'):
-                    return f
-        except OSError:
-            # just let the thing return None
+            bundles = [x for x in os.listdir(bundlePath) if x.endswith('.xml')]
+            return bundles and bundles[0] or None
+        except RuntimeError:
+            # all errors are translated one level higher
             pass
-
-        return None
 
     def uploadAMIBundle(self, pathToManifest):
         try:
-            os.system('ec2-upload-bundle -m %s -b %s -a %s -s %s' % \
+            logCall('ec2-upload-bundle -m %s -b %s -a %s -s %s' % \
                     (pathToManifest, self.ec2S3Bucket,
                      self.ec2PublicKey, self.ec2PrivateKey))
-            return True
-        except OSError:
+        except RuntimeError:
+            # all errors are translated to upload errors one level higher.
             return False
+        return True
 
     def registerAMI(self, pathToManifest):
         amiId = None
-        amiS3ManifestName = '%s/%s' % (self.ec2Bucket,
+        amiS3ManifestName = '%s/%s' % (self.ec2S3Bucket,
                 os.path.basename(pathToManifest))
-        c = boto.connect_ec2(self.ec2PublicKey, self.ec2PrivateKey)
-        amiId = str(c.register_image(amiS3ManifestName))
-        if self.amiConfig.ec2LaunchGroups:
-            c.modify_image_attribute(amiId, attribute='launchPermission',
-                operation='add', groups=self.amiConfig.launchGroups)
-        if self.amiConfig.ec2LaunchUsers:
-            c.modify_image_attribute(amiId, attribute='launchPermission',
-                operation='add', user_ids=self.amiConfig.launchUsers)
+        try:
+            c = boto.connect_ec2(self.ec2PublicKey, self.ec2PrivateKey)
+            amiId = str(c.register_image(amiS3ManifestName))
+            if self.ec2LaunchGroups:
+                c.modify_image_attribute(amiId, attribute='launchPermission',
+                    operation='add', groups=self.ec2LaunchGroups)
+            if self.ec2LaunchUsers:
+                c.modify_image_attribute(amiId, attribute='launchPermission',
+                    operation='add', user_ids=self.ec2LaunchUsers)
+        except:
+            # errors will be trapped one level higher
+            pass
 
         return amiId, amiS3ManifestName
 
@@ -118,11 +120,12 @@ class AMIImage(raw_fs_image.RawFsImage):
         raw_fs_image.RawFsImage.fileSystemOddsNEnds(self, fakeroot)
 
         # append some useful things to /etc/fstab for AMIs
+        util.mkdirChain(os.path.join(fakeroot, 'etc'))
         fstabFile = file(os.path.join(fakeroot, 'etc', 'fstab'), 'a+')
         if self.hugeDiskMountpoint:
-            fstabFile.write("/dev/sda2\t%s\t\text3\tdefaults 1 2" % \
+            fstabFile.write("/dev/sda2\t%s\t\text3\tdefaults 1 2\n" % \
                     self.hugeDiskMountpoint)
-        fstabFile.write("/dev/sda3\tswap\t\tswap\tdefaults 0 0")
+        fstabFile.write("/dev/sda3\tswap\t\tswap\tdefaults 0 0\n")
         fstabFile.close()
 
     def write(self):
@@ -132,7 +135,7 @@ class AMIImage(raw_fs_image.RawFsImage):
         tmpBundlePath = tempfile.mkdtemp(prefix='amibundle',
                 dir=constants.tmpDir)
         self.status("Creating the AMI bundle")
-        manifestPath = self.createAMIBundle(images[0], tmpBundlePath)
+        manifestPath = self.createAMIBundle(images['/'], tmpBundlePath)
         if not manifestPath:
             raise AMIBundleError
         self.status("Uploading the AMI bundle to Amazon EC2")
@@ -143,4 +146,4 @@ class AMIImage(raw_fs_image.RawFsImage):
         if not (amiId and amiManifestName):
             raise AMIRegistrationError
 
-        self.postAmi(amiId, amiManifestName)
+        self.postAMIOutput(amiId, amiManifestName)
