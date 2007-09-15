@@ -359,6 +359,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
                     versions.VersionFromString( \
                             '/test.rpath.local@rpl:1/1-1-1'),
                     deps.parseFlavor('is: x86'))
+            g._getMasterIPAddress = lambda *args, **kwargs: '127.0.0.1'
             res = g.retrieveTemplates()
             self.failIf(not res[0].endswith('unified'),
                     "expected unified tree")
