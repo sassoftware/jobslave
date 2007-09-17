@@ -212,7 +212,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             g.getBuildData = lambda *args, **kwargs: 'difference'
             g.createVHD(baseFileName, fileBase)
             os.listdir(tmpDir)
-            self.failIf(os.listdir(tmpDir) != \
+            self.failIf(sorted(os.listdir(tmpDir)) != \
                     ['base.hdd', 'output-base.vhd', 'output.vhd'],
                     "unexepcted output")
         finally:
@@ -532,8 +532,8 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             outFile = os.path.join(tmpDir, 'outfile.vmdk')
             size = 1024 * 1024
             g.createVMDK(hdImage, outFile, size)
-            self.failIf(os.listdir(tmpDir) != \
-                    ['outfile.vmdk', 'outfile-flat.vmdk'],
+            self.failIf(sorted(os.listdir(tmpDir)) != \
+                    ['outfile-flat.vmdk', 'outfile.vmdk'],
                     "expected vmdk to be produced")
         finally:
             util.rmtree(tmpDir)
@@ -546,8 +546,8 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             res = g.prepareTemplates(tmpDir)
             self.failIf(os.listdir(tmpDir) != ['rPath'],
                     "productDir not created")
-            self.failIf(os.listdir(os.path.join(tmpDir, g.productDir)) != \
-                    ['base', 'changesets'], "subdirs not created")
+            self.failIf(sorted(os.listdir(os.path.join(tmpDir, g.productDir))) \
+                    != ['base', 'changesets'], "subdirs not created")
             self.failIf(ref != res, "expected %s but got %s" % (ref, res))
             self.failIf(g.setupKickStart() != None, "expected stubbed function")
             self.failIf(g.writeProductImage() != None,
