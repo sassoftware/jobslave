@@ -33,6 +33,7 @@ from conary import conaryclient
 from conary import conarycfg
 from conary.deps import deps
 from conary import versions
+from conary import errors as conary_errors
 from conary.repository import changeset
 from conary.repository import errors
 from conary import trove
@@ -118,8 +119,13 @@ class InstallableIso(ImageGenerator):
         self.callback.setChangeSet(troveName)
         trvSpec = self.getBuildData(troveName)
         if trvSpec:
-            spec = parseTroveSpec(trvSpec)
-            itemList = [(troveName, (None, None), (spec[1], spec[2]), True)]
+            n, v, f = parseTroveSpec(trvSpec)
+            try:
+                v = versions._VersionFromString(v, frozen=False)
+            except conary_errors.ParseError, e:
+                if 'release strings may not contain colons' in e:
+                    v = versions._VersionFromString(v, frozen=True)
+            itemList = [(troveName, (None, None), (v, f), True)]
             uJob, suggMap = cclient.updateChangeSet(itemList,
                 resolveDeps = False)
             return uJob
