@@ -37,6 +37,8 @@
 typedef u_int64_t  SectorType;
 typedef u_int8_t   Bool;
 
+#pragma pack(4)
+
 typedef struct SparseExtentHeader {
     u_int32_t   magicNumber;        /* VMDK */
     u_int32_t   version;            /* 1 */
@@ -136,7 +138,7 @@ int writeGrainDirectory(const size_t offset, const off_t outsize, FILE * of) {
     size_t i;
     size_t stop = numGTs(outsize);
     size_t start = offset + GT0Offset(stop);
-    size_t cur;
+    u_int32_t cur;
     for (i=0; i < stop; i++) {
         /* The next GT pointed to by a GDE is 4 sectors away  */
         cur = start + (i * 4);
@@ -149,7 +151,7 @@ int writeGrainTables(const size_t offset, const off_t outsize, FILE * of) {
     size_t returner = 0;
     size_t i, numGrains = (outsize / GRAINSIZE) + ((outsize % GRAINSIZE) ? 1 : 0);
     size_t grainSize = SECTORS(GRAINSIZE);
-    size_t cur;
+    u_int32_t cur;
     for (i = 0; i < numGrains; i++) {
         /* The next Grain is SECTORS(GRAINSIZE) away */
         cur = offset + (i * grainSize);
