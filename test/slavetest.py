@@ -10,7 +10,11 @@ testsuite.setup()
 
 import os
 import simplejson
+import sha
+import StringIO
+import tempfile
 import time
+import xmlrpclib
 
 import jobslave_helper
 from jobslave import buildtypes
@@ -18,6 +22,9 @@ from jobslave import slave
 
 from jobslave import jobhandler
 from jobslave import jobslave_error
+
+from conary.lib import util
+import conary.repository.transport
 
 class DummyHandler(object):
     def __init__(x, *args, **kwargs):
@@ -99,6 +106,116 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
         self.jobSlave.sendJobStatus()
         self.failIf(not self.jobSlave.jobHandler.sentStatus,
                 "Expected status to be sent")
+
+    def testChunkedPutFileDigest(self):
+        tmpDir = tempfile.mkdtemp()
+        class Response(object):
+            status = ''
+            reason = ''
+
+        class FakeOpener(object):
+            __init__ = lambda *args, **kwargs: None
+            createConnection = lambda x, *args, **kwargs: [x, '', [], []]
+            connect = lambda *args, **kwargs: None
+            close = lambda *args, **kwargs: None
+            putrequest = lambda *args, **kwargs: None
+            putheader = lambda *args, **kwargs: None
+            endheaders = lambda *args, **kwargs: None
+            send = lambda *args, **kwargs: None
+            getresponse = lambda *args, **kwargs: Response()
+
+        XMLOpener = slave.XMLOpener
+        try:
+            slave.XMLOpener = FakeOpener
+            buf = 'test sha1 code in httpPutFile'
+            size = len(buf)
+            inFile = StringIO.StringIO(buf)
+            sha1 = sha.new()
+            origDigest = sha1.hexdigest()
+            url = 'http://localhost'
+            slave.httpPutFile(url, inFile, size, chunked = True, digest = sha1)
+            postDigest = sha1.hexdigest()
+            self.assertNotEquals(origDigest, postDigest)
+            sha1 = sha.new()
+            sha1.update(buf)
+            self.assertEquals(postDigest, sha1.hexdigest())
+        finally:
+            slave.XMLOpener = XMLOpener
+            util.rmtree(tmpDir)
+
+    def testPutFileDigest(self):
+        tmpDir = tempfile.mkdtemp()
+        class Response(object):
+            status = ''
+            reason = ''
+
+        class FakeOpener(object):
+            __init__ = lambda *args, **kwargs: None
+            createConnection = lambda x, *args, **kwargs: [x, '', [], []]
+            connect = lambda *args, **kwargs: None
+            close = lambda *args, **kwargs: None
+            putrequest = lambda *args, **kwargs: None
+            putheader = lambda *args, **kwargs: None
+            endheaders = lambda *args, **kwargs: None
+            send = lambda *args, **kwargs: None
+            getresponse = lambda *args, **kwargs: Response()
+
+        XMLOpener = slave.XMLOpener
+        try:
+            slave.XMLOpener = FakeOpener
+            buf = 'test sha1 code in httpPutFile'
+            size = len(buf)
+            inFile = StringIO.StringIO(buf)
+            sha1 = sha.new()
+            origDigest = sha1.hexdigest()
+            url = 'http://localhost'
+            slave.httpPutFile(url, inFile, size, digest = sha1)
+            postDigest = sha1.hexdigest()
+            #self.assertNotEquals(origDigest, postDigest)
+            sha1 = sha.new()
+            sha1.update(buf)
+            self.assertEquals(postDigest, sha1.hexdigest())
+        finally:
+            slave.XMLOpener = XMLOpener
+            util.rmtree(tmpDir)
+
+    def testPostJobOutputDigest(self):
+        # Validate that postJobOutput handles sha digests properly, assuming
+        # that copyfileObj does as well
+        self.buildFilenames = []
+        class FakeProxy(object):
+            def setBuildFilenamesSafe(x, buildId, outputToken, filenames):
+                self.buildFilenames.append(filenames)
+                return (False, '')
+        def fakePutFile(url, inFile, size, rateLimit = None, proxies = None,
+                chunked=False, extraHeaders = [], digest = None):
+            digest.update(inFile.read())
+        jobId = 'test.rpath.local-build-1'
+        buildId = 1
+        destUrl = 'http://localhost/test'
+        outputToken = 'token'
+        testDir = tempfile.mkdtemp()
+        httpPutFile = slave.httpPutFile
+        buf = 'test of sha1 computation'
+        ServerProxy = xmlrpclib.ServerProxy
+        try:
+            xmlrpclib.ServerProxy = lambda *args, **kwargs: FakeProxy()
+            slave.httpPutFile = fakePutFile
+            srcFile = os.path.join(testDir, 'srcFile')
+            self.touch(srcFile, contents = buf)
+            files = [[srcFile, 'test trash']]
+            slave.JobSlave.postJobOutput(self.jobSlave, jobId, buildId,
+                destUrl, outputToken, files)
+
+            fLen, hash = self.buildFilenames[0][0][2:]
+            self.assertEquals(fLen, len(buf))
+            sha1 = sha.new()
+            sha1.update(buf)
+            self.assertEquals(hash, sha1.hexdigest())
+        finally:
+            xmlrpclib.ServerProxy = ServerProxy
+            slave.httpPutFile = httpPutFile
+            util.rmtree(testDir)
 
 
 if __name__ == "__main__":

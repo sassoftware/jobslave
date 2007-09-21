@@ -218,8 +218,6 @@ class JobSlave(object):
             self.jobHandler.kill()
 
     def postJobOutput(self, jobId, buildId, destUrl, outputToken, files):
-        opener = XMLOpener()
-
         filenames = []
         for fn, desc in files:
             url = destUrl + 'uploadBuild/%d/%s' % (buildId, os.path.basename(fn))
