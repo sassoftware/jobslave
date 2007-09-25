@@ -243,7 +243,7 @@ class JobSlave(object):
     def postAMIOutput(self, jobId, buildId, destUrl, outputToken, amiId,
             amiManifestName):
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
-        r = rba.setBuildAmiDataSafe(buildId, outputToken, amiId,
+        r = rba.setBuildAMIDataSafe(buildId, outputToken, amiId,
                 amiManifestName)
         if r[0]:
             raise RuntimeError(str(r[1]))

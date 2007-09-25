@@ -530,7 +530,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
 
     def testPostAMIOutput(self):
         class DummyProxy(object):
-            def setBuildAmiDataSafe(*args, **kwargs):
+            def setBuildAMIDataSafe(*args, **kwargs):
                 return False, True
             def __init__(*args, **kwargs):
                 pass

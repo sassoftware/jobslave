@@ -350,7 +350,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g.createAMIBundle = lambda *args, **kwargs: '/fake/path'
         g.uploadAMIBundle = lambda *args, **kwargs: True
         g.registerAMI = lambda *args, **kwargs: ('testId', 'testManifest')
-        g.postAMIOutput = lambda amiID, amiManifestName: None
+        g.postAMI = lambda amiID, amiManifestName: None
         g.write()
 
     def testCreateAMIBundle(self):

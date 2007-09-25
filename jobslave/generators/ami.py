@@ -146,4 +146,4 @@ class AMIImage(raw_fs_image.RawFsImage):
         if not (amiId and amiManifestName):
             raise AMIRegistrationError
 
-        self.postAMIOutput(amiId, amiManifestName)
+        self.postAMI(amiId, amiManifestName)

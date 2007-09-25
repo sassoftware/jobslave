@@ -187,12 +187,12 @@ class Generator(threading.Thread):
         else:
             log.error("couldn't post output")
 
-    def postAmi(self, amiId, amiManifestName):
+    def postAMI(self, amiId, amiManifestName):
         # this function runs in the child process to actually post the output
         # of a build.
         parent = self.parent and self.parent()
         if parent:
-            parent.postAmiOutput(self.jobId, self.jobData['buildId'],
+            parent.postAMIOutput(self.jobId, self.jobData['buildId'],
                     self.jobData['outputUrl'], self.jobData['outputToken'],
                     amiId, amiManifestName)
         else:
