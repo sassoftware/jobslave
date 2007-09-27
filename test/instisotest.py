@@ -238,7 +238,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             g.baseTrove = 'baseTrove'
             g.baseFlavor = deps.Flavor()
             g.getConaryClient = lambda *args, **kwargs: FakeClient()
-            g._getUpdateJob = lambda a, b: (b == 'anaconda-images') and True
+            g._getUpdateJob = lambda *args, **kwargs: True
             g.writeProductImage(topdir, 'x86')
             self.failIf(len(self.callLog) != 9, "unexpected number of calls")
         finally:
