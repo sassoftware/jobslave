@@ -118,7 +118,7 @@ class InstallableIso(ImageGenerator):
     def _getUpdateJob(self, cclient, troveName):
         self.callback.setChangeSet(troveName)
         trvSpec = self.getBuildData(troveName)
-        if trvSpec:
+        if trvSpec and trvSpec.upper() != 'NONE':
             n, v, f = parseTroveSpec(trvSpec)
             try:
                 v = versions._VersionFromString(v, frozen=False)
