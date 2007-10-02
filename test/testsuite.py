@@ -64,15 +64,14 @@ def setup():
     conaryPath      = os.getenv('CONARY_PATH')
     conaryTestPath  = os.getenv('CONARY_TEST_PATH',     os.path.join(conaryPath, '..', 'conary-test'))
     mcpPath         = os.getenv('MCP_PATH',             '../../mcp')
-    mintPath        = os.getenv('MINT_PATH',            '../../mint')
     jobslavePath    = os.getenv('JOB_SLAVE_PATH',       '..')
     jsTestPath      = os.getenv('JOB_SLAVE_TEST_PATH',  '.')
 
     sys.path = [os.path.realpath(x) for x in (jobslavePath, jsTestPath, mcpPath,
-        mintPath, conaryPath, conaryTestPath)] + sys.path
+        conaryPath, conaryTestPath)] + sys.path
     os.environ.update(dict(CONARY_PATH=conaryPath, CONARY_TEST_PATH=conaryTestPath,
         MCP_PATH=mcpPath, JOB_SLAVE_PATH=jobslavePath, JOB_SLAVE_TEST_PATH=jsTestPath,
-        MINT_PATH=mintPath, PYTHONPATH=(':'.join(sys.path))))
+        PYTHONPATH=(':'.join(sys.path))))
 
     import testhelp
     testPath = testhelp.getTestPath()

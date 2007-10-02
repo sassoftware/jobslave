@@ -22,14 +22,14 @@ from conary.lib import util, sha1helper
 from conary.deps import deps
 from conary import versions
 
-from mint import buildtypes
 
 import jobslave_helper
-from jobslave.generators import installable_iso
+from jobslave.generators import anaconda_images
 from jobslave.generators import constants
+from jobslave.generators import installable_iso
+from jobslave import buildtypes
 from jobslave import flavors
 from jobslave import splitdistro
-from jobslave.generators import anaconda_images
 from jobslave import gencslist
 
 class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
