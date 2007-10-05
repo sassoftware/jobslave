@@ -109,16 +109,10 @@ def alwaysExit(func):
 
 
 class JobSlave(object):
-    def __init__(self, cfg, jobData):
+    def __init__(self, cfg, jobStr):
         self.cfg = cfg
-        self.jobData = jobData
-        #assert None not in cfg.values()
+        self.jobStr = jobStr
 
-        self.controlTopic = queue.Topic(cfg.queueHost, cfg.queuePort,
-                                       'control', namespace = cfg.namespace,
-                                       timeOut = 0)
-
-        self.response = response.MCPResponse(self.cfg.nodeName, cfg)
         signal.signal(signal.SIGTERM, self.catchSignal)
         signal.signal(signal.SIGINT, self.catchSignal)
         self.lastHeartbeat = 0
@@ -130,6 +124,15 @@ class JobSlave(object):
     def run(self):
         if not self.cfg.debugMode:
             watchdog()
+
+        self.jobData = simplejson.loads(self.jobStr)
+        self.controlTopic = queue.Topic(cfg.queueHost, cfg.queuePort,
+                                       'control', namespace = cfg.namespace,
+                                       timeOut = 0)
+
+        self.response = response.MCPResponse(self.cfg.nodeName, cfg)
+
+
         UUID = self.jobData['UUID']
         print "serving job: %s" % UUID
         self.running = True
@@ -330,6 +333,5 @@ def main():
     cfg = SlaveConfig()
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
     jobStr = open(os.path.join(os.path.sep, 'srv', 'jobslave', 'data')).read()
-    jobData = simplejson.loads(jobStr)
-    slave = JobSlave(cfg, jobData)
+    slave = JobSlave(cfg, jobStr)
     slave.run()
