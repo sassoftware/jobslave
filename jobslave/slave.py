@@ -109,10 +109,16 @@ def alwaysExit(func):
 
 
 class JobSlave(object):
-    def __init__(self, cfg, jobStr):
+    def __init__(self, cfg, jobData):
         self.cfg = cfg
-        self.jobStr = jobStr
+        self.jobData = jobData
+        #assert None not in cfg.values()
 
+        self.controlTopic = queue.Topic(cfg.queueHost, cfg.queuePort,
+                                       'control', namespace = cfg.namespace,
+                                       timeOut = 0)
+
+        self.response = response.MCPResponse(self.cfg.nodeName, cfg)
         signal.signal(signal.SIGTERM, self.catchSignal)
         signal.signal(signal.SIGINT, self.catchSignal)
         self.lastHeartbeat = 0
@@ -122,17 +128,6 @@ class JobSlave(object):
 
     @alwaysExit
     def run(self):
-        if not self.cfg.debugMode:
-            watchdog()
-
-        self.jobData = simplejson.loads(self.jobStr)
-        self.controlTopic = queue.Topic(cfg.queueHost, cfg.queuePort,
-                                       'control', namespace = cfg.namespace,
-                                       timeOut = 0)
-
-        self.response = response.MCPResponse(self.cfg.nodeName, cfg)
-
-
         UUID = self.jobData['UUID']
         print "serving job: %s" % UUID
         self.running = True
@@ -332,6 +327,10 @@ def httpPutFile(url, inFile, size, rateLimit = None,
 def main():
     cfg = SlaveConfig()
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
+    if not self.cfg.debugMode:
+        watchdog()
+
     jobStr = open(os.path.join(os.path.sep, 'srv', 'jobslave', 'data')).read()
-    slave = JobSlave(cfg, jobStr)
+    jobData = simplejson.loads(jobStr)
+    slave = JobSlave(cfg, jobData)
     slave.run()
