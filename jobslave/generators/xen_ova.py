@@ -106,3 +106,4 @@ class XenOVA(raw_fs_image.RawFsImage):
         tarBase, tarTarget = os.path.split(baseDir)
         logCall('tar -cv -C %s %s > %s' % \
                          (tarBase, tarTarget, deliverable))
+        self.postOutput(((deliverable, 'Xen OVA Image'),))
