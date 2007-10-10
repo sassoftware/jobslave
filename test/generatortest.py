@@ -93,6 +93,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
         self.failUnlessEqual(g.filesystems.keys(), ['swap', '/'])
 
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'Raw Filesystem Image')
+
     def testRawFsImageNames(self):
         g = raw_fs_image.RawFsImage({}, [])
         mountPoint = '/'
@@ -155,6 +158,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         )
         self.resetPopen()
 
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'Raw Hard Disk Image')
+
     def testVirtualIronImage(self):
         self.injectPopen("")
         g = virtual_iron.VirtualIronVHD({}, [])
@@ -181,6 +187,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'losetup -d ']
         )
         self.resetPopen()
+
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'Virtual Server')
 
     def testCreateFixedVHD(self):
         self.injectPopen("")
@@ -280,6 +289,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                 ['split', 'for', 'split', 'for', 'tar'],
                 "unexpected command sequnce")
 
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'Xen OVA Image')
+
     def testXenCreateXVA(self):
         g = xen_ova.XenOVA({'buildType': buildtypes.XEN_OVA,
             'outputToken': '580466f08ddfcfa130ee85f2d48c61ced992d4d4',
@@ -333,6 +345,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             g.write()
         finally:
             os.chdir = oldChdir
+
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'Tar File')
 
     def testTarballChdir(self):
         def BadChdir(chd):
@@ -482,6 +497,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             util.rmtree(tmpDir)
         self.resetPopen()
 
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'VMware Player Image')
+
     def testSCSIVMwareImage(self):
         self.injectPopen("")
         g = vmware_image.VMwareImage({}, [])
@@ -503,6 +521,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         finally:
             util.rmtree(tmpDir)
         self.resetPopen()
+
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'VMware Player Image')
 
     def testVMwareSetModes(self):
         g = vmware_image.VMwareImage({}, [])

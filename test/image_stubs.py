@@ -12,7 +12,7 @@ class GeneratorStub(object):
         self.jobData = jobData
 
     def postOutput(self, fileList):
-        pass
+        self.posted_output = fileList
 
     def getBuildData(self, key):
         return 0
