@@ -102,7 +102,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.createVMX(vmxPath)
         self.setModes(workingDir)
         self.gzip(workingDir, outputFile)
-        self.postOutput(((outputFile, self.productName + 'image'),))
+        self.postOutput(((outputFile, self.productName + ' Image'),))
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
