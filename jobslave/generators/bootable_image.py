@@ -582,7 +582,7 @@ class BootableImage(ImageGenerator):
             if not dest:
                 dest = source + '.tgz'
             parDir, targetDir = os.path.split(source)
-            logCall('tar -czv -C %s %s > %s' % (parDir, targetDir, dest))
+            logCall('tar -czvS -C %s %s > %s' % (parDir, targetDir, dest))
         else:
             if not dest:
                 dest = source + '.gz'
