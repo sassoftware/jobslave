@@ -327,7 +327,7 @@ def httpPutFile(url, inFile, size, rateLimit = None,
 def main():
     cfg = SlaveConfig()
     cfg.read(os.path.join(os.path.sep, 'srv', 'jobslave', 'config'))
-    if not self.cfg.debugMode:
+    if not cfg.debugMode:
         watchdog()
 
     jobStr = open(os.path.join(os.path.sep, 'srv', 'jobslave', 'data')).read()
