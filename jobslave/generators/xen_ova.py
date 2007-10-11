@@ -76,12 +76,10 @@ class XenOVA(raw_fs_image.RawFsImage):
         ofile.close()
 
     def write(self):
-        topDir = os.path.join(constants.tmpDir, self.jobId)
+        topDir = os.path.join(self.workDir, 'ova_base')
         baseDir = os.path.join(topDir, self.basefilename)
-        #util.rmtree(baseDir, ignore_errors = True)
         util.mkdirChain(baseDir)
         ovaPath = os.path.join(baseDir, 'ova.xml')
-        imagePath = baseDir + '.ext3'
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         deliverable = os.path.join(outputDir, self.basefilename + self.suffix)
