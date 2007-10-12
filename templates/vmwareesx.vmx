@@ -61,6 +61,7 @@ ethernet0.networkName = "VM Network"
 # Misc.
 #####
 
+guestOS = "@GUESTOS@"
 checkpoint.vmState = ""
 checkpoint.vmState.readOnly = "FALSE"
 snapshot.disabled = "@SNAPSHOT@"

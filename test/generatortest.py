@@ -15,6 +15,7 @@ import sys
 import tempfile
 
 from conary.lib import util
+from conary.deps import deps
 import jobslave_helper
 import image_stubs
 
@@ -481,6 +482,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
         g.makeHDImage = lambda x: open(x, 'w').write('')
         g.adapter = 'ide'
+        g.baseFlavor = deps.parseFlavor("xen,domU is: x86")
         tmpDir = tempfile.mkdtemp()
         g.workDir = tmpDir
         g.outputDir = tmpDir
@@ -493,6 +495,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(not self.callLog[0].startswith( \
                     'raw2vmdk -C 0 -H 16 -S 63 -A ide'),
                     "expected call to make vmdk")
+            vmxData = open(os.path.join(tmpDir, 'image', 'image.vmx')).read()
+            self.failIf("other26xlinux-64" in vmxData,
+                    "expected 32 bit image")
         finally:
             util.rmtree(tmpDir)
         self.resetPopen()
@@ -505,6 +510,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g = vmware_image.VMwareImage({}, [])
 
         g.makeHDImage = lambda x: open(x, 'w').write('')
+        g.baseFlavor = deps.parseFlavor("some,random,junk is: x86_64")
         g.adapter = 'lsilogic'
         tmpDir = tempfile.mkdtemp()
         g.workDir = tmpDir
@@ -518,6 +524,9 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(not self.callLog[0].startswith( \
                     'raw2vmdk -C 0 -H 128 -S 32 -A lsilogic'),
                     "expected call to make vmdk")
+            vmxData = open(os.path.join(tmpDir, 'image', 'image.vmx')).read()
+            self.failIf("other26xlinux-64" not in vmxData,
+                    "expected 64 bit image")
         finally:
             util.rmtree(tmpDir)
         self.resetPopen()

@@ -10,6 +10,7 @@ import stat
 from jobslave.generators import bootable_image, raw_hd_image, constants
 from jobslave.imagegen import logCall
 from conary.lib import util
+from conary.deps import deps
 
 def vmEscape(data, eatNewlines = True):
     data = data.replace('|', '|7C')
@@ -71,6 +72,10 @@ class VMwareImage(raw_hd_image.RawHdImage):
                                                 and 'scsi' or 'ide')
         filecontents = filecontents.replace('@SNAPSHOT@',
                                             str(not self.vmSnapshots).upper())
+        suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
+                and "-64" or ""
+        filecontents = filecontents.replace('@GUESTOS@',
+                "other26xlinux" + suffix)
 
         #write the file to the proper location
         ofile = open(outfile, 'wb')
