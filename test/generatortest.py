@@ -9,6 +9,7 @@ import testsuite
 testsuite.setup()
 
 import boto
+import inspect
 import os
 import stat
 import sys
@@ -573,17 +574,67 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         try:
             g = update_iso.UpdateIso({}, [])
             ref = os.path.join(tmpDir, g.productDir, 'changesets')
-            res = g.prepareTemplates(tmpDir)
+            res = g.prepareTemplates(tmpDir, None)
             self.failIf(os.listdir(tmpDir) != ['rPath'],
                     "productDir not created")
             self.failIf(sorted(os.listdir(os.path.join(tmpDir, g.productDir))) \
                     != ['base', 'changesets'], "subdirs not created")
             self.failIf(ref != res, "expected %s but got %s" % (ref, res))
-            self.failIf(g.setupKickStart() != None, "expected stubbed function")
-            self.failIf(g.writeProductImage() != None,
+            self.failIf(g.setupKickstart(tmpDir) != None,
+                    "expected stubbed function")
+            self.failIf(g.writeProductImage(tmpDir, 'x86') != None,
                     "expected stubbed function")
         finally:
             util.rmtree(tmpDir)
+
+    def testUpdateISOOverride(self):
+        def fail(*args, **kwargs):
+            raise RuntimeError("This call should not have been made")
+
+        g = update_iso.UpdateIso({}, [])
+
+        retrieveTemplates = g.__class__.__base__.retrieveTemplates
+        g.__class__.__base__.retrieveTemplates = fail
+
+        prepareTemplates = g.__class__.__base__.prepareTemplates
+        g.__class__.__base__.prepareTemplates = fail
+        tmpDir = tempfile.mkdtemp()
+        try:
+            g.prepareTemplates(tmpDir, None)
+            g.retrieveTemplates()
+        finally:
+            g.__class__.__base__.retrieveTemplates = retrieveTemplates
+            g.__class__.__base__.prepareTemplates = prepareTemplates
+            util.rmtree(tmpDir)
+
+class GeneratorsMetaTest(jobslave_helper.ExecuteLoggerTest):
+    def testUpdateIsoApi(self):
+        # this test exists to force engineers to pay attention to how api
+        # changes in installable ISO can affect update ISO
+        ignoreList = []
+
+        updateIsoFuncs = [x for x in \
+                update_iso.UpdateIso.__dict__.iteritems() if callable(x[1])]
+        installableIsoFuncs = dict([x for x in \
+                installable_iso.InstallableIso.__dict__.iteritems() \
+                if callable(x[1])])
+        for funcName, ufunc in updateIsoFuncs:
+            uargs, uvarargs, uvarkw, udefaults = inspect.getargspec(ufunc)
+            ifunc = installableIsoFuncs.get(funcName)
+            self.failIf(not ifunc and funcName not in ignoreList,
+                    "%s is a member function of updateIso but not installIso" \
+                            % funcName)
+            iargs, ivarargs, ivarkw, idefaults = inspect.getargspec(ifunc)
+            self.failIf(uargs != iargs,
+                    "%s method in update ISO is probably " \
+                            "missing these args: %s" % (funcName,
+                                str([x for x in iargs if x not in uargs])))
+            self.failIf(uvarargs != ivarargs,
+                    "%s method in update ISO does not match variable args" % \
+                            funcName)
+            self.failIf(uvarkw != ivarkw,
+                    "%s method in update ISO does not match keyword args" % \
+                            funcName)
 
 
 if __name__ == "__main__":

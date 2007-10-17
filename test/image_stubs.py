@@ -102,3 +102,9 @@ class InstallableIsoStub(ImageGeneratorStub):
     jobId = "jobid"
     UUID = "abcd"
     productDir = 'rPath'
+
+    def retrieveTemplates(self):
+        return None, None
+
+    def prepareTemplates(self, topdir, templateDir):
+        return None

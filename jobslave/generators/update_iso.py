@@ -19,14 +19,17 @@ class UpdateIso(installable_iso.InstallableIso):
         self.showMediaCheck = False
         self.maxIsoSize = 0
 
-    def prepareTemplates(self, topdir):
+    def prepareTemplates(self, topdir, templateDir):
         util.mkdirChain(os.path.join(topdir, self.productDir, 'base'))
         csdir = os.path.join(topdir, self.productDir, 'changesets')
         util.mkdirChain(csdir)
         return csdir
 
-    def setupKickStart(self, *args, **kwargs):
+    def setupKickstart(self, topdir):
         pass
 
-    def writeProductImage(self, *args, **kwargs):
+    def writeProductImage(self, topdir, arch):
         pass
+
+    def retrieveTemplates(self):
+        return None, None
