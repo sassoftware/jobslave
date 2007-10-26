@@ -545,8 +545,9 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         ServerProxy = slave.xmlrpclib.ServerProxy
         try:
             xmlrpclib.ServerProxy = DummyProxy
-            self.jobSlave.postAMIOutput('jobId', 'buildIda', 'desturl',
-                    'outputToken', 'amiId', 'amiManifestName')
+            self.jobSlave.postAMIOutput('test.rpath.local-build-4-3',
+                    'buildId', 'desturl', 'outputToken', 'amiId',
+                    'amiManifestName')
         finally:
             slave.xmlrpclib.ServerProxy = ServerProxy
         self.failIf('Job Finished' not in \

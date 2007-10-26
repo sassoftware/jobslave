@@ -28,7 +28,7 @@ class GeneratorStub(object):
 
 class ImageGeneratorStub(GeneratorStub):
     arch = 'x86'
-    jobId = '1234'
+    jobId = 'test.rpath.local-build-1-2'
 
     def __init__(self, jobData, parent, *args, **kwargs):
         self.jobData = jobData
@@ -40,7 +40,7 @@ class ImageGeneratorStub(GeneratorStub):
         pass
 
 class BootableImageStub(ImageGeneratorStub):
-    jobId = "jobid"
+    jobId = "test.rpath.local-build-2-4"
     def __init__(self, jobData, parent, *args, **kwargs):
         self.filesystems = {}
         self.workDir = '/tmp/workdir'
@@ -99,7 +99,7 @@ class BootableImageStub(ImageGeneratorStub):
         return dest
 
 class InstallableIsoStub(ImageGeneratorStub):
-    jobId = "jobid"
+    jobId = "test.rpath.local-build-4-3"
     UUID = "abcd"
     productDir = 'rPath'
 

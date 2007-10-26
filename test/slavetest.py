@@ -51,7 +51,7 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
                     "Control topic was not read")
 
     def testStopJob(self):
-        jobId = 'test.rpath.local-build-29'
+        jobId = 'test.rpath.local-build-29-3'
         self.jobSlave.jobHandler = DummyHandler()
         self.jobSlave.jobHandler.jobId = jobId
         self.jobSlave.handleStopJob(jobId)
@@ -190,7 +190,7 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
         def fakePutFile(url, inFile, size, rateLimit = None, proxies = None,
                 chunked=False, extraHeaders = [], digest = None):
             digest.update(inFile.read())
-        jobId = 'test.rpath.local-build-1'
+        jobId = 'test.rpath.local-build-1-0'
         buildId = 1
         destUrl = 'http://localhost/test'
         outputToken = 'token'
