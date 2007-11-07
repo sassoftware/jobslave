@@ -200,6 +200,9 @@ class ExecuteLoggerTest(JobSlaveHelper):
             def wait(self):
                 return 0
 
+            def communicate(self):
+                return ('', '')
+
         os.system = osSystem
         subprocess.call = subprocessCall
         subprocess.Popen = FakePopen

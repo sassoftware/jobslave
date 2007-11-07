@@ -9,6 +9,7 @@ import os
 import signal
 import StringIO
 import subprocess
+import select
 import sys
 import time
 import threading
@@ -56,9 +57,16 @@ def logCall(cmd, ignoreErrors = False):
     p = subprocess.Popen(cmd, shell = True,
         stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     while p.poll() is None:
-        [log.info("++ " + errLine.strip()) for errLine in p.stdout.readlines()]
-        [log.debug("++ " + errLine.strip()) for errLine in p.stderr.readlines()]
+        rList, junk, junk = select.select([p.stdout, p.stderr], [], [])
+        for rdPipe in rList:
+            action = (rdPipe is p.stdout) and log.info or log.debug
+            msg = rdPipe.readline().strip()
+            if msg:
+                action("++ " + msg)
 
+    stdout, stderr = p.communicate()
+    [log.info("++ " + outLine) for outLine in stdout.splitlines()]
+    [log.debug("++ " + errLine) for errLine in stderr.splitlines()]
     if p.returncode and not ignoreErrors:
         raise RuntimeError("Error executing command: %s (return code %d)" % (cmd, p.returncode))
     else:
