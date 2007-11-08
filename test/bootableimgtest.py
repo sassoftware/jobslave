@@ -460,6 +460,27 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         finally:
             util.rmtree(tmpDir)
 
+    def testEmptyGrubName(self):
+        '''
+        Make sure grub title falls back to defaults if /etc/issue exists but
+        is empty.
+
+        Tests: RBL-2333
+        '''
+        tmpDir = tempfile.mkdtemp()
+        try:
+            self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
+            self.touch(os.path.join(tmpDir, 'etc', 'issue'))
+            self.bootable.setupGrub(tmpDir)
+            f = open(os.path.join(tmpDir, 'etc', 'grub.conf'))
+            data = f.read()
+            f.close()
+            self.failUnless(self.bootable.jobData['project']['name'] in data,
+                'grub title not taken from job data')
+        finally:
+            util.rmtree(tmpDir)
+
+
     def testFindFile(self):
         tmpDir = tempfile.mkdtemp()
         try:

@@ -275,6 +275,8 @@ class BootableImage(ImageGenerator):
         if os.path.exists(os.path.join(fakeRoot, 'etc', 'issue')):
             f = open(os.path.join(fakeRoot, 'etc', 'issue'))
             name = f.readline().strip()
+            if not name:
+                name = self.jobData['project']['name']
             f.close()
         else:
             name = self.jobData['project']['name']
