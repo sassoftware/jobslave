@@ -72,10 +72,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
                                                 and 'scsi' or 'ide')
         filecontents = filecontents.replace('@SNAPSHOT@',
                                             str(not self.vmSnapshots).upper())
-        suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
-                and "-64" or ""
-        filecontents = filecontents.replace('@GUESTOS@',
-                "other26xlinux" + suffix)
+        filecontents = filecontents.replace('@GUESTOS@', self.getGuestOS())
 
         #write the file to the proper location
         ofile = open(outfile, 'wb')
@@ -121,6 +118,10 @@ class VMwareImage(raw_hd_image.RawHdImage):
         if self.adapter == 'lsilogic':
             self.scsiModules = True
 
+    def getGuestOS(self):
+        suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
+                and "-64" or ""
+        return "other26xlinux" + suffix
 
 class VMwareESXImage(VMwareImage):
     def __init__(self, *args, **kwargs):
@@ -154,3 +155,7 @@ class VMwareESXImage(VMwareImage):
         ofile.close()
 
         os.rename(hdImage, outfile.replace('.vmdk', '-flat.vmdk'))
+
+    def getGuestOS(self):
+        arch64 = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64'))
+        return arch64 and "otherlinux-64" or "linux"

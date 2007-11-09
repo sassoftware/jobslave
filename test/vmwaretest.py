@@ -9,6 +9,7 @@ import testsuite
 testsuite.setup()
 
 from jobslave.generators import vmware_image
+from conary.deps import deps
 
 class VMwareTest(testsuite.TestCase):
     def testNoVmEscape(self):
@@ -57,6 +58,34 @@ class VMwareTest(testsuite.TestCase):
 
         self.failIf(ref != res,
                 "vmEscape returned '%s' but expected '%s'" % (res, ref))
+
+    def testGuestOS(self):
+        class DummyImage(vmware_image.VMwareImage):
+            def __init__(x, flav):
+                x.baseFlavor = deps.parseFlavor(flav)
+        gen = DummyImage('')
+        self.assertEquals(gen.getGuestOS(), "other26xlinux")
+
+    def testGuestOS64(self):
+        class DummyImage(vmware_image.VMwareImage):
+            def __init__(x, flav):
+                x.baseFlavor = deps.parseFlavor(flav)
+        gen = DummyImage('is: x86_64')
+        self.assertEquals(gen.getGuestOS(), "other26xlinux-64")
+
+    def testGuestOSESX(self):
+        class DummyImage(vmware_image.VMwareESXImage):
+            def __init__(x, flav):
+                x.baseFlavor = deps.parseFlavor(flav)
+        gen = DummyImage('')
+        self.assertEquals(gen.getGuestOS(), "linux")
+
+    def testGuestOSESX64(self):
+        class DummyImage(vmware_image.VMwareESXImage):
+            def __init__(x, flav):
+                x.baseFlavor = deps.parseFlavor(flav)
+        gen = DummyImage('is: x86_64')
+        self.assertEquals(gen.getGuestOS(), "otherlinux-64")
 
 
 if __name__ == "__main__":
