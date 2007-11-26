@@ -106,6 +106,7 @@ class Generator(threading.Thread):
         cfgData = StringIO.StringIO(self.jobData['project']['conaryCfg'])
         self.conarycfg.readObject(cfgData, cfgData)
 
+        self.conarycfg.configLine('pinTroves kernel.*')
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
 
         if parent and parent.cfg.conaryProxy:
