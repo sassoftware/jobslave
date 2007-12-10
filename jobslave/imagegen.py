@@ -109,6 +109,10 @@ class Generator(threading.Thread):
         self.conarycfg.configLine('pinTroves kernel.*')
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
 
+        # XXX need to do this since setting the tmpDir via the
+        # configuration object is never enough (RBL-2461)
+        util.settempdir(constants.tmpDir)
+
         if parent and parent.cfg.conaryProxy:
             self.conarycfg.configLine('conaryProxy %s' % parent.cfg.conaryProxy)
 
