@@ -201,3 +201,11 @@ class ApplianceInstaller(bootable_image.BootableImage,
             util.rmtree(os.path.normpath(os.path.join(topDir, "..")),
                         ignore_errors = True)
             util.rmtree(constants.cachePath, ignore_errors = True)
+
+    def setupGrub(self, fakeRoot):
+        bootable_image.BootableImage.setupGrub(self, fakeRoot)
+        # grubby will die if there's no / partition - anaconda rewrites
+        # fstab anyway
+        f = open(os.path.join(fakeRoot, 'boot', 'grub', 'grub.conf'), 'a')
+        f.write('LABEL=/ / ext3 defaults 1 1\n')
+        f.close()
