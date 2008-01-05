@@ -43,6 +43,6 @@ class Tarball(bootable_image.BootableImage):
     def setupGrub(self, fakeRoot):
         bootable_image.BootableImage.setupGrub(self, fakeRoot)
         # grubby will die if there's no / partition
-        f = open(os.path.join(fakeRoot, 'boot', 'grub', 'grub.conf'), 'a')
+        f = open(os.path.join(fakeRoot, 'etc', 'fstab'), 'a')
         f.write('LABEL=/ / ext3 defaults 1 1\n')
         f.close()
