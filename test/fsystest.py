@@ -20,8 +20,9 @@ class FilesystemsTest(unittest.TestCase):
 
         mounts = ['/usr/', '/bin/', '/usr/share/', '/']
         sizes = {'/usr/share': 1707L, '/': 193L, '/bin': 0, '/usr': 12592L}
+        sizes = {'/usr/share': 8192L, '/': 4096L, '/bin': 0, '/usr': 16384L}
         r = filesystems.calculatePartitionSizes(cs, mounts)
-        self.failUnlessEqual(r, (sizes, 14492L))
+        self.failUnlessEqual(r, (sizes, 28672L))
 
 
 if __name__ == "__main__":
