@@ -42,7 +42,6 @@ def calculatePartitionSizes(cs, mounts):
 
         for (name, version, flavor), byDefault, strongRef in trv.iterTroveListInfo():
             if not byDefault:
-                seen[(name, version, flavor)] = True
                 continue
             q.add((name, version, flavor))
 
@@ -56,7 +55,10 @@ def calculatePartitionSizes(cs, mounts):
             if type(fObj) == files.RegularFileStream:
                 for mount in mounts:
                     if path.startswith(mount):
-                        mountDict[mount] += fObj.size()
+                        blockSize = 4096
+                        realSize = fObj.size()
+                        nearestBlock = (realSize / blockSize + 1) * blockSize
+                        mountDict[mount] += nearestBlock
                         break
         seen[(n, v, f)] = True
     return mountDict, sum(mountDict.values())
