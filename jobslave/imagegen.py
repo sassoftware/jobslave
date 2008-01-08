@@ -116,6 +116,10 @@ class Generator(threading.Thread):
         if parent and parent.cfg.conaryProxy:
             self.conarycfg.configLine('conaryProxy %s' % parent.cfg.conaryProxy)
 
+        # the Conary Team advises against using threading in this
+        # context, for stability's sake
+        self.conarycfg.configLine('threaded False')
+
         #self.conarycfg.display() # dump conary config for debugging 
         self.cc = conaryclient.ConaryClient(self.conarycfg)
         self.nc = self.cc.getRepos()
