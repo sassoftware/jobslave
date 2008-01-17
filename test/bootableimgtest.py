@@ -508,7 +508,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     self.bootable.updateGroupChangeSet = \
                     self.bootable.fileSystemOddsNEnds = \
                     lambda *args, **kwargs: None
-            def mockLog(cmd):
+            def mockLog(cmd, ignoreErrors=False):
                 self.cmds.append(cmd)
             self.cmds = []
             bootable_image.logCall = mockLog

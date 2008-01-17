@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2006-2008 rPath, Inc.
 # All rights reserved.
 #
 
@@ -12,17 +12,33 @@ from conary.repository.resolvemethod import DepResolutionByLabelPath
 from conary import trove, versions, conaryclient
 
 import sys
+import time
 class Logger(object):
+    ERROR, CRITICAL, WARN, INFO, DEBUG = range(5)
+
+    labels = {INFO: 'INFO',
+              WARN: 'WARNING',
+              ERROR: 'ERROR',
+              CRITICAL: 'CRITICAL',
+              DEBUG: 'DEBUG'}
+
+    logLevel = DEBUG
+
+    def setLogLevel(self, level):
+        self.logLevel = level
     def info(self, msg):
-        self.log('info', msg)
+        self.log(self.INFO, msg)
     def warn(self, msg):
-        self.log('warning', msg)
+        self.log(self.WARN, msg)
+    def error(self, msg):
+        self.log(self.ERROR, msg)
     def critical(self, msg):
-        self.log('critical', msg)
+        self.log(self.CRITICAL, msg)
     def debug(self, msg):
-        self.log('debug', msg)
+        self.log(self.DEBUG, msg)
     def log(self, level, msg):
-        print >>sys.stderr, '%s: %s' % (level.upper(), msg)
+        if level < self.logLevel:
+            print >>sys.stderr, '[%s] %s: %s' % (time.time(), self.labels[level], msg)
 
 log = Logger()
 
@@ -360,7 +376,9 @@ class TroveBucket(object):
                     cNode.setParent(node)
 
         for groupNode in groups:
-            self._calcGroupHierarchy(*groupNode.nvf)
+            # Don't double process groups
+            if not groupNode.name in self.groups or not groupNode.nvf in self.groups[groupNode.name]:
+                self._calcGroupHierarchy(*groupNode.nvf)
 
     def iterTroves(self):
         return self.troves.itervalues()
@@ -456,7 +474,7 @@ class TroveBucket(object):
             if not trv.isDefault():
                 raise TroveNotFound, 'Trove not on disc %s' % trv
             self.select(item[0], item[1], item[2], dep=True)
-            log.info('using %s to satisfy %s', str(item), str(what))
+            log.info('using %s to satisfy %s' % (str(item), str(what)))
 
     # Check to make sure no byDefault False troves are selected. This is only 
     # used by the test suite and for debugging purposes.

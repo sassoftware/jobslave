@@ -4,11 +4,8 @@
 # All Rights Reserved
 #
 
-from conary.conaryclient import ConaryClient
 from conary import trove, files
-from conary import conarycfg
 from conary.lib import util
-import conary
 
 import os
 
