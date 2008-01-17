@@ -201,7 +201,26 @@ class Filesystem:
         if not self.loopDev or not self.mounted:
             return
 
-        logCall("umount %s" % self.loopDev, ignoreErrors = True)
+        try:
+            logCall("umount %s" % self.loopDev)
+        except RuntimeError:
+            log.warning('Unmount of %s failed - trying again', self.loopDev)
+
+            clean = False
+            for x in range(5):
+                logCall("sync")
+                time.sleep(1)
+                try:
+                    logCall("umount %s" % self.loopDev)
+                except RuntimeError:
+                    pass
+                else:
+                    clean = True
+                    break
+
+            if not clean:
+                raise RuntimeError('Failed to unmount %s', self.loopDev)
+
         loophelpers.loopDetach(self.loopDev)
         self.mounted = False
 
@@ -521,6 +540,7 @@ class BootableImage(ImageGenerator):
 
             # clean up some bits Conary leaves around
             cclient.db.close()
+            cclient.db.commitLock(False) # fixed in conary 1.1.92
             if log.syslog.f:
                 log.syslog.f.close()
             log.syslog.f = None
