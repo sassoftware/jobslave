@@ -334,9 +334,9 @@ class ImageGenerator(Generator):
         if mu:
             print >> conaryrcFile, 'includeConfigFile ' + mirrorUrl
         print >> conaryrcFile, "pinTroves kernel.*"
-        print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
         if self.getBuildData("autoResolve"):
             print >> conaryrcFile, "autoResolve True"
+        print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
         conaryrcFile.close()
 
     def saveConaryRC(self, cfgPath):

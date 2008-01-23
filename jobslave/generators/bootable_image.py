@@ -366,8 +366,7 @@ class BootableImage(ImageGenerator):
                                             'etc', 'sysconfig', 'mouse'))
         copytree(constants.skelDir, fakeRoot, exceptFiles)
 
-        self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conary', 'config.d',
-                                        self.basefilename), self.cc)
+        self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'))
 
         if rnl5:
             inittab = os.path.join(fakeRoot, 'etc', 'inittab')
