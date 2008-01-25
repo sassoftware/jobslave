@@ -5,6 +5,8 @@
 #
 
 import os
+import time
+
 
 def getIP():
     p = os.popen("""/sbin/ifconfig `/sbin/route | grep "^default" | sed "s/.* //"` | grep "inet addr" | awk -F: '{print $2}' | sed 's/ .*//'""")
@@ -32,3 +34,14 @@ def getSlaveRuntimeConfig(cfgPath = os.path.join(os.path.sep, \
 
     return d
 
+def getMountedFiles(mntPoint):
+    mntPoint = mntPoint.rstrip(os.path.sep)
+    data = os.popen('fuser -m %s 2>/dev/null' % mntPoint, 'r').read()
+    paths = set()
+    for pid in data.split():
+        fd_list = '/proc/%s/fd' % pid
+        for fd in os.listdir(fd_list):
+            path = os.readlink(os.path.join(fd_list, fd))
+            if path.startswith(mntPoint + os.path.sep):
+                paths.add(path)
+    return paths

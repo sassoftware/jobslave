@@ -14,10 +14,12 @@ import pwd
 import stat
 import time
 import tempfile
+import traceback
 
 # mint imports
 from jobslave import buildtypes, jobslave_error
 from jobslave import filesystems
+from jobslave import helperfuncs
 from jobslave import loophelpers
 from jobslave.filesystems import sortMountPoints
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL, logCall
@@ -185,6 +187,7 @@ class Filesystem:
         self.offset = offset
         self.fsLabel = fsLabel
         self.fsType = fsType
+        self.mountPoint = None
 
     def mount(self, mountPoint):
         if self.fsType == "swap":
@@ -193,6 +196,7 @@ class Filesystem:
         self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
         logCall("mount %s %s" % (self.loopDev, mountPoint))
         self.mounted = True
+        self.mountPoint = mountPoint
 
     def umount(self):
         if self.fsType == "swap":
@@ -204,7 +208,8 @@ class Filesystem:
         try:
             logCall("umount %s" % self.loopDev)
         except RuntimeError:
-            log.warning('Unmount of %s failed - trying again', self.loopDev)
+            log.warning('Unmount of %s from %s failed - trying again',
+                self.loopDev, self.mountPoint)
 
             clean = False
             for x in range(5):
@@ -219,7 +224,13 @@ class Filesystem:
                     break
 
             if not clean:
-                raise RuntimeError('Failed to unmount %s', self.loopDev)
+                log.error('Unmount failed because these files '
+                    'were still open:')
+                for path in sorted(
+                  helperfuncs.getMountedFiles(self.mountPoint)):
+                    log.error(path)
+
+                raise RuntimeError('Failed to unmount %s' % self.loopDev)
 
         loophelpers.loopDetach(self.loopDev)
         self.mounted = False

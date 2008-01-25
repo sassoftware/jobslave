@@ -11,6 +11,7 @@ testsuite.setup()
 import os
 import re
 import tempfile
+import time
 import simplejson
 import xmlrpclib
 
@@ -18,8 +19,9 @@ from conary.lib import util
 from conary.deps import deps
 
 import jobslave_helper
-from jobslave import slave
 from jobslave import filesystems
+from jobslave import helperfuncs
+from jobslave import slave
 from jobslave.generators import constants
 from jobslave.generators import bootable_image
 from jobslave.generators import ami
@@ -123,11 +125,60 @@ class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
             jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
             fsm.loopDev = '/dev/loop0'
             fsm.mounted = True
+            fsm.mountPoint = '/mnt/null'
             fsm.umount()
         finally:
             bootable_image.logCall = logCall
             jobslave.loophelpers.loopDetach = loopDetach
         self.failIf(fsm.mounted, "Couldn't umount an ext3 partition")
+
+    def testUmountFail(self):
+        log_hits = []
+        log_want = [
+            ('Unmount of %s from %s failed - trying again', '/dev/loop0',
+                '/mnt/null'),
+            ('Unmount failed because these files were still open:',),
+            ('/mnt/null/bar',),
+            ('/mnt/null/foo',),
+            ]
+        class mock_log:
+            def __init__(xself, log_hits):
+                xself.log_hits = log_hits
+            def error(xself, *P):
+                xself.log_hits.append(tuple(P))
+            warning = error
+        def mock_logCall(args):
+            if args.startswith('umount'):
+                raise RuntimeError('asplode!')
+
+        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600)
+        _logCall = bootable_image.logCall
+        _log = bootable_image.log
+        _sleep = time.sleep
+        _getMountedFiles = helperfuncs.getMountedFiles
+        _loopDetach = jobslave.loophelpers.loopDetach
+        try:
+            bootable_image.logCall = mock_logCall
+            bootable_image.log = mock_log(log_hits)
+            helperfuncs.getMountedFiles = lambda path: set(
+                ['/mnt/null/foo', '/mnt/null/bar'])
+            time.sleep = lambda dur: None
+            jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
+            fsm.loopDev = '/dev/loop0'
+            fsm.mounted = True
+            fsm.mountPoint = '/mnt/null'
+
+            self.failUnlessRaises(RuntimeError, fsm.umount)
+
+            self.failUnlessEqual(log_hits, log_want)
+        finally:
+            bootable_image.logCall = _logCall
+            bootable_image.log = _log
+            helperfuncs.getMountedFiles = _getMountedFiles
+            time.sleep = _sleep
+            jobslave.loophelpers.loopDetach = _loopDetach
+        self.failUnless(fsm.mounted,
+            "Partition got marked as unmounted when umount failed")
 
     def testFormatInvalid(self):
         fsm = bootable_image.Filesystem('/dev/null', 'notta_fs', 104857600)
