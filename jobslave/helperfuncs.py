@@ -39,9 +39,18 @@ def getMountedFiles(mntPoint):
     data = os.popen('fuser -m %s 2>/dev/null' % mntPoint, 'r').read()
     paths = set()
     for pid in data.split():
-        fd_list = '/proc/%s/fd' % pid
-        for fd in os.listdir(fd_list):
-            path = os.readlink(os.path.join(fd_list, fd))
+        fd_dir_path = '/proc/%s/fd' % pid
+        try:
+            fd_list = os.listdir(fd_dir_path)
+        except (IOError, OSError):
+            # The process disappeared (it was probably fuser)
+            continue
+        for fd in fd_list:
+            try:
+                path = os.readlink(os.path.join(fd_dir_path, fd))
+            except (IOError, OSError):
+                # This process might have shown up b/c of listdir
+                continue
             if path.startswith(mntPoint + os.path.sep):
                 paths.add(path)
     return paths
