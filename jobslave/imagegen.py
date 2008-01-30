@@ -43,7 +43,8 @@ class LogHandler(logging.Handler):
             self._msgs = ''
             self.response().jobLog(self.jobId, msgs)
         except Exception, e:
-            print >> sys.stderr, "Warning: log message was lost:", self._msgs
+            if self._msgs:
+                print >> sys.stderr, "Warning: log message was lost:", self._msgs
             sys.stderr.flush()
 
     def emit(self, record):

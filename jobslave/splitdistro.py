@@ -5,6 +5,7 @@
 # All rights reserved
 #
 
+import logging
 import os, sys
 import tempfile
 import subprocess
@@ -21,7 +22,7 @@ commonfiles = ('README', 'LICENSE')
 basicminimal = ('group-core', 'group-base')
 
 def call(*cmds):
-    print >> sys.stderr, " ".join(cmds)
+    logging.info('+ ' + (' '.join(cmds)))
     sys.stderr.flush()
     subprocess.call(cmds)
 

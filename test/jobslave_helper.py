@@ -94,10 +94,9 @@ class JobSlaveHelper(testhelp.TestCase):
 
         self.testDir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 
-        import logging
-        log = logging.getLogger()
-        logging.DEBUG = logging.FATAL
-        log.setLevel(logging.FATAL)
+        # Keep conary from changing loglevel to debug while cooking
+        from conary.lib import log
+        log.setVerbosity = lambda x: None
 
         # make sure we always delete mkdtemp directories
         self.mkdCreated = []
