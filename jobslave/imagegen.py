@@ -341,9 +341,3 @@ class ImageGenerator(Generator):
             print >> conaryrcFile, "autoResolve True"
         print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
         conaryrcFile.close()
-
-    def saveConaryRC(self, cfgPath):
-        f = open(cfgPath, 'w')
-        self.conarycfg.display(f)
-        f.close()
-        return cfgPath

@@ -515,10 +515,7 @@ class BootableImage(ImageGenerator):
     def installFileTree(self, dest):
         self.status('Installing image contents')
         self.createTemporaryRoot(dest)
-        fd, cfgPath = tempfile.mkstemp(dir=constants.tmpDir)
         try:
-            os.close(fd)
-            self.saveConaryRC(cfgPath)
             logCall('mount -t proc none %s' % os.path.join(dest, 'proc'))
             logCall('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
 
@@ -539,7 +536,6 @@ class BootableImage(ImageGenerator):
             # rooted flavor setup.
             self.conarycfg.useDirs = [os.path.join(dest, 'etc/conary/use')]
             self.conarycfg.initializeFlavors()
-            self.saveConaryRC(cfgPath)
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
                 try:
                     self.updateKernelChangeSet(cclient)
@@ -573,7 +569,6 @@ class BootableImage(ImageGenerator):
         finally:
             logCall('umount %s' % os.path.join(dest, 'proc'))
             logCall('umount %s' % os.path.join(dest, 'sys'))
-            os.unlink(cfgPath)
 
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
