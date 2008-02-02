@@ -356,33 +356,35 @@ class BootableImage(ImageGenerator):
         if self.swapSize:
             swapFile = os.path.join(fakeRoot, 'var', 'swap')
             util.mkdirChain(os.path.split(swapFile)[0])
-            swap = open(swapFile, 'w')
             # sparse files cannot work for swap space
-            cmd = 'dd if=/dev/zero of=%s bs=4096 count=%d' % \
-                    (swapFile, self.swapSize / 4096)
-            util.execute(cmd)
-            cmd = '/sbin/mkswap %s' % swapFile
-            util.execute(cmd)
-        rnl5 = False
-        for svc in ('xdm', 'gdm', 'kdm'):
-            rnl5 |= os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc))
+            logCall('dd if=/dev/zero of=%s bs=4096 count=%d' % (
+                    swapFile, self.swapSize / 4096))
+            logCall('/sbin/mkswap %s' % swapFile)
 
-        gpm = os.path.isfile(os.path.join(fakeRoot, 'usr', 'sbin', 'gpm'))
-
+        # Copy a skeleton config tree.
+        # Exclude things that are not being installed.
         exceptFiles = []
-        if not rnl5:
-            exceptFiles.append(os.path.join(os.path.sep, 'etc', 'X11.*'))
-        if not gpm:
+
+        # GPM (mouse daemon for virtual terminals)
+        if not os.path.isfile(os.path.join(fakeRoot, 'usr', 'sbin', 'gpm')):
             exceptFiles.append(os.path.join(os.path.sep,
                                             'etc', 'sysconfig', 'mouse'))
+
+        # X windows
+        start_x = False
+        for svc in ('xdm', 'gdm', 'kdm'):
+            start_x |= os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc))
+        if not start_x:
+            exceptFiles.append(os.path.join(os.path.sep, 'etc', 'X11.*'))
+
         copytree(constants.skelDir, fakeRoot, exceptFiles)
 
-        self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'))
+        self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'), self.cc)
 
-        if rnl5:
+        # If X is available, use runlevel 5 by default, for graphical login
+        if start_x:
             inittab = os.path.join(fakeRoot, 'etc', 'inittab')
             if os.path.isfile(inittab):
-                #tweak the inittab to start at level 5
                 cmd = r"/bin/sed -e 's/^\(id\):[0-6]:\(initdefault:\)$/\1:5:\2/' -i %s" % inittab
                 logCall(cmd)
             else:
