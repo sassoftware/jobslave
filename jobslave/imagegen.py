@@ -102,6 +102,8 @@ class Generator(threading.Thread):
             ''.join([hex(ord(os.urandom(1)))[2:] for x in range(16)]).upper()
 
         self.status('Initializing build...')
+        log.info('Starting build %s', self.jobId)
+        log.info('UUID: %s', self.UUID)
 
         self.conarycfg = conarycfg.ConaryConfiguration(False)
         cfgData = StringIO.StringIO(self.jobData['project']['conaryCfg'])
