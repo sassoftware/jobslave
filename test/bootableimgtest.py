@@ -354,7 +354,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
     def testFSOddsNEnds(self):
         # deliberately run fsoddsnends with a blank chroot to ensure it
         # won't backtrace
-        oldExec, util.execute = util.execute, lambda cmd: None
+        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
         tmpDir = tempfile.mkdtemp()
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
         try:
@@ -363,10 +363,10 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "FilesystemOddsNEnds should have added content")
         finally:
             util.rmtree(tmpDir)
-            util.execute = oldExec
+            bootable_image.logCall = _logCall
 
     def testFSOddsNEnds2(self):
-        oldExec, util.execute = util.execute, lambda cmd: None
+        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
         tmpDir = tempfile.mkdtemp()
         self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
         self.touch(os.path.join(tmpDir, 'etc', 'inittab'))
@@ -378,10 +378,10 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "FilesystemOddsNEnds should have added content")
         finally:
             util.rmtree(tmpDir)
-            util.execute = oldExec
+            bootable_image.logCall = _logCall
 
     def testFSOddsNEnds3(self):
-        oldExec, util.execute = util.execute, lambda cmd: None
+        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
         tmpDir = tempfile.mkdtemp()
         # trigger runlevel five, but leave out /etc/inittab just to see
         # what happens.
@@ -393,10 +393,10 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "FilesystemOddsNEnds should have added content")
         finally:
             util.rmtree(tmpDir)
-            util.execute = oldExec
+            bootable_image.logCall = _logCall
 
     def testFSOddsNEnds4(self):
-        oldExec, util.execute = util.execute, lambda cmd: None
+        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
         tmpDir = tempfile.mkdtemp()
         # set filesystems, but no /etc/fstab
         self.bootable.mountDict = {'/' : (0, 100, 'ext3'),
@@ -410,7 +410,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "FilesystemOddsNEnds should have added /etc/fstab")
         finally:
             util.rmtree(tmpDir)
-            util.execute = oldExec
+            bootable_image.logCall = _logCall
 
     def testAddFilesystem(self):
         self.bootable.addFilesystem('/boot', 'ext3')
