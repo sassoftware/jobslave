@@ -423,8 +423,8 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             f = open(os.path.join(tmpDir, 'etc', 'fstab'))
             data = f.read()
             self.failIf(data != \
-                    '/dev/sda2\t/mnt/huge\t\text3\tdefaults 1 2\n' \
-                    '/dev/sda3\tswap\t\tswap\tdefaults 0 0\n',
+                    '\n/dev/sda2\t/mnt/huge\t\text3\tdefaults 1 2' \
+                    '\n/dev/sda3\tswap\t\tswap\tdefaults 0 0',
                     "Unexpected mount structure")
         finally:
             util.rmtree(tmpDir)

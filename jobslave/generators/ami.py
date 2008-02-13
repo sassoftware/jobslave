@@ -123,9 +123,9 @@ class AMIImage(raw_fs_image.RawFsImage):
         util.mkdirChain(os.path.join(fakeroot, 'etc'))
         fstabFile = file(os.path.join(fakeroot, 'etc', 'fstab'), 'a+')
         if self.hugeDiskMountpoint:
-            fstabFile.write("/dev/sda2\t%s\t\text3\tdefaults 1 2\n" % \
+            fstabFile.write("\n/dev/sda2\t%s\t\text3\tdefaults 1 2" % \
                     self.hugeDiskMountpoint)
-        fstabFile.write("/dev/sda3\tswap\t\tswap\tdefaults 0 0\n")
+        fstabFile.write("\n/dev/sda3\tswap\t\tswap\tdefaults 0 0")
         fstabFile.close()
 
     def write(self):

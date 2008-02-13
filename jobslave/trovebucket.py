@@ -323,7 +323,10 @@ class TroveBucket(object):
             if name == self.topGroup[0]:
                 byDefault = True
             else:
-                byDefault = trv.includeTroveByDefault(name, version, flavor)
+                try:
+                    byDefault = trv.includeTroveByDefault(name, version, flavor)
+                except KeyError:
+                    byDefault = False
 
             topByDefault = self.groupTrv.includeTroveByDefault(name, version,
                                                                flavor)
