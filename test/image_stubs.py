@@ -5,6 +5,7 @@
 #
 import sys
 from conary import versions
+from conary.deps import deps
 
 class GeneratorStub(object):
     UUID = "abcd"
@@ -48,6 +49,14 @@ class BootableImageStub(ImageGeneratorStub):
         self.basefilename = 'image'
         self.mountDict = {'/': (0, 100, 'ext3'), 'swap': (0, 100, 'swap')}
         self.jobData = jobData
+
+        if jobData.has_key('troveVersion'):
+            versionStr = self.jobData['troveVersion']
+            ver = versions.ThawVersion(versionStr)
+            self.baseVersion = ver.asString()
+        if jobData.has_key('troveFlavor'):
+            flavorStr = self.jobData['troveFlavor']
+            self.baseFlavor = deps.ThawFlavor(str(flavorStr))
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs

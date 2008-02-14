@@ -10,6 +10,7 @@ import tempfile
 import boto
 
 from conary.conarycfg import ConfigFile
+from conary.deps import deps
 from conary.lib import cfgtypes
 from conary.lib import util
 
@@ -63,16 +64,29 @@ class AMIImage(raw_fs_image.RawFsImage):
         self.hugeDiskMountpoint = \
                 self.getBuildData('amiHugeDiskMountpoint')
 
+        # make sure we can actually use this arch
+        if self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')):
+            self.amiArch = 'x86_64'
+        elif self.baseFlavor.satisfies(deps.parseFlavor('is: x86')):
+            self.amiArch = 'i386'
+        else:
+            arch = deps.getInstructionSetFlavor(self.baseFlavor)
+            raise RuntimeError('Unsupported architecture: %s' % str(arch))
 
     def createAMIBundle(self, inputFSImage, bundlePath):
         # actually call out to create the AMI bundle
         ec2ImagePrefix = "%s_%s.img" % \
                 (self.basefilename, self.jobData.get('buildId'))
         try:
-            logCall('ec2-bundle-image -i %s -u %s -c %s -k %s -d %s -p %s' % \
-                    (inputFSImage, self.ec2AccountId,
-                        self.ec2CertPath, self.ec2CertKeyPath,
-                        bundlePath, ec2ImagePrefix))
+            logCall('ec2-bundle-image'
+                + ' -i %s' % inputFSImage
+                + ' -u %s' % self.ec2AccountId
+                + ' -c %s' % self.ec2CertPath
+                + ' -k %s' % self.ec2CertKeyPath
+                + ' -d %s' % bundlePath
+                + ' -p %s' % ec2ImagePrefix
+                + ' -r %s' % self.amiArch
+                )
             bundles = [x for x in os.listdir(bundlePath) if x.endswith('.xml')]
             return bundles and bundles[0] or None
         except RuntimeError:
