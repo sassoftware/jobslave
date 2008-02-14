@@ -97,10 +97,9 @@ def getRecipe(jobData):
                    trv['trvLabel'].startswith('conary.rpath.com@'):
 
                 branch = trv['trvLabel'].split("@")[1]
-                addonsLabel = "addons.rpath.com@" + branch
 
                 d['fancyFlavor'] = 'is:x86(i486,i586,i686) x86_64'
-                d['searchPath'] = str([str(addonsLabel)] + recipeLabels)
+                d['searchPath'] = str(recipeLabels)
 
                 recipe += indent + "if Arch.x86_64:\n"
                 recipe += (12 * " ") + "r.add('%(name)s', flavor = '%(fancyFlavor)s', groupName = '%(groupName)s', searchPath = %(searchPath)s)\n" % d
