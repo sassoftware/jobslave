@@ -71,5 +71,5 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
         self.templateName = 'vpc.vmc'
-        self.suffix = '.vpc.tgz'
+        self.suffix = '.vpc.tar.gz'
         self.productName = 'Microsoft Virtual Server'

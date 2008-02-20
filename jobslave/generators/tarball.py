@@ -25,7 +25,7 @@ class Tarball(bootable_image.BootableImage):
         util.mkdirChain(basePath)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
-        tarball = os.path.join(outputDir, self.basefilename + '.tgz')
+        tarball = os.path.join(outputDir, self.basefilename + '.tar.gz')
         cwd = os.getcwd()
         try:
             self.installFileTree(basePath)

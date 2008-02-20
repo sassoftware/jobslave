@@ -272,7 +272,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
             src = os.path.join(tmpDir, 'test')
             util.mkdirChain(src)
             self.touch(os.path.join(src, 'junk'), contents = '\n')
-            dest = src + '.tgz'
+            dest = src + '.tar.gz'
             self.bootable.gzip(src)
             self.failIf(not os.path.exists(dest),
                     "gzip did not function for directory")

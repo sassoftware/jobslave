@@ -113,7 +113,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.vmMemory = self.getBuildData('vmMemory')
         self.templateName = 'vmwareplayer.vmx'
         self.productName = "VMware Player"
-        self.suffix = '.vmware.tgz'
+        self.suffix = '.vmware.tar.gz'
 
         if self.adapter == 'lsilogic':
             self.scsiModules = True
@@ -131,7 +131,7 @@ class VMwareESXImage(VMwareImage):
         self.createType = 'vmfs'
         self.templateName = 'vmwareesx.vmx'
         self.productName = "VMware ESX Server"
-        self.suffix = '.esx.tgz'
+        self.suffix = '.esx.tar.gz'
         self.scsiModules = True
 
     @bootable_image.timeMe

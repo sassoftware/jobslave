@@ -611,7 +611,7 @@ class BootableImage(ImageGenerator):
     def gzip(self, source, dest = None):
         if os.path.isdir(source):
             if not dest:
-                dest = source + '.tgz'
+                dest = source + '.tar.gz'
             parDir, targetDir = os.path.split(source)
             logCall('tar -czvS -C %s %s > %s' % (parDir, targetDir, dest))
         else:

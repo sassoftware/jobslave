@@ -112,7 +112,7 @@ class ApplianceInstaller(bootable_image.BootableImage,
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         tarball = os.path.join(constants.tmpDir, self.jobId,
-                               self.basefilename + '.tgz')
+                               self.basefilename + '.tar.gz')
         cwd = os.getcwd()
         try:
             self.installFileTree(basePath)
