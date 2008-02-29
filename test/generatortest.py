@@ -504,7 +504,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.resetPopen()
 
         self.assertEquals(len(g.posted_output), 1)
-        self.assertEquals(g.posted_output[0][1], 'VMware Player Image')
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) Image')
 
     def testSCSIVMwareImage(self):
         self.injectPopen("")
@@ -533,7 +533,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.resetPopen()
 
         self.assertEquals(len(g.posted_output), 1)
-        self.assertEquals(g.posted_output[0][1], 'VMware Player Image')
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) Image')
 
     def testVMwareSetModes(self):
         g = vmware_image.VMwareImage({}, [])

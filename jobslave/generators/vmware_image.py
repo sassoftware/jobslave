@@ -7,6 +7,7 @@
 import os
 import stat
 
+from jobslave import buildtypes
 from jobslave.generators import bootable_image, raw_hd_image, constants
 from jobslave.imagegen import logCall
 from conary.lib import util
@@ -112,7 +113,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.vmSnapshots = self.getBuildData('vmSnapshots')
         self.vmMemory = self.getBuildData('vmMemory')
         self.templateName = 'vmwareplayer.vmx'
-        self.productName = "VMware Player"
+        self.productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
         self.suffix = '.vmware.tar.gz'
 
         if self.adapter == 'lsilogic':
@@ -130,7 +131,7 @@ class VMwareESXImage(VMwareImage):
         self.vmSnapshots = False
         self.createType = 'vmfs'
         self.templateName = 'vmwareesx.vmx'
-        self.productName = "VMware ESX Server"
+        self.productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
         self.suffix = '.esx.tar.gz'
         self.scsiModules = True
 

@@ -6,6 +6,7 @@
 
 import os
 
+from jobslave import buildtypes
 from jobslave.generators import constants
 from jobslave.generators import bootable_image, raw_hd_image
 from jobslave.generators import vhd
@@ -72,4 +73,4 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
         self.templateName = 'vpc.vmc'
         self.suffix = '.vpc.tar.gz'
-        self.productName = 'Microsoft Virtual Server'
+        self.productName = buildtypes.typeNamesShort[buildtypes.VIRTUAL_PC_IMAGE]

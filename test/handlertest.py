@@ -41,12 +41,12 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
     def testGetVMwareImage(self):
         handler = self.suppressOutput(self.getHandler,
                                      buildtypes.VMWARE_IMAGE)
-        assert handler, "Failed to get VMware Player Image"
+        assert handler, "Failed to get VMware (R) Image"
 
     def testGetESX(self):
         handler = self.suppressOutput(self.getHandler,
                                      buildtypes.VMWARE_ESX_IMAGE)
-        assert handler, "Failed to get VMware ESX Image"
+        assert handler, "Failed to get VMware (R) ESX Image"
 
     def testGetVirtualServer(self):
         handler = self.suppressOutput(self.getHandler,
