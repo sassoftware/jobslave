@@ -7,6 +7,8 @@ import sys
 from conary import versions
 from conary.deps import deps
 
+from jobslave import bootloader
+
 class GeneratorStub(object):
     UUID = "abcd"
     def __init__(self, jobData, parent, *args, **kwargs):
@@ -67,9 +69,6 @@ class BootableImageStub(ImageGeneratorStub):
     def umountAll(self):
         pass
 
-    def makeImage(self):
-        pass
-
     def setupGrub(self, fakeRoot):
         pass
 
@@ -99,7 +98,7 @@ class BootableImageStub(ImageGeneratorStub):
         pass
 
     def installFileTree(self, dest):
-        pass
+        return bootloader.DummyInstaller(self, None)
 
     def installGrub(self, fakeRoot, image, size):
         pass

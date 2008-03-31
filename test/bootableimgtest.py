@@ -28,33 +28,6 @@ from jobslave.generators import ami
 import jobslave.loophelpers
 
 class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
-    def testBasicGrubConf(self):
-        data = bootable_image.getGrubConf('TEST_IMAGE')
-        self.failIf(not re.search('title TEST_IMAGE \(template\)', data),
-                "title string didn't show up in grub")
-        self.failIf(not re.search('initrd /boot/initrd', data),
-                "bad initrd string for non-dom0")
-
-    def testDom0GrubConf(self):
-        data = bootable_image.getGrubConf('TEST_IMAGE', dom0 = True, xen = True)
-        self.failIf(not re.search('kernel /boot/xen.gz', data),
-                "wrong kernel command line for dom0")
-        self.failIf(not re.search('module /boot/initrd', data),
-                "bad initrd string for dom0")
-
-    def testDomUGrubConf(self):
-        data = bootable_image.getGrubConf('TEST_IMAGE', dom0 = False,
-                xen = True)
-        self.failIf(not re.search('xvda', data),
-                "wrong boot device for domU")
-        self.failIf(not re.search('timeout=0', data),
-                "timeout should be 0 on domU")
-
-    def testClockGrubConf(self):
-        data = bootable_image.getGrubConf('TEST_IMAGE', clock = "clock=pit")
-        self.failIf(not re.search('clock=pit', data),
-                "clock setting did not appear")
-
     def testCopyFile(self):
         tmpDir = tempfile.mkdtemp()
         try:
@@ -291,28 +264,6 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         finally:
             util.rmtree(tmpDir)
 
-    def testInstallNoGrub(self):
-        tmpDir = tempfile.mkdtemp()
-        try:
-            res = self.bootable.installGrub(tmpDir, None, None)
-        finally:
-            util.rmtree(tmpDir)
-        self.failIf(res, "Attempted to run grub on defunct chroot")
-
-    def testInstallGrub(self):
-        tmpDir = tempfile.mkdtemp()
-        os.mkdir(os.path.join(tmpDir, 'sbin'))
-        os.system('touch %s' % os.path.join(tmpDir, 'sbin', 'grub'))
-        logCall = bootable_image.logCall
-        try:
-            bootable_image.logCall = lambda *args, **kargs: None
-            res = self.bootable.installGrub(tmpDir, 'trash', 10000)
-        finally:
-            bootable_image.logCall = logCall
-            util.rmtree(tmpDir)
-        self.failIf(not res, "Grub didn't run when grub was present")
-
-
     def testAddMissingScsiModules(self):
         tmpDir = tempfile.mkdtemp()
         util.mkdirChain(tmpDir + "/etc/")
@@ -471,66 +422,12 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                 self.called = True
             self.called = False
             self.bootable.installFileTree = dummyInstall
-            self.bootable.makeImage()
+            root_dir = os.path.join(self.bootable.workDir, "root")
+            self.bootable.installFileTree(root_dir)
             self.failIf(not self.called, "installFileTree was not called")
         finally:
             self.bootable.installFileTree = installFileTree
             util.rmtree(self.bootable.workDir)
-
-    def testSetupNoGrub(self):
-        tmpDir = tempfile.mkdtemp()
-        try:
-            self.bootable.setupGrub(tmpDir)
-        finally:
-            util.rmtree(tmpDir)
-
-    def testSetupGrub(self):
-        tmpDir = tempfile.mkdtemp()
-        try:
-            self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
-            self.bootable.setupGrub(tmpDir)
-            self.failIf('etc' not in os.listdir(tmpDir),
-                    "setupGrub did not create expected dir structure")
-            self.failIf('boot' not in os.listdir(tmpDir),
-                    "setupGrub did not create expected dir structure")
-        finally:
-            util.rmtree(tmpDir)
-
-    def testGrubName(self):
-        tmpDir = tempfile.mkdtemp()
-        try:
-            self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
-            self.touch(os.path.join(tmpDir, 'etc', 'issue'),
-                    contents = 'TEST_NAME')
-            self.bootable.setupGrub(tmpDir)
-            f = open(os.path.join(tmpDir, 'etc', 'grub.conf'))
-            data = f.read()
-            f.close()
-            self.failIf('TEST_NAME' not in data,
-                    "grub title not taken from /etc/issue")
-        finally:
-            util.rmtree(tmpDir)
-
-    def testEmptyGrubName(self):
-        '''
-        Make sure grub title falls back to defaults if /etc/issue exists but
-        is empty.
-
-        Tests: RBL-2333
-        '''
-        tmpDir = tempfile.mkdtemp()
-        try:
-            self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
-            self.touch(os.path.join(tmpDir, 'etc', 'issue'))
-            self.bootable.setupGrub(tmpDir)
-            f = open(os.path.join(tmpDir, 'etc', 'grub.conf'))
-            data = f.read()
-            f.close()
-            self.failUnless(self.bootable.jobData['project']['name'] in data,
-                'grub title not taken from job data')
-        finally:
-            util.rmtree(tmpDir)
-
 
     def testFindFile(self):
         tmpDir = tempfile.mkdtemp()
@@ -566,7 +463,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
             self.bootable.installFileTree(tmpDir)
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
-            self.failIf(len(self.cmds) != 10,
+            self.failIf(len(self.cmds) != 9,
                     "unexpected number of external calls")
         finally:
             util.rmtree(tmpDir)

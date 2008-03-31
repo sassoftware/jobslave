@@ -38,3 +38,11 @@ class BootloaderInstaller(object):
             in bytes.
         '''
         pass
+
+class DummyInstaller(BootloaderInstaller):
+    '''
+    Bootloader installer that does nothing.
+    '''
+
+    def install(self):
+        pass
