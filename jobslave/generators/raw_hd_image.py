@@ -8,6 +8,7 @@ import os, sys
 import stat
 import tempfile
 
+from jobslave import generators
 from jobslave.filesystems import sortMountPoints
 from jobslave import lvm
 from jobslave.imagegen import logCall, log
@@ -101,9 +102,15 @@ class RawHdImage(bootable_image.BootableImage):
             self.addFilesystem(mountPoint, fs)
 
         self.mountAll()
-        self.makeImage()
-        self.installGrub(os.path.join(self.workDir, "root"), image, totalSize)
 
+        # Install contents into image
+        root_dir = os.path.join(self.workDir, "root")
+        bootloader_installer = self.installFileTree(root_dir)
+
+        # Install bootloader's MBR onto the disk
+        bootloader_installer.install_mbr(image, totalSize)
+
+        # Unmount and destroy LVM
         try:
             self.umountAll()
             if lvmContainer:
