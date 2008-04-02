@@ -488,8 +488,13 @@ class BootableImage(ImageGenerator):
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
         # remove root password
-        logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 --enableshadow --disablecache" % dest)
-        logCall("chroot %s /usr/sbin/usermod -p '' root" % dest)
+        if os.path.exists(os.path.join(dest, 'usr/sbin/authconfig')):
+            logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 "
+                "--enableshadow --disablecache" % dest)
+        if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
+            logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
+                ignoreErrors=True)
+
         # Finish installation of bootloader
         bootloader_installer.install()
 
