@@ -452,6 +452,8 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         try:
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script.in'))
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
+            self.touch(os.path.join(tmpDir, 'usr/sbin/authconfig'))
+            self.touch(os.path.join(tmpDir, 'usr/sbin/usermod'))
             self.bootable.updateKernelChangeSet = \
                     self.bootable.updateGroupChangeSet = \
                     self.bootable.fileSystemOddsNEnds = \
