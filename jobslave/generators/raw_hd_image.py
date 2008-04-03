@@ -118,6 +118,8 @@ class RawHdImage(bootable_image.BootableImage):
         except Exception, e:
             log.warning("Error tearing down LVM setup: %s" % str(e))
 
+        return totalSize
+
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
         self.makeHDImage(image)

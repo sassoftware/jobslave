@@ -498,6 +498,14 @@ class BootableImage(ImageGenerator):
         # Finish installation of bootloader
         bootloader_installer.install()
 
+        # Workaround for RPL-2423
+        grub_conf = os.path.join(dest, 'boot/grub/grub.conf')
+        if os.path.exists(grub_conf):
+            contents = open(grub_conf).read()
+            contents = re.compile('^default saved', re.M
+                ).sub('default 0', contents)
+            open(grub_conf, 'w').write(contents)
+
         return bootloader_installer
 
     @timeMe

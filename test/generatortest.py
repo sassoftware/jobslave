@@ -257,87 +257,64 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         finally:
             util.rmtree(tmpDir)
 
-    def testXenOVA(self):
-        g = xen_ova.XenOVA({'buildType': buildtypes.XEN_OVA,
-            'outputToken': '580466f08ddfcfa130ee85f2d48c61ced992d4d4',
-            'name': 'Test Linux',
-            'type': 'build',
-            'troveVersion': '/test.rpath.local@rpl:devel/0.0:1.3-1-6',
-            'UUID': 'test.rpath.local-build-96',
-            'project': {'conaryCfg': 'entitlement test.rpath.com xxxxxxxxxxxxxx\nrepositoryMap test.rpath.local http://test.rpath.local/conary/\nuser test.rpath.local anonymous anonymous\n',
-                'hostname': 'test',
-                'name': 'Test Linux',
-                'label': 'test.rpath.local@rpl:devel'},
-            'troveFlavor': '1#x86:i486:i586:i686:~!sse2|5#use:~Mesa.dri:~MySQL-python.threadsafe:X:~!alternatives:~!ati:~!bootstrap:~buildtests:desktop:~!dom0:~!domU:emacs:gcj:gnome:~!grub.static:ipv6:~!kernel.debug:~!kernel.debugdata:~!kernel.numa:~!kernel.pae:~kernel.smp:krb:ldap:nptl:~!nvidia:~!openssh.smartcard:~!openssh.static_libcrypto:pam:pcre:perl:~!pie:~!postfix.mysql:qt:readline:sasl:~!selinux:~sqlite.threadsafe:ssl:tcl:tcpwrappers:tk:~!xen:~xorg-server.dmx:~xorg-server.dri:~xorg-server.xnest',
-            'troveName': 'group-dist',
-            'protocolVersion': 1, 'outputUrl': 'http://nowhere:31337/',
-            'data': {'jsversion': '3.1.3',
-                'baseFileName': '',
-                'media-template': 'media-template=/test.rpath.local@rpl:devel/1.3.0-2-1[is: x86]'},
-            'description': 'this is a test'}, [])
-        g.mountDict = {'/mnt': (0, 100, 'ext3'), '/': (0, 100, 'ext3')}
-        def MockMakeFSImage(*args, **kwargs):
-            for mountPoint in g.mountDict.keys():
-                fn = g.mntPointFileName(mountPoint)
-                path = os.path.split(fn)[0]
-                util.mkdirChain(path)
-                f = open(fn, 'w')
-                f.write('test')
-                f.close()
-        g.makeFSImage = MockMakeFSImage
-        g.getImageSize = lambda *args, **kwargs: (100, {'/': 100, '/mnt': 100})
-        g.write()
-        self.failIf([x.split()[0] for x in self.callLog] != \
-                ['split', 'for', 'split', 'for', 'tar'],
-                "unexpected command sequnce")
+    def testCitrixXVA(self):
+        _listDir = os.listdir
+        _unlink = os.unlink
+
+        def listdir(path):
+            if path.endswith('xvda'):
+                return ['chunk-000000000', 'chunk-000000001']
+            else:
+                return _listdir(path)
+        def unlink(path):
+            if not path.endswith('hdimage'):
+                return _unlink(path)
+
+        try:
+            os.listdir = listdir
+            os.unlink = unlink
+
+            g = xen_ova.XenOVA({
+                'project': {'name': 'Foo Bar'},
+              }, [])
+            g.makeHDImage = lambda image_path: 1500000000
+            g.write()
+        finally:
+            os.listdir = _listDir
+            os.unlink = _unlink
+
+        self.failUnlessEqual(self.callLog, [
+                'split -b 1000000000 -a 9 -d %s/hdimage '
+                    '"%s/ova_base/xvda/chunk-"' % (g.workDir, g.workDir),
+                'gzip "%s/ova_base/xvda/chunk-000000000"' % g.workDir,
+                'gzip "%s/ova_base/xvda/chunk-000000001"' % g.workDir,
+                'tar -cv -f "%s/%s/%s.xva" -C "/tmp/workdir/ova_base" -T '
+                    '"%s/files"' % (constants.finishedDir, g.UUID,
+                    g.basefilename, g.workDir)
+            ])
+
+        file_list = open(g.workDir + '/files').read()
+        self.failUnlessEqual(file_list,
+            'ova.xml\nxvda/chunk-000000000.gz\nxvda/chunk-000000001.gz\n')
+
+        ova_maybe = open(g.workDir + '/ova_base/ova.xml').read()
+        ova_good = '''<?xml version="1.0" ?>
+    <appliance version="0.1">
+        <vm name="vm">
+            <label>Foo Bar</label>
+            <shortdesc>Created by rPath rBuilder</shortdesc>
+            <config mem_set="0" vcpus="1"/>
+            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/xvda1 ro ">
+            </hacks>
+<vbd device="xvda" function="root" mode="w" vdi="vdi_xvda" />
+        </vm>
+<vdi name="vdi_xvda" size="1500000000" source="file://xvda" type="dir-gzipped-chunks" variety="system" />
+</appliance>
+'''
+        self.failUnlessEqual(ova_maybe, ova_good)
 
         self.assertEquals(len(g.posted_output), 1)
-        self.assertEquals(g.posted_output[0][1], 'Xen OVA Image')
-
-    def testXenCreateXVA(self):
-        g = xen_ova.XenOVA({'buildType': buildtypes.XEN_OVA,
-            'outputToken': '580466f08ddfcfa130ee85f2d48c61ced992d4d4',
-            'name': 'Test Linux',
-            'type': 'build',
-            'troveVersion': '/test.rpath.local@rpl:devel/0.0:1.3-1-6',
-            'UUID': 'test.rpath.local-build-96',
-            'project': {'conaryCfg': 'entitlement test.rpath.com xxxxxxxxxxxxxx\nrepositoryMap test.rpath.local http://test.rpath.local/conary/\nuser test.rpath.local anonymous anonymous\n',
-                'hostname': 'test',
-                'name': 'Test Linux',
-                'label': 'test.rpath.local@rpl:devel'},
-            'troveFlavor': '1#x86:i486:i586:i686:~!sse2|5#use:~Mesa.dri:~MySQL-python.threadsafe:X:~!alternatives:~!ati:~!bootstrap:~buildtests:desktop:~!dom0:~!domU:emacs:gcj:gnome:~!grub.static:ipv6:~!kernel.debug:~!kernel.debugdata:~!kernel.numa:~!kernel.pae:~kernel.smp:krb:ldap:nptl:~!nvidia:~!openssh.smartcard:~!openssh.static_libcrypto:pam:pcre:perl:~!pie:~!postfix.mysql:qt:readline:sasl:~!selinux:~sqlite.threadsafe:ssl:tcl:tcpwrappers:tk:~!xen:~xorg-server.dmx:~xorg-server.dri:~xorg-server.xnest',
-            'troveName': 'group-dist',
-            'protocolVersion': 1, 'outputUrl': 'http://nowhere:31337/',
-            'data': {'jsversion': '3.1.3',
-                'baseFileName': '',
-                'media-template': 'media-template=/test.rpath.local@rpl:devel/1.3.0-2-1[is: x86]'},
-            'description': 'this is a test'}, [])
-        g.mountDict = {'/mnt': (0, 100, 'ext3'), '/': (0, 100, 'ext3')}
-        g.mountLabels = xen_ova.sortMountPoints(g.mountDict)
-        fd, tmpFile = tempfile.mkstemp()
-        try:
-            g.createXVA(tmpFile, {'/mnt' : 100, '/' : 100})
-            f = open(tmpFile)
-            data = f.read()
-            f.close()
-            ref = '\n'.join(('<?xml version="1.0" ?>',
-                '    <appliance version="0.1">',
-                '        <vm name="vm">',
-                '            <label>Test Linux</label>',
-                '            <shortdesc>Created by rPath rBuilder</shortdesc>',
-                '            <config mem_set="0" vcpus="1"/>',
-                '            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/sda1 ro ">',
-                '            </hacks>',
-                '            <vbd device="sda" function="root" mode="w" vdi="vdi_sda"/>',
-                '            <vbd device="sdb" function="root" mode="w" vdi="vdi_sdb"/>',
-                '        </vm>',
-                '    <vdi name="vdi_sda" size="100" source="file://sda" type="dir-gzipped-chunks"/>',
-                '    <vdi name="vdi_sdb" size="100" source="file://sdb" type="dir-gzipped-chunks"/>',
-                '</appliance>',
-                ''))
-            self.failIf(data != ref, "malformed XVA")
-        finally:
-            os.unlink(tmpFile)
+        self.assertEquals(g.posted_output[0][1], 'Citrix XenServer (TM) Image')
 
     def testTarball(self):
         oldChdir = os.chdir

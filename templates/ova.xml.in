@@ -4,7 +4,7 @@
             <label>@TITLE@</label>
             <shortdesc>@DESCRIPTION@</shortdesc>
             <config mem_set="@MEMORY@" vcpus="1"/>
-            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/sda1 ro ">
+            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/xvda1 ro ">
             </hacks>
 @VDB_ENTRIES@
         </vm>

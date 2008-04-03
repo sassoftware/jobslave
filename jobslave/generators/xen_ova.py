@@ -5,44 +5,20 @@
 #
 
 import os
-import tempfile
-import stat
-import zipfile
 
-from jobslave import buildtypes
 from jobslave.imagegen import logCall
 from jobslave.generators import constants
-from jobslave.generators import raw_fs_image, bootable_image
+from jobslave.generators import raw_hd_image, bootable_image
 
-from conary.lib import util, log
+from conary.lib import util
 
-def ordToAscii(index):
-    res = ''
-    while index >= 0:
-        modulus = index % 26
-        res = chr(97 + modulus) + res
-        index = (index - modulus) / 26 - 1
-    return res
 
-def sortMountPoints(mountDict):
-    res = {}
-    res['sda'] = '/boot' in mountDict and '/boot' or '/'
-    index = 1
-    for partition in sorted([x[0] for x in mountDict.iteritems() \
-            if x[1][-1] == 'swap']):
-        res['sd%s' % ordToAscii(index)] = partition
-        index += 1
-    for partition in sorted([x for x in mountDict if x not in res.values()]):
-        res['sd%s' % ordToAscii(index)] = partition
-        index += 1
-    return res
-
-class XenOVA(raw_fs_image.RawFsImage):
+class XenOVA(raw_hd_image.RawHdImage):
     templateName = 'ova.xml.in'
-    suffix = '.xva.tar'
+    suffix = '.xva'
 
     @bootable_image.timeMe
-    def createXVA(self, outfile, sizes):
+    def createXVA(self, outfile, size):
         # Read in the stub file
         infile = file(os.path.join(constants.templateDir, self.templateName),
                       'rb')
@@ -55,53 +31,64 @@ class XenOVA(raw_fs_image.RawFsImage):
         template = template.replace('@DESCRIPTION@',
             'Created by rPath rBuilder')
         template = template.replace('@MEMORY@', str(self.getBuildData('vmMemory') * 1024 * 1024))
-        vbdLines = ''
-        vdiLines = ''
-        for label, mountPoint in self.mountLabels.iteritems():
-            settings = {'label': label, 'diskSize': sizes[mountPoint]}
-            vbdLine = '            <vbd device="%(label)s" function="root" ' \
-                    'mode="w" vdi="vdi_%(label)s"/>\n'
-            vbdLine %= settings
-            vbdLines += vbdLine
-            vdiLine = '    <vdi name="vdi_%(label)s" size="%(diskSize)d" '\
-                    'source="file://%(label)s" type="dir-gzipped-chunks"/>\n'
-            vdiLine %= settings
-            vdiLines += vdiLine
 
-        template = template.replace('@VDB_ENTRIES@', vbdLines[:-1])
-        template = template.replace('@VDI_ENTRIES@', vdiLines[:-1])
+        vbdLines = '<vbd device="xvda" function="root" mode="w" ' \
+            'vdi="vdi_xvda" />'
+        vdiLines = '<vdi name="vdi_xvda" size="%d" ' \
+            'source="file://xvda" type="dir-gzipped-chunks" ' \
+            'variety="system" />' % size
+ 
+        template = template.replace('@VDB_ENTRIES@', vbdLines)
+        template = template.replace('@VDI_ENTRIES@', vdiLines)
         # write the file to the proper location
         ofile = file(outfile, 'wb')
         ofile.write(template)
         ofile.close()
 
     def write(self):
+        # Output setup
         topDir = os.path.join(self.workDir, 'ova_base')
-        baseDir = os.path.join(topDir, self.basefilename)
-        util.mkdirChain(baseDir)
-        ovaPath = os.path.join(baseDir, 'ova.xml')
+        util.mkdirChain(topDir)
+
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         deliverable = os.path.join(outputDir, self.basefilename + self.suffix)
 
-        # image building stage.
-        totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
-        self.makeFSImage(sizes)
+        # Build the filesystem images
+        #totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
+        image_path = os.path.join(self.workDir, 'hdimage')
+        size = self.makeHDImage(image_path)
 
-        self.mountLabels = sortMountPoints(self.mountDict)
+        # Open a manifest for tar so that it writes out files in the optimal
+        # order.
+        manifest_path = os.path.join(self.workDir, 'files')
+        manifest = open(manifest_path, 'w')
 
-        self.createXVA(ovaPath, sizes)
-        for label, mntPoint in self.mountLabels.iteritems():
-            fn = self.mntPointFileName(mntPoint)
-            assert os.path.exists(fn), "Missing partition File: %s" % fn
-            chunkPrefix = os.path.join(baseDir, label, 'chunk-')
-            util.mkdirChain(os.path.split(chunkPrefix)[0])
+        # Write the ova.xml file
+        ovaName = 'ova.xml'
+        ovaPath = os.path.join(topDir, ovaName)
+        self.createXVA(ovaPath, size)
+        print >>manifest, ovaName
 
-            logCall('split -b 1000000000 -a 8 -d %s "%s"' % \
-                             (fn, chunkPrefix))
+        # Split the HD image into 1GB (not GiB) chunks
+        label = 'xvda'
+        chunk_dir = os.path.join(topDir, label)
+        chunkPrefix = os.path.join(chunk_dir, 'chunk-')
+        util.mkdirChain(os.path.split(chunkPrefix)[0])
 
-            logCall('for a in "%s*"; do gzip $a; done' % chunkPrefix)
-        tarBase, tarTarget = os.path.split(baseDir)
-        logCall('tar -cv -C %s %s > %s' % \
-                         (tarBase, tarTarget, deliverable))
-        self.postOutput(((deliverable, 'Xen OVA Image'),))
+        logCall('split -b 1000000000 -a 9 -d %s "%s"' % \
+            (image_path, chunkPrefix))
+
+        # Delete the FS image to free up temp space
+        os.unlink(image_path)
+
+        # Compress the chunks and add them to the manifest
+        for chunk_name in sorted(os.listdir(chunk_dir)):
+            logCall('gzip "%s"' % os.path.join(chunk_dir, chunk_name))
+            print >>manifest, os.path.join(label, chunk_name) + '.gz'
+
+        # Create XVA file
+        manifest.close()
+        logCall('tar -cv -f "%s" -C "%s" -T "%s"' % \
+                         (deliverable, topDir, manifest_path))
+        self.postOutput(((deliverable, 'Citrix XenServer (TM) Image'),))
