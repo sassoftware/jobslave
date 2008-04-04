@@ -76,6 +76,7 @@ class XenOVA(raw_hd_image.RawHdImage):
         chunkPrefix = os.path.join(chunk_dir, 'chunk-')
         util.mkdirChain(os.path.split(chunkPrefix)[0])
 
+        self.status('Splitting hard disk image')
         logCall('split -b 1000000000 -a 9 -d %s "%s"' % \
             (image_path, chunkPrefix))
 
@@ -83,12 +84,14 @@ class XenOVA(raw_hd_image.RawHdImage):
         os.unlink(image_path)
 
         # Compress the chunks and add them to the manifest
+        self.status('Compressing image chunks')
         for chunk_name in sorted(os.listdir(chunk_dir)):
             logCall('gzip "%s"' % os.path.join(chunk_dir, chunk_name))
             print >>manifest, os.path.join(label, chunk_name) + '.gz'
 
         # Create XVA file
         manifest.close()
+        self.status('Creating XVA Image')
         logCall('tar -cv -f "%s" -C "%s" -T "%s"' % \
                          (deliverable, topDir, manifest_path))
         self.postOutput(((deliverable, 'Citrix XenServer (TM) Image'),))
