@@ -63,8 +63,8 @@ class RawHdImage(bootable_image.BootableImage):
 
         # pad 10% for LVM overhead and realign lvmSize
         lvmSize = sum(x[1] for x in realSizes.items() if x[0] != rootPart)
-        lvmSize += lvmSize * 0.10
-        totalSize += lvmSize * 0.10
+        lvmSize += int(lvmSize * 0.10)
+        totalSize += int(lvmSize * 0.10)
 
         # align totalSize to cylinder
         totalSize += (constants.cylindersize - \
