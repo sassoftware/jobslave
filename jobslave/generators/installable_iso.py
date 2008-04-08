@@ -174,8 +174,14 @@ class InstallableIso(ImageGenerator):
     def writeBuildStamp(self, tmpPath):
         ver = versions.ThawVersion(self.jobData['troveVersion'])
 
+        isDep = deps.InstructionSetDependency
+        archFlv = getArchFlavor(self.baseFlavor)
+        arch = [ x.name for x in archFlv.iterDepsByClass(isDep) ][0]
+
+        stamp = '%s.%s' % (int(time.time()), arch)
+
         bsFile = open(os.path.join(tmpPath, ".buildstamp"), "w")
-        print >> bsFile, time.time()
+        print >> bsFile, stamp
         print >> bsFile, self.jobData['name']
         print >> bsFile, upstream(ver)
         print >> bsFile, self.productDir
