@@ -176,7 +176,12 @@ class InstallableIso(ImageGenerator):
 
         isDep = deps.InstructionSetDependency
         archFlv = getArchFlavor(self.baseFlavor)
-        arch = [ x.name for x in archFlv.iterDepsByClass(isDep) ][0]
+
+        arch = ''
+        if archFlv:
+            arches = [ x.name for x in archFlv.iterDepsByClass(isDep) ]
+            if len(arches) > 0:
+                arch = arches[0]
 
         stamp = '%s.%s' % (int(time.time()), arch)
 
