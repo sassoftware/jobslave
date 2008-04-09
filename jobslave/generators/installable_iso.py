@@ -178,7 +178,7 @@ class InstallableIso(ImageGenerator):
         archFlv = getArchFlavor(self.baseFlavor)
 
         arch = ''
-        if archFlv:
+        if archFlv is not None:
             arches = [ x.name for x in archFlv.iterDepsByClass(isDep) ]
             if len(arches) > 0:
                 arch = arches[0]
