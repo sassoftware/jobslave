@@ -24,6 +24,7 @@ validBuildTypes = {
     'AMI'              : 14,
     'UPDATE_ISO'       : 15,
     'APPLIANCE_ISO'    : 16,
+    'IMAGELESS'        : 17,
     }
 
 TYPES = validBuildTypes.values()
@@ -59,6 +60,7 @@ typeNames = {
     AMI:                "Amazon Machine Image",
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Installable ISO",
+    IMAGELESS:          "Group-Only",
 }
 
 typeNamesShort = {
@@ -78,6 +80,7 @@ typeNamesShort = {
     AMI:                "AMI",
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Inst",
+    IMAGELESS:          "Group-Only",
 }
 
 typeNamesMarketing = {
@@ -97,4 +100,5 @@ typeNamesMarketing = {
     AMI:                "Amazon Machine Image",
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Installable ISO",
+    IMAGELESS:          "Group-Only",
 }
