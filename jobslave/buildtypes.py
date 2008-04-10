@@ -60,7 +60,7 @@ typeNames = {
     AMI:                "Amazon Machine Image",
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Installable ISO",
-    IMAGELESS:          "Group-Only",
+    IMAGELESS:          "Online Update",
 }
 
 typeNamesShort = {
@@ -80,7 +80,7 @@ typeNamesShort = {
     AMI:                "AMI",
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Inst",
-    IMAGELESS:          "Group-Only",
+    IMAGELESS:          "Online Update",
 }
 
 typeNamesMarketing = {
@@ -100,5 +100,5 @@ typeNamesMarketing = {
     AMI:                "Amazon Machine Image",
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Installable ISO",
-    IMAGELESS:          "Group-Only",
+    IMAGELESS:          "Online Update",
 }
