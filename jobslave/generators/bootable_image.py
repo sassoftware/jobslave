@@ -487,10 +487,14 @@ class BootableImage(ImageGenerator):
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
-        # remove root password
+        # set up shadow passwords/md5 passwords
         if os.path.exists(os.path.join(dest, 'usr/sbin/authconfig')):
             logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 "
                 "--enableshadow --disablecache" % dest)
+        elif os.path.exists(os.path.join(dest, 'usr/sbin/pwconv')):
+            logCall("chroot %s /usr/sbin/pwconv" % dest)
+
+        # remove root password
         if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
             logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
                 ignoreErrors=True)
