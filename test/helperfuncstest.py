@@ -30,6 +30,8 @@ class HelperFunctionsTest(testsuite.TestCase):
         finally:
             os.dup2(oldErr, sys.stderr.fileno())
             os.dup2(oldOut, sys.stdout.fileno())
+            os.close(oldErr)
+            os.close(oldOut)
 
     def testWatchdog(self):
         self.dummyPid = 3

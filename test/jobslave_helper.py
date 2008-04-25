@@ -159,6 +159,8 @@ class JobSlaveHelper(testhelp.TestCase):
         finally:
             os.dup2(oldErr, sys.stderr.fileno())
             os.dup2(oldOut, sys.stdout.fileno())
+            os.close(oldErr)
+            os.close(oldOut)
 
     def touch(self, fn, contents = ''):
         if not os.path.exists(fn):
