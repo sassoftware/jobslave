@@ -140,10 +140,10 @@ class GrubInstaller(bootloader.BootloaderInstaller):
     def install(self):
         # Now that grubby has had a chance to add the new kernel,
         # remove the template entry added in setup()
-        #if os.path.exists(os.path.join(self.image_root, 'sbin', 'grubby')):
-        logCall('chroot %s /sbin/grubby '
-                    '--remove-kernel=/boot/vmlinuz-template' % self.image_root)
-        #ignoreErrors=True)
+        if os.path.exists(os.path.join(self.image_root, 'sbin', 'grubby')):
+            logCall('chroot %s /sbin/grubby '
+                    '--remove-kernel=/boot/vmlinuz-template' % self.image_root,
+                    ignoreErrors=True)
 
         # If bootman is present, configure it for grub and run it
         if os.path.exists(os.path.join(self.image_root, 'sbin', 'bootman')):
