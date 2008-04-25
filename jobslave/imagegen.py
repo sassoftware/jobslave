@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2006 rPath, Inc.
+# Copyright (c) 2004-2008 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -11,6 +11,7 @@ import StringIO
 import subprocess
 import select
 import sys
+import tempfile
 import time
 import threading
 import traceback
@@ -35,6 +36,15 @@ class LogHandler(logging.Handler):
         self._msgs = ''
         self.lastSent = 0
         logging.Handler.__init__(self)
+        d = tempfile.mkdtemp()
+        self.logfn = os.path.join(d, 'build.log')
+        self.logfd = os.open(self.logfn, os.O_CREAT|os.O_WRONLY)
+
+    def __del__(self):
+        os.close(self.logfd)
+
+    def getFilename(self):
+        return self.logfn
 
     def flush(self):
         self.lastSent = time.time()
@@ -48,6 +58,7 @@ class LogHandler(logging.Handler):
             sys.stderr.flush()
 
     def emit(self, record):
+        os.write(self.logfd, record.getMessage() + '\n')
         self._msgs += record.getMessage() + '\n'
         if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
             self.flush()
@@ -230,7 +241,15 @@ class Generator(threading.Thread):
                     log.error(btText)
                     log.error('Failed job: %s' % self.jobId)
                     self.logger.flush()
-                    raise
+                    try:
+                        if self.jobData.has_key('buildId'):
+                            fn = self.logger.getFilename()
+                            self.postOutput(((fn, 'Failed build log'),))
+                    except:
+                        tb = traceback.format_exception(*sys.exc_info())
+                        log.error('Error publishing failed job log')
+                        log.error(''.join(tb))
+                    raise exc, e, bt
                 else:
                     self.status('Job Finished',
                                 status = jobstatus.FINISHED)
