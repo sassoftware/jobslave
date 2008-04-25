@@ -491,8 +491,8 @@ class BootableImage(ImageGenerator):
         #if os.path.exists(os.path.join(dest, 'usr/sbin/authconfig')):
         logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 "
                 "--enableshadow --disablecache" % dest)
-        elif os.path.exists(os.path.join(dest, 'usr/sbin/pwconv')):
-            logCall("chroot %s /usr/sbin/pwconv" % dest)
+##         elif os.path.exists(os.path.join(dest, 'usr/sbin/pwconv')):
+##             logCall("chroot %s /usr/sbin/pwconv" % dest)
 
         # remove root password
         if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
