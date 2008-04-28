@@ -64,8 +64,8 @@ def setup():
     conaryPath      = os.getenv('CONARY_PATH')
     conaryTestPath  = os.getenv('CONARY_TEST_PATH',     os.path.join(conaryPath, '..', 'conary-test'))
     mcpPath         = os.getenv('MCP_PATH',             '../../mcp')
-    jobslavePath    = os.getenv('JOB_SLAVE_PATH',       '..')
-    jsTestPath      = os.getenv('JOB_SLAVE_TEST_PATH',  '.')
+    jobslavePath    = os.getenv('JOB_SLAVE_PATH',       os.path.join(os.getcwd(), '..'))
+    jsTestPath      = os.getenv('JOB_SLAVE_TEST_PATH',  os.getcwd())
 
     sys.path = [os.path.realpath(x) for x in (jobslavePath, jsTestPath, mcpPath,
         conaryPath, conaryTestPath)] + sys.path
@@ -122,7 +122,7 @@ def main(argv=None, individual=True):
         suiteClass = testhelp.ConaryTestSuite
 
         def getCoverageDirs(self, environ):
-            return environ['jobslave']
+            return os.environ['JOB_SLAVE_PATH']
 
         def getCoverageExclusions(self, environ):
             return EXCLUDED_PATHS
