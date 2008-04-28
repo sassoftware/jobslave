@@ -16,6 +16,7 @@ from jobslave import splitdistro
 
 from conary import versions
 from conary.lib import util
+from conary.lib.sha1helper import sha1String, sha1ToString
 
 class TarSplit(object):
     def __init__(self, file):
@@ -49,8 +50,15 @@ class TarSplit(object):
             chunkfh.write(chunk)
             chunkfh.close()
 
-            self.files.append(self._formatFileName())
-            self.tblist.append('%s %s %s' % (self._formatFileName(), size, 1))
+            fileName = self._formatFileName()
+            sha1sum = sha1ToString(sha1String(chunk))
+
+            self.files.append(fileName)
+
+            # Add both lines to the tblist for backwards compatibility with
+            # older versions of Anaconda.
+            self.tblist.append('%s %s %s' % (fileName, size, 1))
+            self.tblist.append('%s %s %s %s' % (fileName, size, 1, sha1sum))
 
             self.count += 1
 
