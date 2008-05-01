@@ -494,6 +494,19 @@ class BootableImage(ImageGenerator):
         elif os.path.exists(os.path.join(dest, 'usr/sbin/pwconv')):
             logCall("chroot %s /usr/sbin/pwconv" % dest)
 
+        # allow empty password to log in for virtual appliance
+        if os.path.exists(os.path.join(dest, 'etc/pam.d/common-auth')):
+            f = open(os.path.join(dest, 'etc/pam.d/common-auth'))
+            lines = []
+            for line in f:
+                line = line.strip()
+                if 'pam_unix2.so' in line and 'nullok' not in line:
+                    line += ' nullok'
+                lines.append(line)
+            lines.append('')
+            f = open(os.path.join(dest, 'etc/pam.d/common-auth'), 'w')
+            f.write('\n'.join(lines))
+
         # remove root password
         if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
             logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
