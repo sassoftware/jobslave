@@ -208,7 +208,7 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
                 destUrl, outputToken, files)
 
             fLen, hash = self.buildFilenames[0][0][2:]
-            self.assertEquals(fLen, len(buf))
+            self.assertEquals(fLen, str(len(buf)))
             sha1 = sha.new()
             sha1.update(buf)
             self.assertEquals(hash, sha1.hexdigest())

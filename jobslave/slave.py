@@ -228,8 +228,9 @@ class JobSlave(object):
                 digest = sha1)
 
             sha1 = sha1ToString(sha1.digest())
-            filenames.append((fn, desc, size, sha1))
-            logging.info("wrote %d bytes of %s (%s)" % (size, fn, sha1))
+            # use a string for size to get around XML-RPC limits (RBL-2789)
+            filenames.append((fn, desc, str(size), sha1))
+            logging.info("wrote %s bytes of %s (%s)" % (size, fn, sha1))
 
         rba = xmlrpclib.ServerProxy("%s/xmlrpc/" % destUrl)
         r = rba.setBuildFilenamesSafe(buildId, outputToken, filenames)
