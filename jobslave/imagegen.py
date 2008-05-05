@@ -10,6 +10,7 @@ import signal
 import StringIO
 import subprocess
 import select
+import shutil
 import sys
 import tempfile
 import time
@@ -225,6 +226,24 @@ class Generator(threading.Thread):
         else:
             log.error("couldn't post output")
 
+    def postFailedJobLog(self):
+        if not self.jobData.has_key('buildId'):
+            return
+        fn = self.logger.getFilename()
+        # append some useful log files to the build log
+        f = open(fn, 'a')
+        for filename in ('conary-tag-script',
+                         'conary-tag-script.output'):
+            logfile = os.path.join(self.conarycfg.root,
+                                   'root', filename)
+            if os.path.exists(logfile):
+                f.write('--- /root/%s ---\n' %filename)
+                inf = open(logfile)
+                shutil.copyfileobj(inf, f)
+                inf.close()
+        f.close()
+        self.postOutput(((fn, 'Failed build log'),))
+
     def run(self):
         self.pid = os.fork()
         if not self.pid:
@@ -242,9 +261,7 @@ class Generator(threading.Thread):
                     log.error('Failed job: %s' % self.jobId)
                     self.logger.flush()
                     try:
-                        if self.jobData.has_key('buildId'):
-                            fn = self.logger.getFilename()
-                            self.postOutput(((fn, 'Failed build log'),))
+                        self.postFailedJobLog()
                     except:
                         tb = traceback.format_exception(*sys.exc_info())
                         log.error('Error publishing failed job log')
