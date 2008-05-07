@@ -130,6 +130,17 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         f.write(conf)
         f.close()
 
+        # write /etc/sysconfig/bootloader for SUSE systems
+        if os.path.exists(
+            os.path.join(self.image_root, 'etc', 'SuSE-release')):
+            f = open(
+                os.path.join(self.image_root, 'etc', 'sysconfig', 'bootloader'), 'w')
+            f.write('CYCLE_DETECTION="no"\n')
+            f.write('CYCLE_NEXT_ENTRY="1"\n')
+            f.write('LOADER_LOCATION=""\n')
+            f.write('LOADER_TYPE="grub"\n')
+            f.close()
+
         os.chmod(os.path.join(self.image_root, 'boot/grub/grub.conf'), 0600)
         # Create the appropriate links
         os.symlink('grub.conf',
