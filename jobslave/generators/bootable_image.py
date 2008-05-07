@@ -509,7 +509,7 @@ class BootableImage(ImageGenerator):
             for line in mounts:
                 line = line.strip()
                 mntpoint = line.split(' ')[1]
-                if dest in mntpoint:
+                if mntpoint.startswith(dest) and mntpoint != dest:
                     mntlist.append(mntpoint)
             # unmount in reverse sorted order to get /foo/bar before /foo
             for mntpoint in reversed(sorted(mntlist)):

@@ -465,7 +465,8 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                 if args[0] == '/proc/mounts':
                     return StringIO("""proc %(d)s/proc blah
 sysfs %(d)s/sys blah
-sysfs %(d)s/sys/bar blah""" %dict(d=tmpDir))
+sysfs %(d)s/sys/bar blah
+loop0 %(d)s blah""" %dict(d=tmpDir))
                 return open(*args)
             self.cmds = []
             bootable_image.logCall = mockLog
