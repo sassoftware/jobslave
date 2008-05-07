@@ -479,7 +479,7 @@ class BootableImage(ImageGenerator):
             if os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release')):
                 # SUSE needs udev to be started in the chroot in order to
                 # run mkinitrd
-                logCall("chroot %s bash -c '/etc/rc.d/boot.udev start'" %dest)
+                logCall("chroot %s bash -c '/etc/rc.d/boot.udev restart'" %dest)
             for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
                 tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
                 if not os.path.exists(util.joinPaths(dest, tagPath)):
