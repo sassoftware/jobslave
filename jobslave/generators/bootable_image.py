@@ -479,7 +479,10 @@ class BootableImage(ImageGenerator):
             if os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release')):
                 # SUSE needs udev to be started in the chroot in order to
                 # run mkinitrd
-                logCall("chroot %s bash -c '/etc/rc.d/boot.udev restart'" %dest)
+                logCall("chroot %s bash -c '/etc/rc.d/boot.udev stop'" %dest)
+                logCall("chroot %s bash -c '/etc/rc.d/boot.udev start'" %dest)
+                logCall("chroot %s bash -c '/etc/rc.d/boot.udev force-reload'" %dest)
+
             for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
                 tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
                 if not os.path.exists(util.joinPaths(dest, tagPath)):
@@ -503,6 +506,9 @@ class BootableImage(ImageGenerator):
                         log.warning('error recording tag handler output')
                     raise exc, e, bt
         finally:
+            if os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release')):
+                logCall("chroot %s bash -c '/etc/rc.d/boot.udev stop'" %dest)
+
             # umount all mounts inside the chroot.
             mounts = open('/proc/mounts', 'r')
             mntlist = []
