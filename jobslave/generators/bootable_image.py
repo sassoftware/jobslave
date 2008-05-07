@@ -478,8 +478,22 @@ class BootableImage(ImageGenerator):
             for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
                 tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
                 if os.path.exists(util.joinPaths(dest, tagPath)):
-                    logCall("chroot %s bash -c 'sh -x %s > %s 2>&1'" % \
-                                     (dest, tagPath, tagPath + '.output'))
+                    try:
+                        logCall("chroot %s bash -c 'sh -x %s > %s 2>&1'" %
+                                (dest, tagPath, tagPath + '.output'))
+                    except Exception, e:
+                        exc, e, bt = sys.exc_info()
+                        try:
+                            log.warning('error executing %s: %s', tagPath, e)
+                            log.warning('script contents:')
+                            log.warning('----------------')
+                            log.warning(file(tagPath, 'r').read())
+                            log.warning('script output:')
+                            log.warning('----------------')
+                            log.warning(file(tagPath + '.output', 'r').read())
+                        except:
+                            log.warning('error recording tag handler output')
+                        raise exc, e, bt
         finally:
             logCall('umount %s' % os.path.join(dest, 'proc'))
             logCall('umount %s' % os.path.join(dest, 'sys'))

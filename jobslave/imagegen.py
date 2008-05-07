@@ -230,19 +230,6 @@ class Generator(threading.Thread):
         if not self.jobData.has_key('buildId'):
             return
         fn = self.logger.getFilename()
-        # append some useful log files to the build log
-        f = open(fn, 'a')
-        for filename in ('conary-tag-script', 'conary-tag-script.output'):
-            logfile = os.path.join(self.conarycfg.root,
-                                   'root', filename)
-            if os.path.exists(logfile):
-                f.write('--- /root/%s ---\n' %filename)
-                inf = open(logfile)
-                shutil.copyfileobj(inf, f)
-                inf.close()
-            else:
-                f.write('unable to open %s\n' %logfile)
-        f.close()
         self.postOutput(((fn, 'Failed build log'),))
 
     def run(self):
