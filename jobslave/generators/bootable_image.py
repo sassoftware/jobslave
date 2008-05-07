@@ -475,6 +475,11 @@ class BootableImage(ImageGenerator):
             inScript = outScript + '.in'
             logCall('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
             os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
+
+            if os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release')):
+                # SUSE needs udev to be started in the chroot in order to
+                # run mkinitrd
+                logCall("chroot %s bash -c '/etc/rc.d/boot.udev start'" %dest)
             for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
                 tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
                 if not os.path.exists(util.joinPaths(dest, tagPath)):
