@@ -14,6 +14,7 @@ import tempfile
 import time
 import simplejson
 import xmlrpclib
+from StringIO import StringIO
 
 from conary.lib import util
 from conary.deps import deps
@@ -460,18 +461,33 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     lambda *args, **kwargs: None
             def mockLog(cmd, ignoreErrors=False):
                 self.cmds.append(cmd)
+            def mockOpen(*args):
+                if args[0] == '/proc/mounts':
+                    return StringIO("""proc %(d)s/proc blah
+sysfs %(d)s/sys blah
+sysfs %(d)s/sys/bar blah""" %dict(d=tmpDir))
+                return open(*args)
             self.cmds = []
             bootable_image.logCall = mockLog
+            bootable_image.open = mockOpen
+            bootable_image.file = mockOpen
             self.bootable.installFileTree(tmpDir)
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
-            self.failIf(len(self.cmds) != 9,
+            self.failIf(len(self.cmds) != 10,
                     "unexpected number of external calls")
+            # make sure we unmount things in the right order
+            self.failUnlessEqual(self.cmds[4:7],
+                                 ['umount %s/sys/bar' %tmpDir,
+                                  'umount %s/sys' %tmpDir,
+                                  'umount %s/proc' %tmpDir])
         finally:
             util.rmtree(tmpDir)
             util.rmtree(constants.tmpDir)
             constants.tmpDir = saved_tmpDir
             bootable_image.logCall = logCall
+            bootable_image.open = open
+            bootable_image.file = file
             self.bootable.updateKernelChangeSet = updateKernelChangeSet
             self.bootable.updateGroupChangeSet = updateGroupChangeSet
             self.bootable.fileSystemOddsNEnds = fileSystemOddsNEnds

@@ -498,8 +498,17 @@ class BootableImage(ImageGenerator):
                         log.warning('error recording tag handler output')
                     raise exc, e, bt
         finally:
-            logCall('umount %s' % os.path.join(dest, 'proc'))
-            logCall('umount %s' % os.path.join(dest, 'sys'))
+            # umount all mounts inside the chroot.
+            mounts = open('/proc/mounts', 'r')
+            mntlist = []
+            for line in mounts:
+                line = line.strip()
+                mntpoint = line.split(' ')[1]
+                if dest in mntpoint:
+                    mntlist.append(mntpoint)
+            # unmount in reverse sorted order to get /foo/bar before /foo
+            for mntpoint in reversed(sorted(mntlist)):
+                logCall('umount %s' % mntpoint)
 
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
