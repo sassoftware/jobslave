@@ -487,14 +487,12 @@ class BootableImage(ImageGenerator):
                     try:
                         log.warning('error executing %s: %s', tagPath, e)
                         log.warning('script contents:')
-                        log.warning('----------------')
                         f = file(os.path.join(dest, tagPath), 'r')
-                        log.warning(f.read())
+                        log.warning('----------------\n' + f.read())
                         f.close()
                         log.warning('script output:')
-                        log.warning('----------------')
                         f = file(os.path.join(dest, tagPath + '.output'), 'r')
-                        log.warning(f.read())
+                        log.warning('----------------\n' + f.read())
                         f.close()
                     except:
                         log.warning('error recording tag handler output')
