@@ -487,11 +487,11 @@ class BootableImage(ImageGenerator):
                     try:
                         log.warning('error executing %s: %s', tagPath, e)
                         log.warning('script contents:')
-                        f = file(os.path.join(dest, tagPath), 'r')
+                        f = file(util.joinPaths(dest, tagPath), 'r')
                         log.warning('----------------\n' + f.read())
                         f.close()
                         log.warning('script output:')
-                        f = file(os.path.join(dest, tagPath + '.output'), 'r')
+                        f = file(util.joinPaths(dest, tagPath + '.output'), 'r')
                         log.warning('----------------\n' + f.read())
                         f.close()
                     except:
