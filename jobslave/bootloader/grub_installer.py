@@ -152,6 +152,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             os.symlink('../boot/grub/grub.conf',
                        os.path.join(self.image_root, 'etc', 'grub.conf'))
         else:
+            # create /etc/grub.conf as SUSE scripts expect
             f = open(os.path.join(self.image_root, 'etc', 'grub.conf'), 'w')
             f.write('setup (hd0)\n')
             f.write('quit\n')

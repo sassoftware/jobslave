@@ -562,7 +562,7 @@ class BootableImage(ImageGenerator):
         grub_conf = os.path.join(dest, 'boot/grub/grub.conf')
         if os.path.exists(grub_conf):
             contents = open(grub_conf).read()
-            contents = re.compile('^default saved', re.M
+            contents = re.compile('^default .*', re.M
                 ).sub('default 0', contents)
             open(grub_conf, 'w').write(contents)
 
