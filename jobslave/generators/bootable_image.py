@@ -11,6 +11,7 @@ import sys
 import re
 import signal
 import stat
+import subprocess
 import time
 
 # mint imports
@@ -399,7 +400,8 @@ class BootableImage(ImageGenerator):
         f.close()
 
     @timeMe
-    def writeGrubDeviceMap(self, dest):
+    def writeDeviceMaps(self, dest):
+        # first write a grub device map
         filePath = os.path.join(dest, 'boot', 'grub', 'device.map')
         util.mkdirChain(os.path.dirname(filePath))
         f = open(filePath, 'w')
@@ -411,6 +413,28 @@ class BootableImage(ImageGenerator):
                            '(fd0) /dev/fd0',
                            '(hd0) %s' %hd0)))
         f.close()
+
+        # next write a blkid cache file
+        filePath = os.path.join(dest, 'etc', 'blkid.tab')
+        util.mkdirChain(os.path.dirname(filePath))
+        f = open(filePath, 'w')
+        if self.scsiModules:
+            dev = '/dev/sda1'
+            devno = '0x0801'
+        else:
+            dev = '/dev/hda1'
+            devno = '0x0301'
+        # get the uuid of the root filesystem
+        p = subprocess.Popen(
+            "tune2fs -l /dev/loop0 | grep UUID | awk '{print $3}'",
+            shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        stdout, stderr = p.communicate()
+        uuid = stdout.strip()
+        f.write('<device DEVNO="%s" TIME="%s" LABEL="/" '
+                'UUID="%s" SEC_TYPE="ext2" TYPE="ext3">%s</device>'
+                % (devno, int(time.time()), uuid, dev))
+        f.close()
+
 
     @timeMe
     def updateGroupChangeSet(self, cclient):
@@ -570,10 +594,7 @@ class BootableImage(ImageGenerator):
             bootloader_installer.setup()
 
             self.addScsiModules(dest)
-            # FIXME: this should probably move to the bootloader code
-            # but the bootloader code does not know if scsi modules
-            # are to be used
-            self.writeGrubDeviceMap(dest)
+            self.writeDeviceMaps(dest)
             self.runTagScripts(dest)
         finally:
             self.killChrootProcesses(dest)
