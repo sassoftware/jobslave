@@ -400,7 +400,7 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def writeGrubDeviceMap(self, dest):
-        filePath = os.path.join(dest, 'boot', 'grub', 'devices.map')
+        filePath = os.path.join(dest, 'boot', 'grub', 'device.map')
         util.mkdirChain(os.path.dirname(filePath))
         f = open(filePath, 'w')
         if self.scsiModules:
