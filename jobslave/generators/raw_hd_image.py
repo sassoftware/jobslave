@@ -108,7 +108,17 @@ class RawHdImage(bootable_image.BootableImage):
         bootloader_installer = self.installFileTree(root_dir)
 
         # Install bootloader's MBR onto the disk
-        bootloader_installer.install_mbr(image, totalSize)
+        #  first bind mount the disk image into the root dir.
+        #  this lets some bootloaders (like grub) write to the disk
+        diskpath = os.path.join(root_dir, 'disk.img')
+        f = open(diskpath, 'w')
+        f.close()
+        logCall('mount -obind %s %s' %(image, diskpath))
+        try:
+            bootloader_installer.install_mbr(root_dir, image, totalSize)
+        finally:
+            logCall('umount %s' % diskpath)
+            os.unlink(diskpath)
 
         # Unmount and destroy LVM
         try:
