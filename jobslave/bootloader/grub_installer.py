@@ -151,6 +151,11 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 self.image_root, 'boot', 'grub', 'menu.lst'))
             os.symlink('../boot/grub/grub.conf',
                        os.path.join(self.image_root, 'etc', 'grub.conf'))
+        else:
+            f = open(os.path.join(self.image_root, 'etc', 'grub.conf'), 'w')
+            f.write('setup (hd0)\n')
+            f.write('quit\n')
+            f.close()
 
     def install(self):
         # Now that grubby has had a chance to add the new kernel,
