@@ -431,7 +431,7 @@ class BootableImage(ImageGenerator):
         stdout, stderr = p.communicate()
         uuid = stdout.strip()
         f.write('<device DEVNO="%s" TIME="%s" LABEL="/" '
-                'UUID="%s" SEC_TYPE="ext2" TYPE="ext3">%s</device>'
+                'UUID="%s" SEC_TYPE="ext2" TYPE="ext3">%s</device>\n'
                 % (devno, int(time.time()), uuid, dev))
         f.close()
 
