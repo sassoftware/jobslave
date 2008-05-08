@@ -471,6 +471,12 @@ class BootableImage(ImageGenerator):
 
             if self.scsiModules:
                 self.addScsiModules(dest)
+                # set rootdev environment variable so that SUSE mkinitrd
+                # does not use /dev/xvda1
+                os.environ['rootdev'] = '/dev/sda1'
+            else:
+                os.environ['rootdev'] = '/dev/hda1'
+
             outScript = os.path.join(dest, 'root', 'conary-tag-script')
             inScript = outScript + '.in'
             logCall('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
