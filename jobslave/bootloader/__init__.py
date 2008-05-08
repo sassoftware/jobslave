@@ -27,12 +27,13 @@ class BootloaderInstaller(object):
         '''
         raise NotImplemented
 
-    def install_mbr(self, mbr_device, size):
+    def install_mbr(self, root_dir, mbr_device, size):
         '''
         Install the bootloader's MBR.
 
         Called after install() for image types with a full hard drive.
 
+        @param root_dir: directory where the root filesystem is mounted
         @param mbr_device: File into which the MBR should be written.
         @param size: Size of the "disk" where the MBR is being written,
             in bytes.
