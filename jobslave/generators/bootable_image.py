@@ -505,7 +505,7 @@ class BootableImage(ImageGenerator):
             exepath = os.path.join(os.path.sep, 'proc', pid, 'exe')
             if os.path.islink(exepath) and os.access(exepath, os.R_OK):
                 exe = os.readlink(exepath)
-                if exe.startswith('/opt'):
+                if exe.startswith(dest):
                     pids.add(pid)
 
         sig = signal.SIGTERM
@@ -514,6 +514,7 @@ class BootableImage(ImageGenerator):
             # send a kill signal to any process that has an executable
             # from the chroot
             for pid in pids.copy():
+                log.info('Killing pid %s with signal %d', pid, sig)
                 os.kill(int(pid), sig)
 
             time.sleep(.1)
