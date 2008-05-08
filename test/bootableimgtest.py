@@ -269,6 +269,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         tmpDir = tempfile.mkdtemp()
         util.mkdirChain(tmpDir + "/etc/")
         try:
+            self.bootable.scsiModules = True
             self.bootable.addScsiModules(tmpDir)
         finally:
             util.rmtree(tmpDir)
@@ -278,6 +279,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         try:
             self.touch(os.path.join(tmpDir, 'etc', 'modprobe.conf'),
                     'dummy line')
+            self.bootable.scsiModules = True
             self.bootable.addScsiModules(tmpDir)
             data = open(os.path.join(tmpDir, 'etc', 'modprobe.conf')).read()
             self.failIf('scsi_hostadapter' not in data,
