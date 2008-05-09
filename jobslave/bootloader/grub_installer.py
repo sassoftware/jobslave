@@ -191,15 +191,15 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             # menu.lst wrong
             f = open(grub_conf)
             l = []
+            rootdev_re = re.compile('root=/dev/.*? ')
+            grubroot_re = re.compile('root \(/dev/.*\)')
+            doubleboot_re = re.compile('/boot/boot')
             for line in f:
-                line = line.strip()
-                if line == '    root (/dev/xvda1)':
-                    line = '    root (hd0,0)'
-                line = re.compile('root=/dev/.*? ',
-                                  re.M).sub('root=LABEL=root ', line)
+                line = rootdev_re.sub('root=LABEL=root ', line)
+                line = grubroot_re.sub('root (hd0,0)', line)
+                line = doubleroot_re.sub('/boot', line)
                 l.append(line)
-            l.append('')
-            contents = '\n'.join(l)
+            contents = ''.join(l)
             f = open(grub_conf, 'w')
             f.write(contents)
             f.close()
