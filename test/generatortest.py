@@ -90,7 +90,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
               'mkswap -L swap /tmp/workdir/image/image-swap.swap',
               'dd if=/dev/zero of=/tmp/workdir/image/image-root.ext3 count=1 seek=-1 bs=4096',
               'mke2fs -L / -F -b 4096 /tmp/workdir/image/image-root.ext3 0',
-              'tune2fs -i 0 -c 0 -j -L "/" /tmp/workdir/image/image-root.ext3']
+              'tune2fs -i 0 -c 0 -j -L "root" /tmp/workdir/image/image-root.ext3']
         )
 
         self.failUnlessEqual(g.filesystems.keys(), ['swap', '/'])
@@ -149,7 +149,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
              'mke2fs -L / -F -b 4096  0',
-             'tune2fs -i 0 -c 0 -j -L "/" ',
+             'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
              'mkswap -L swap /dev/vg00/swap',
@@ -181,7 +181,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
              'mke2fs -L / -F -b 4096  0',
-             'tune2fs -i 0 -c 0 -j -L "/" ',
+             'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
              'mkswap -L swap /dev/vg00/swap',

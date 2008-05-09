@@ -143,9 +143,10 @@ class Filesystem:
         self.offset = offset
         # make the label "safe" so vol_id returns something for
         # ID_FS_LABEL_SAFE and udev creates a link in /dev/disk/by-label/
-        fsLabel = fsLabel.replace('/', '')
-        if fsLabel == '':
-            fsLabel = 'root'
+        if fsLabel is not None:
+            fsLabel = fsLabel.replace('/', '')
+            if fsLabel == '':
+                fsLabel = 'root'
         self.fsLabel = fsLabel
         self.fsType = fsType
         self.mountPoint = None
