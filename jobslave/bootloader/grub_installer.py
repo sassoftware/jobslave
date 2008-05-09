@@ -84,6 +84,12 @@ def copytree(source, dest, exceptions=None):
                 os.chmod(this_dir, dStat[stat.ST_MODE])
 
 class GrubInstaller(bootloader.BootloaderInstaller):
+    def _get_grub_conf(self):
+        if os.path.exists(
+            os.path.join(self.image_root, 'etc', 'SuSE-release')):
+            return 'menu.lst'
+        return 'grub.conf'
+
     def setup(self):
         if not os.path.exists(os.path.join(self.image_root, 'sbin', 'grub')):
             log.info("grub not found. skipping setup.")
@@ -126,9 +132,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
         conf = getGrubConf(name, hasInitrd, xen, dom0, clock)
 
-        # write /etc/sysconfig/bootloader for SUSE systems
-        if os.path.exists(
-            os.path.join(self.image_root, 'etc', 'SuSE-release')):
+        cfgfile = self._get_grub_conf()
+        if cfgfile == 'menu.lst':
+            # write /etc/sysconfig/bootloader for SUSE systems
             f = open(
                 os.path.join(self.image_root, 'etc', 'sysconfig', 'bootloader'), 'w')
             f.write('CYCLE_DETECTION="no"\n')
@@ -136,12 +142,8 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             f.write('LOADER_LOCATION=""\n')
             f.write('LOADER_TYPE="grub"\n')
             f.close()
-            cfgfile = 'menu.lst'
-        else:
-            cfgfile = 'grub.conf'
 
-        f = open(
-            os.path.join(self.image_root, 'boot', 'grub', cfgfile), 'w')
+        f = open(os.path.join(self.image_root, 'boot', 'grub', cfgfile), 'w')
         f.write(conf)
         f.close()
 
@@ -174,6 +176,15 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             print >>bootman_config, 'BOOTLOADER=grub'
             bootman_config.close()
             logCall('chroot "%s" /sbin/bootman' % self.image_root)
+
+        # Workaround for RPL-2423
+        cfgfile = self._get_grub_conf()
+        grub_conf = os.path.join(self.image_root, 'boot', 'grub', cfgfile)
+        if os.path.exists(grub_conf):
+            contents = open(grub_conf).read()
+            contents = re.compile('^default .*', re.M
+                ).sub('default 0', contents)
+            open(grub_conf, 'w').write(contents)
 
     def install_mbr(self, root_dir, mbr_device, size):
         # Install grub into the MBR
