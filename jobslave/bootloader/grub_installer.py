@@ -24,7 +24,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = ""):
               'moduleCmd' : '',
               'timeOut'   : '5',
               'bootDev'   : 'hda',
-              'kernelCmd' : 'kernel /boot/vmlinuz-%%(kversion)s ro root=LABEL=/ %s' % clock}
+              'kernelCmd' : 'kernel /boot/vmlinuz-%%(kversion)s ro root=LABEL=root %s' % clock}
     if hasInitrd:
         if dom0:
             macros['initrdCmd'] = 'module /boot/initrd-%(kversion)s.img'
