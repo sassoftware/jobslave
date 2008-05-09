@@ -197,7 +197,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             for line in f:
                 line = rootdev_re.sub('root=LABEL=root ', line)
                 line = grubroot_re.sub('root (hd0,0)', line)
-                line = doubleroot_re.sub('/boot', line)
+                line = doubleboot_re.sub('/boot', line)
                 l.append(line)
             contents = ''.join(l)
             f = open(grub_conf, 'w')
