@@ -220,10 +220,22 @@ class Filesystem:
             if self.offset:
                 loophelpers.loopDetach(loopDev)
 
+class StubFilesystem:
+    def __init__(self):
+        self.fsLabel = 'root'
+
+    def mount(self, *args):
+        pass
+
+    def umount(self, *args):
+        pass
+
+    def format(self, *args):
+        pass
 
 class BootableImage(ImageGenerator):
     def __init__(self, *args, **kwargs):
-        self.filesystems = {}
+        self.filesystems = { '/': StubFilesystem() }
         self.scsiModules = False
 
         ImageGenerator.__init__(self, *args, **kwargs)

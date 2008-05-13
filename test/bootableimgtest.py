@@ -376,8 +376,8 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
             bootable_image.logCall = _logCall
 
     def testAddFilesystem(self):
-        self.bootable.addFilesystem('/boot', 'ext3')
-        self.failIf(self.bootable.filesystems != {'/boot': 'ext3'},
+        self.bootable.addFilesystem('/', 'ext3')
+        self.failIf(self.bootable.filesystems != {'/': 'ext3'},
             "addFilesystem did not operate correcly")
 
     def testCreateTempRoot(self):
