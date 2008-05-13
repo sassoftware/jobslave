@@ -217,6 +217,9 @@ class MockJobSlave(object):
         self.cfg = slave.SlaveConfig()
 
 class StubFilesystem(object):
+    def __init__(self):
+        self.fsLabel = 'label'
+
     def mount(self, *args, **kwargs):
         pass
 
@@ -356,12 +359,18 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         self.bootable.mountDict = {'/' : (0, 100, 'ext3'),
                                      '/boot': (0, 100, 'ext3'),
                                      'swap' : (0, 100, 'swap')}
-        self.bootable.filesystems = self.bootable.mountDict
+        self.bootable.filesystems = dict.fromkeys(self.bootable.mountDict.keys(),
+                                                  StubFilesystem())
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)
             self.failIf('fstab' not in os.listdir(os.path.join(tmpDir, 'etc')),
                     "FilesystemOddsNEnds should have added /etc/fstab")
+            f = open(os.path.join(tmpDir, 'etc', 'fstab'))
+            self.failUnlessEqual(f.read(), '''LABEL=label\t/\text3\tdefaults\t1\t1
+LABEL=swap\tswap\tswap\tdefaults\t0\t0
+LABEL=label\t/boot\text3\tdefaults\t1\t2
+''')
         finally:
             util.rmtree(tmpDir)
             bootable_image.logCall = _logCall

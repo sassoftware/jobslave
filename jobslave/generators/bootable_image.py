@@ -328,10 +328,11 @@ class BootableImage(ImageGenerator):
         fstabExtra = ""
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
             reqSize, freeSpace, fsType = self.mountDict[mountPoint]
+            fs = self.filesystems[mountPoint]
 
             if fsType == "ext3":
                 fstabExtra += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % \
-                    (mountPoint, mountPoint, (mountPoint == '/') and 1 or 2)
+                    (fs.fsLabel, mountPoint, (mountPoint == '/') and 1 or 2)
             elif fsType == "swap":
                 fstabExtra += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
         fstab = open(os.path.join(fakeRoot, 'etc', 'fstab'), 'w')
