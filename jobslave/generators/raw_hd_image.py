@@ -95,6 +95,9 @@ class RawHdImage(bootable_image.BootableImage):
             if mountPoint == rootPart:
                 continue
 
+            # FIXME: this code is broken - fs is only set in a branch
+            # it only happens to work now because we only support one
+            # partition and the continue above gets hit
             if lvmContainer:
                 fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
             fs.format()
