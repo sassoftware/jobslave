@@ -372,7 +372,7 @@ class BootableImage(ImageGenerator):
         # misc. stuff that needs to run after tag handlers have finished
         dhcp = os.path.join(fakeRoot, 'etc', 'sysconfig', 'network', 'dhcp')
         if os.path.isfile(dhcp):
-q            # tell SUSE to set the hostname via DHCP
+            # tell SUSE to set the hostname via DHCP
             cmd = r"""/bin/sed -e 's/DHCLIENT_SET_HOSTNAME=.*/DHCLIENT_SET_HOSTNAME="yes"/g' -i %s""" % dhcp
             logCall(cmd)
 
