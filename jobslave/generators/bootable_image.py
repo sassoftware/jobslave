@@ -316,6 +316,12 @@ class BootableImage(ImageGenerator):
 
         copytree(skelDir, fakeRoot, exceptFiles)
 
+        dhcp = os.path.join(fakeRoot, 'etc', 'sysconfig', 'network', 'dhcp')
+        if os.path.isfile(dhcp):
+            # tell SUSE to set the hostname via DHCP
+            cmd = r"""/bin/sed -e 's/DHCLIENT_SET_HOSTNAME=.*/DHCLIENT_SET_HOSTNAME="yes"/g' -i %s""" % dhcp
+            logCall(cmd)
+
         self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'), self.cc)
 
         # If X is available, use runlevel 5 by default, for graphical login
