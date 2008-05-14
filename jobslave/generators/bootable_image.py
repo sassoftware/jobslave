@@ -316,12 +316,6 @@ class BootableImage(ImageGenerator):
 
         copytree(skelDir, fakeRoot, exceptFiles)
 
-        dhcp = os.path.join(fakeRoot, 'etc', 'sysconfig', 'network', 'dhcp')
-        if os.path.isfile(dhcp):
-            # tell SUSE to set the hostname via DHCP
-            cmd = r"""/bin/sed -e 's/DHCLIENT_SET_HOSTNAME=.*/DHCLIENT_SET_HOSTNAME="yes"/g' -i %s""" % dhcp
-            logCall(cmd)
-
         self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'), self.cc)
 
         # If X is available, use runlevel 5 by default, for graphical login
@@ -372,6 +366,15 @@ class BootableImage(ImageGenerator):
         appName = open(os.path.join(fakeRoot, 'etc', 'sysconfig', 'appliance-name'), 'w')
         print >> appName, self.jobData['project']['name']
         appName.close()
+
+    @timeMe
+    def fileSystemOddsNEndsFinal(self, fakeRoot):
+        # misc. stuff that needs to run after tag handlers have finished
+        dhcp = os.path.join(fakeRoot, 'etc', 'sysconfig', 'network', 'dhcp')
+        if os.path.isfile(dhcp):
+q            # tell SUSE to set the hostname via DHCP
+            cmd = r"""/bin/sed -e 's/DHCLIENT_SET_HOSTNAME=.*/DHCLIENT_SET_HOSTNAME="yes"/g' -i %s""" % dhcp
+            logCall(cmd)
 
     @timeMe
     def getTroveSize(self, mounts):
@@ -633,6 +636,7 @@ class BootableImage(ImageGenerator):
             self.addScsiModules(dest)
             self.writeDeviceMaps(dest)
             self.runTagScripts(dest)
+            self.fileSystemOddsNEndsFinal(dest)
         finally:
             self.killChrootProcesses(dest)
             self.umountChrootMounts(dest)
