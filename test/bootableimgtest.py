@@ -326,6 +326,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
         tmpDir = tempfile.mkdtemp()
         self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
+        self.touch(os.path.join(tmpDir, 'usr', 'bin', 'xdm'))
         self.touch(os.path.join(tmpDir, 'etc', 'inittab'))
         self.touch(os.path.join(tmpDir, 'usr', 'share', 'zoneinfo', 'UTC'))
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
@@ -343,6 +344,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         # trigger runlevel five, but leave out /etc/inittab just to see
         # what happens.
         self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
+        self.touch(os.path.join(tmpDir, 'usr', 'bin', 'xdm'))
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)

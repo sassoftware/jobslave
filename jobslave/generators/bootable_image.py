@@ -304,7 +304,14 @@ class BootableImage(ImageGenerator):
         # X windows
         start_x = False
         for svc in ('xdm', 'gdm', 'kdm'):
-            start_x |= os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc))
+            if not os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc)):
+                continue
+            # make sure the binary exists too
+            for path in (('usr', 'X11R6', 'bin'),
+                         ('usr', 'bin')):
+                if os.path.isfile(os.path.join(*(fakeRoot,) + path + (svc,))):
+                    start_x = True
+
         if not start_x:
             exceptFiles.append(os.path.join(os.path.sep, 'etc', 'X11.*'))
 
