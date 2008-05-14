@@ -220,10 +220,22 @@ class Filesystem:
             if self.offset:
                 loophelpers.loopDetach(loopDev)
 
+class StubFilesystem:
+    def __init__(self):
+        self.fsLabel = 'root'
+
+    def mount(self, *args):
+        pass
+
+    def umount(self, *args):
+        pass
+
+    def format(self, *args):
+        pass
 
 class BootableImage(ImageGenerator):
     def __init__(self, *args, **kwargs):
-        self.filesystems = {}
+        self.filesystems = { '/': StubFilesystem() }
         self.scsiModules = False
 
         ImageGenerator.__init__(self, *args, **kwargs)
@@ -234,6 +246,9 @@ class BootableImage(ImageGenerator):
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(self.outputDir)
         self.swapSize = self.getBuildData("swapSize") * 1048576
+
+    def _isSUSE(self, dest):
+        return os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release'))
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
@@ -293,7 +308,13 @@ class BootableImage(ImageGenerator):
         if not start_x:
             exceptFiles.append(os.path.join(os.path.sep, 'etc', 'X11.*'))
 
-        copytree(constants.skelDir, fakeRoot, exceptFiles)
+        # use the appropriate skeleton files depending on the OS base
+        if self._isSUSE(fakeRoot):
+            skelDir = os.path.join(constants.skelDir, 'sle')
+        else:
+            skelDir = os.path.join(constants.skelDir, 'rpl')
+
+        copytree(skelDir, fakeRoot, exceptFiles)
 
         self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'), self.cc)
 
@@ -476,7 +497,7 @@ class BootableImage(ImageGenerator):
         logCall('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
         os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
 
-        if os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release')):
+        if self._isSUSE(dest):
             # SUSE needs udev to be started in the chroot in order to
             # run mkinitrd
             logCall("chroot %s bash -c '/etc/rc.d/boot.udev stop'" %dest)
