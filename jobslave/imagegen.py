@@ -123,6 +123,7 @@ class Generator(threading.Thread):
 
         self.conarycfg.configLine('pinTroves kernel.*')
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
+        self.conarycfg.configLine('threaded False')
 
         # XXX need to do this since setting the tmpDir via the
         # configuration object is never enough (RBL-2461)
