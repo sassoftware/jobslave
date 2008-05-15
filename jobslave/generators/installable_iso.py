@@ -356,17 +356,25 @@ class InstallableIso(ImageGenerator):
                                        'disc1', 'ks.cfg')):
             log.info("adding kickstart arguments")
             cfg = open(os.path.join(topdir, 'isolinux', 'isolinux.cfg'), "r+")
-            contents = []
-            # Replace the normal default with the new 'kscdrom' entry
-            for line in cfg.readlines():
-                if line.startswith('default'):
-                    line = 'default kscdrom\n' 
-                contents.append(line)
-            contents.extend(('label kscdrom\n', '  kernel vmlinuz\n',
-                '  append initrd=initrd.img ramdisk_size=8192 ks=cdrom\n'))
+            contents = addKsBootLabel(cfg.readlines())
             cfg.seek(0)
             cfg.writelines(contents)
             cfg.close()
+
+    def addKsBootLabel(self, isoLinuxCfg):
+        '''
+        Input initial isolinux.cfg contents, add new entry
+        and make it the default
+        '''
+
+        contents = []
+        for line in isoLinuxCfg:
+            if line.startswith('default'):
+                line = 'default kscdrom\n' 
+            contents.append(line)
+        contents.extend(('label kscdrom\n', '  kernel vmlinuz\n',
+                '  append initrd=initrd.img ramdisk_size=8192 ks=cdrom\n'))
+        return contents
 
     def retrieveTemplates(self):
         self.status("Retrieving ISO template")

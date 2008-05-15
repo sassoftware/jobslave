@@ -302,17 +302,70 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             util.rmtree(basedir)
 
     def testSetupKickstart(self):
-        topdir = tempfile.mkdtemp()
-        try:
-            g = installable_iso.InstallableIso({}, [])
-            self.touch(os.path.join(topdir, 'media-template',
-                'disc1', 'ks.cfg'))
-            g.setupKickstart(topdir)
-            self.failIf(len(self.callLog) != 1, "incorrect number of calls")
-            self.failIf(not self.callLog[0].startswith('sed -i'),
-                    "expected sed to be called")
-        finally:
-            util.rmtree(topdir)
+        g = installable_iso.InstallableIso({}, [])
+        ilcContents = """default linux
+prompt 1
+timeout 600
+display boot.msg
+F1 boot.msg
+F2 options.msg
+F3 general.msg
+F4 param.msg
+F5 rescue.msg
+F7 snake.msg
+label linux
+  kernel vmlinuz
+  append initrd=initrd.img ramdisk_size=8192
+label text
+  kernel vmlinuz
+  append initrd=initrd.img text ramdisk_size=8192
+label expert
+  kernel vmlinuz
+  append expert initrd=initrd.img ramdisk_size=8192
+label ks
+  kernel vmlinuz
+  append ks initrd=initrd.img ramdisk_size=8192
+label lowres
+  kernel vmlinuz
+  append initrd=initrd.img lowres ramdisk_size=8192
+label local
+  localboot 1
+"""
+
+        ilcValidContents = """default kscdrom
+prompt 1
+timeout 600
+display boot.msg
+F1 boot.msg
+F2 options.msg
+F3 general.msg
+F4 param.msg
+F5 rescue.msg
+F7 snake.msg
+label linux
+  kernel vmlinuz
+  append initrd=initrd.img ramdisk_size=8192
+label text
+  kernel vmlinuz
+  append initrd=initrd.img text ramdisk_size=8192
+label expert
+  kernel vmlinuz
+  append expert initrd=initrd.img ramdisk_size=8192
+label ks
+  kernel vmlinuz
+  append ks initrd=initrd.img ramdisk_size=8192
+label lowres
+  kernel vmlinuz
+  append initrd=initrd.img lowres ramdisk_size=8192
+label local
+  localboot 1
+label kscdrom
+  kernel vmlinuz
+  append initrd=initrd.img ramdisk_size=8192 ks=cdrom
+"""
+            
+        ilcNewContents = g.addKsBootLabel( [ x + "\n" for x in ilcContents.splitlines() ] )
+        self.failIf("".join(ilcNewContents) != ilcValidContents, "kscdrom boot entry addition failed")
 
     def testRetrieveTemplates(self):
         self.count = 0
