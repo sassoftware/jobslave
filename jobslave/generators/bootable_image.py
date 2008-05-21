@@ -465,6 +465,10 @@ class BootableImage(ImageGenerator):
 
             # Get a bootloader installer and pre-configure before running
             # tag scripts
+            if self.baseFlavor.stronglySatisfies(deps.parseFlavor('domU')):
+                # pygrub requires that grub-install be run
+                bootloader_override = 'grub'
+
             bootloader_installer = generators.get_bootloader(self, dest,
                 bootloader_override)
             bootloader_installer.setup()
