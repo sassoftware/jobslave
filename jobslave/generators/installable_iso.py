@@ -356,7 +356,7 @@ class InstallableIso(ImageGenerator):
                                        'disc1', 'ks.cfg')):
             log.info("adding kickstart arguments")
             cfg = open(os.path.join(topdir, 'isolinux', 'isolinux.cfg'), "r+")
-            contents = addKsBootLabel(cfg.readlines())
+            contents = self.addKsBootLabel(cfg.readlines())
             cfg.seek(0)
             cfg.writelines(contents)
             cfg.close()
