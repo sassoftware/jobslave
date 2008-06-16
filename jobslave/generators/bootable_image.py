@@ -9,7 +9,9 @@ from math import ceil
 import os
 import sys
 import re
+import signal
 import stat
+import subprocess
 import time
 
 # mint imports
@@ -139,6 +141,12 @@ class Filesystem:
         self.fsDev = fsDev
         self.size = size
         self.offset = offset
+        # make the label "safe" so vol_id returns something for
+        # ID_FS_LABEL_SAFE and udev creates a link in /dev/disk/by-label/
+        if fsLabel is not None:
+            fsLabel = fsLabel.replace('/', '')
+            if fsLabel == '':
+                fsLabel = 'root'
         self.fsLabel = fsLabel
         self.fsType = fsType
         self.mountPoint = None
@@ -212,10 +220,22 @@ class Filesystem:
             if self.offset:
                 loophelpers.loopDetach(loopDev)
 
+class StubFilesystem:
+    def __init__(self):
+        self.fsLabel = 'root'
+
+    def mount(self, *args):
+        pass
+
+    def umount(self, *args):
+        pass
+
+    def format(self, *args):
+        pass
 
 class BootableImage(ImageGenerator):
     def __init__(self, *args, **kwargs):
-        self.filesystems = {}
+        self.filesystems = { '/': StubFilesystem() }
         self.scsiModules = False
 
         ImageGenerator.__init__(self, *args, **kwargs)
@@ -226,6 +246,9 @@ class BootableImage(ImageGenerator):
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(self.outputDir)
         self.swapSize = self.getBuildData("swapSize") * 1048576
+
+    def _isSUSE(self, dest):
+        return os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release'))
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
@@ -281,11 +304,24 @@ class BootableImage(ImageGenerator):
         # X windows
         start_x = False
         for svc in ('xdm', 'gdm', 'kdm'):
-            start_x |= os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc))
+            if not os.path.isfile(os.path.join(fakeRoot, 'etc', 'init.d', svc)):
+                continue
+            # make sure the binary exists too
+            for path in (('usr', 'X11R6', 'bin'),
+                         ('usr', 'bin')):
+                if os.path.isfile(os.path.join(*(fakeRoot,) + path + (svc,))):
+                    start_x = True
+
         if not start_x:
             exceptFiles.append(os.path.join(os.path.sep, 'etc', 'X11.*'))
 
-        copytree(constants.skelDir, fakeRoot, exceptFiles)
+        # use the appropriate skeleton files depending on the OS base
+        if self._isSUSE(fakeRoot):
+            skelDir = os.path.join(constants.skelDir, 'sle')
+        else:
+            skelDir = os.path.join(constants.skelDir, 'rpl')
+
+        copytree(skelDir, fakeRoot, exceptFiles)
 
         self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'), self.cc)
 
@@ -320,10 +356,11 @@ class BootableImage(ImageGenerator):
         fstabExtra = ""
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
             reqSize, freeSpace, fsType = self.mountDict[mountPoint]
+            fs = self.filesystems[mountPoint]
 
             if fsType == "ext3":
                 fstabExtra += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % \
-                    (mountPoint, mountPoint, (mountPoint == '/') and 1 or 2)
+                    (fs.fsLabel, mountPoint, (mountPoint == '/') and 1 or 2)
             elif fsType == "swap":
                 fstabExtra += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
         fstab = open(os.path.join(fakeRoot, 'etc', 'fstab'), 'w')
@@ -336,6 +373,15 @@ class BootableImage(ImageGenerator):
         appName = open(os.path.join(fakeRoot, 'etc', 'sysconfig', 'appliance-name'), 'w')
         print >> appName, self.jobData['project']['name']
         appName.close()
+
+    @timeMe
+    def fileSystemOddsNEndsFinal(self, fakeRoot):
+        # misc. stuff that needs to run after tag handlers have finished
+        dhcp = os.path.join(fakeRoot, 'etc', 'sysconfig', 'network', 'dhcp')
+        if os.path.isfile(dhcp):
+            # tell SUSE to set the hostname via DHCP
+            cmd = r"""/bin/sed -e 's/DHCLIENT_SET_HOSTNAME=.*/DHCLIENT_SET_HOSTNAME="yes"/g' -i %s""" % dhcp
+            logCall(cmd)
 
     @timeMe
     def getTroveSize(self, mounts):
@@ -383,6 +429,8 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def addScsiModules(self, dest):
+        if not self.scsiModules:
+            return
         filePath = os.path.join(dest, 'etc', 'modprobe.conf')
         if not os.path.exists(filePath):
             log.warning('modprobe.conf not found while adding scsi modules')
@@ -392,8 +440,47 @@ class BootableImage(ImageGenerator):
         if os.stat(filePath)[6]:
             f.write('\n')
         f.write('\n'.join(('alias scsi_hostadapter mptbase',
-                           'alias scsi_hostadapter1 mptspi')))
+                           'alias scsi_hostadapter1 mptspi',
+                           '')))
         f.close()
+
+    @timeMe
+    def writeDeviceMaps(self, dest):
+        # first write a grub device map
+        filePath = os.path.join(dest, 'boot', 'grub', 'device.map')
+        util.mkdirChain(os.path.dirname(filePath))
+        f = open(filePath, 'w')
+        if self.scsiModules:
+            hd0 = '/dev/sda'
+        else:
+            hd0 = '/dev/hda'
+        f.write('\n'.join(('# this device map was generated by rBuilder',
+                           '(fd0) /dev/fd0',
+                           '(hd0) %s' %hd0,
+                           '')))
+        f.close()
+
+        # next write a blkid cache file
+        filePath = os.path.join(dest, 'etc', 'blkid.tab')
+        util.mkdirChain(os.path.dirname(filePath))
+        f = open(filePath, 'w')
+        if self.scsiModules:
+            dev = '/dev/sda1'
+            devno = '0x0801'
+        else:
+            dev = '/dev/hda1'
+            devno = '0x0301'
+        # get the uuid of the root filesystem
+        p = subprocess.Popen(
+            "tune2fs -l /dev/loop0 | grep UUID | awk '{print $3}'",
+            shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        stdout, stderr = p.communicate()
+        uuid = stdout.strip()
+        f.write('<device DEVNO="%s" TIME="%s" LABEL="/" '
+                'UUID="%s" SEC_TYPE="ext2" TYPE="ext3">%s</device>\n'
+                % (devno, int(time.time()), uuid, dev))
+        f.close()
+
 
     @timeMe
     def updateGroupChangeSet(self, cclient):
@@ -418,6 +505,90 @@ class BootableImage(ImageGenerator):
         # clean up after Conary
         uJob.troveSource.db.close()
         uJob.troveSource.db.lockFileObj.close()
+
+    @timeMe
+    def runTagScripts(self, dest):
+        outScript = os.path.join(dest, 'root', 'conary-tag-script')
+        inScript = outScript + '.in'
+        logCall('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
+        os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
+
+        if self._isSUSE(dest):
+            # SUSE needs udev to be started in the chroot in order to
+            # run mkinitrd
+            logCall("chroot %s bash -c '/etc/rc.d/boot.udev stop'" %dest)
+            logCall("chroot %s bash -c '/etc/rc.d/boot.udev start'" %dest)
+            logCall("chroot %s bash -c '/etc/rc.d/boot.udev force-reload'" %dest)
+
+        for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
+            tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
+            if not os.path.exists(util.joinPaths(dest, tagPath)):
+                continue
+            try:
+                logCall("chroot %s bash -c 'sh -x %s > %s 2>&1'" %
+                        (dest, tagPath, tagPath + '.output'))
+            except Exception, e:
+                exc, e, bt = sys.exc_info()
+                try:
+                    log.warning('error executing %s: %s', tagPath, e)
+                    log.warning('script contents:')
+                    f = file(util.joinPaths(dest, tagPath), 'r')
+                    log.warning('----------------\n' + f.read())
+                    f.close()
+                    log.warning('script output:')
+                    f = file(util.joinPaths(dest, tagPath + '.output'), 'r')
+                    log.warning('----------------\n' + f.read())
+                    f.close()
+                except:
+                    log.warning('error recording tag handler output')
+                raise exc, e, bt
+
+    @timeMe
+    def killChrootProcesses(self, dest):
+        # kill any lingering processes that were started in the chroot
+        pids = set()
+        for pid in os.listdir('/proc'):
+            exepath = os.path.join(os.path.sep, 'proc', pid, 'exe')
+            if os.path.islink(exepath) and os.access(exepath, os.R_OK):
+                exe = os.readlink(exepath)
+                if exe.startswith(dest):
+                    pids.add(pid)
+
+        sig = signal.SIGTERM
+        loops = 0
+        while pids:
+            # send a kill signal to any process that has an executable
+            # from the chroot
+            for pid in pids.copy():
+                log.info('Killing pid %s with signal %d', pid, sig)
+                os.kill(int(pid), sig)
+
+            time.sleep(.1)
+            # see what died
+            for pid in pids.copy():
+                if not os.path.isdir(os.path.join(os.path.sep, 'proc', pid)):
+                    pids.remove(pid)
+
+            # for anything left around, kill it harder
+            sig = signal.SIGKILL
+            loops += 1
+            if loops > 10:
+                raise RuntimeError(
+                    'unable to kill chroot pids: %s' %(', '.join(pids)))
+
+    @timeMe
+    def umountChrootMounts(self, dest):
+        # umount all mounts inside the chroot.
+        mounts = open('/proc/mounts', 'r')
+        mntlist = []
+        for line in mounts:
+            line = line.strip()
+            mntpoint = line.split(' ')[1]
+            if mntpoint.startswith(dest) and mntpoint != dest:
+                mntlist.append(mntpoint)
+        # unmount in reverse sorted order to get /foo/bar before /foo
+        for mntpoint in reversed(sorted(mntlist)):
+            logCall('umount %s' % mntpoint)
 
     @timeMe
     def installFileTree(self, dest, bootloader_override=None):
@@ -473,42 +644,45 @@ class BootableImage(ImageGenerator):
                 bootloader_override)
             bootloader_installer.setup()
 
-            if self.scsiModules:
-                self.addScsiModules(dest)
-            outScript = os.path.join(dest, 'root', 'conary-tag-script')
-            inScript = outScript + '.in'
-            logCall('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
-            os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
-            for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
-                tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
-                if os.path.exists(util.joinPaths(dest, tagPath)):
-                    logCall("chroot %s bash -c 'sh -x %s > %s 2>&1'" % \
-                                     (dest, tagPath, tagPath + '.output'))
+            self.addScsiModules(dest)
+            self.writeDeviceMaps(dest)
+            self.runTagScripts(dest)
+            self.fileSystemOddsNEndsFinal(dest)
         finally:
-            logCall('umount %s' % os.path.join(dest, 'proc'))
-            logCall('umount %s' % os.path.join(dest, 'sys'))
+            self.killChrootProcesses(dest)
+            self.umountChrootMounts(dest)
 
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
-        # remove root password
+        # set up shadow passwords/md5 passwords
         if os.path.exists(os.path.join(dest, 'usr/sbin/authconfig')):
             logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 "
                 "--enableshadow --disablecache" % dest)
+        elif os.path.exists(os.path.join(dest, 'usr/sbin/pwconv')):
+            logCall("chroot %s /usr/sbin/pwconv" % dest)
+
+        # allow empty password to log in for virtual appliance
+        fn = os.path.join(dest, 'etc/pam.d/common-auth')
+        if os.path.exists(fn):
+            f = open(fn)
+            lines = []
+            for line in f:
+                line = line.strip()
+                if 'pam_unix2.so' in line and 'nullok' not in line:
+                    line += ' nullok'
+                lines.append(line)
+            lines.append('')
+            f = open(fn, 'w')
+            f.write('\n'.join(lines))
+
+        # remove root password
         if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
             logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
                 ignoreErrors=True)
 
         # Finish installation of bootloader
         bootloader_installer.install()
-
-        # Workaround for RPL-2423
-        grub_conf = os.path.join(dest, 'boot/grub/grub.conf')
-        if os.path.exists(grub_conf):
-            contents = open(grub_conf).read()
-            contents = re.compile('^default saved', re.M
-                ).sub('default 0', contents)
-            open(grub_conf, 'w').write(contents)
 
         return bootloader_installer
 

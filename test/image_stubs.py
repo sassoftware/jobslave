@@ -6,6 +6,7 @@
 import sys
 from conary import versions
 from conary.deps import deps
+from conary.lib import util
 
 from jobslave import bootloader
 
@@ -98,6 +99,7 @@ class BootableImageStub(ImageGeneratorStub):
         pass
 
     def installFileTree(self, dest):
+        util.mkdirChain(dest)
         return bootloader.DummyInstaller(self, None)
 
     def installGrub(self, fakeRoot, image, size):

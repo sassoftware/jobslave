@@ -14,6 +14,7 @@ import tempfile
 import time
 import simplejson
 import xmlrpclib
+from StringIO import StringIO
 
 from conary.lib import util
 from conary.deps import deps
@@ -216,6 +217,9 @@ class MockJobSlave(object):
         self.cfg = slave.SlaveConfig()
 
 class StubFilesystem(object):
+    def __init__(self):
+        self.fsLabel = 'label'
+
     def mount(self, *args, **kwargs):
         pass
 
@@ -268,6 +272,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         tmpDir = tempfile.mkdtemp()
         util.mkdirChain(tmpDir + "/etc/")
         try:
+            self.bootable.scsiModules = True
             self.bootable.addScsiModules(tmpDir)
         finally:
             util.rmtree(tmpDir)
@@ -277,6 +282,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         try:
             self.touch(os.path.join(tmpDir, 'etc', 'modprobe.conf'),
                     'dummy line')
+            self.bootable.scsiModules = True
             self.bootable.addScsiModules(tmpDir)
             data = open(os.path.join(tmpDir, 'etc', 'modprobe.conf')).read()
             self.failIf('scsi_hostadapter' not in data,
@@ -320,6 +326,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
         tmpDir = tempfile.mkdtemp()
         self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
+        self.touch(os.path.join(tmpDir, 'usr', 'bin', 'xdm'))
         self.touch(os.path.join(tmpDir, 'etc', 'inittab'))
         self.touch(os.path.join(tmpDir, 'usr', 'share', 'zoneinfo', 'UTC'))
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
@@ -337,6 +344,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         # trigger runlevel five, but leave out /etc/inittab just to see
         # what happens.
         self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
+        self.touch(os.path.join(tmpDir, 'usr', 'bin', 'xdm'))
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)
@@ -353,19 +361,25 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         self.bootable.mountDict = {'/' : (0, 100, 'ext3'),
                                      '/boot': (0, 100, 'ext3'),
                                      'swap' : (0, 100, 'swap')}
-        self.bootable.filesystems = self.bootable.mountDict
+        self.bootable.filesystems = dict.fromkeys(self.bootable.mountDict.keys(),
+                                                  StubFilesystem())
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)
             self.failIf('fstab' not in os.listdir(os.path.join(tmpDir, 'etc')),
                     "FilesystemOddsNEnds should have added /etc/fstab")
+            f = open(os.path.join(tmpDir, 'etc', 'fstab'))
+            self.failUnlessEqual(f.read(), '''LABEL=label\t/\text3\tdefaults\t1\t1
+LABEL=swap\tswap\tswap\tdefaults\t0\t0
+LABEL=label\t/boot\text3\tdefaults\t1\t2
+''')
         finally:
             util.rmtree(tmpDir)
             bootable_image.logCall = _logCall
 
     def testAddFilesystem(self):
-        self.bootable.addFilesystem('/boot', 'ext3')
-        self.failIf(self.bootable.filesystems != {'/boot': 'ext3'},
+        self.bootable.addFilesystem('/', 'ext3')
+        self.failIf(self.bootable.filesystems != {'/': 'ext3'},
             "addFilesystem did not operate correcly")
 
     def testCreateTempRoot(self):
@@ -454,24 +468,57 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
             self.touch(os.path.join(tmpDir, 'usr/sbin/authconfig'))
             self.touch(os.path.join(tmpDir, 'usr/sbin/usermod'))
+            common_auth = os.path.join(tmpDir, 'etc/pam.d/common-auth')
+            self.touch(common_auth)
+            f = file(common_auth, 'w')
+            f.write("""#
+# /etc/pam.d/common-auth - authentication settings common to all services
+#
+# This file is included from other service-specific PAM config files,
+# and should contain a list of the authentication modules that define
+# the central authentication scheme for use on the system
+# (e.g., /etc/shadow, LDAP, Kerberos, etc.).  The default is to use the
+# traditional Unix authentication mechanisms.
+#
+auth	required	pam_env.so
+auth	required	pam_unix2.so
+""")
+            f.close()
             self.bootable.updateKernelChangeSet = \
                     self.bootable.updateGroupChangeSet = \
                     self.bootable.fileSystemOddsNEnds = \
                     lambda *args, **kwargs: None
             def mockLog(cmd, ignoreErrors=False):
                 self.cmds.append(cmd)
+            def mockOpen(*args):
+                if args[0] == '/proc/mounts':
+                    return StringIO("""proc %(d)s/proc blah
+sysfs %(d)s/sys blah
+sysfs %(d)s/sys/bar blah
+loop0 %(d)s blah""" %dict(d=tmpDir))
+                return open(*args)
             self.cmds = []
             bootable_image.logCall = mockLog
+            bootable_image.open = mockOpen
+            bootable_image.file = mockOpen
             self.bootable.installFileTree(tmpDir)
+            self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
-            self.failIf(len(self.cmds) != 9,
+            self.failIf(len(self.cmds) != 10,
                     "unexpected number of external calls")
+            # make sure we unmount things in the right order
+            self.failUnlessEqual(self.cmds[4:7],
+                                 ['umount %s/sys/bar' %tmpDir,
+                                  'umount %s/sys' %tmpDir,
+                                  'umount %s/proc' %tmpDir])
         finally:
             util.rmtree(tmpDir)
             util.rmtree(constants.tmpDir)
             constants.tmpDir = saved_tmpDir
             bootable_image.logCall = logCall
+            bootable_image.open = open
+            bootable_image.file = file
             self.bootable.updateKernelChangeSet = updateKernelChangeSet
             self.bootable.updateGroupChangeSet = updateGroupChangeSet
             self.bootable.fileSystemOddsNEnds = fileSystemOddsNEnds

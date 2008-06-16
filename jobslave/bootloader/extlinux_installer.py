@@ -44,7 +44,7 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
             logCall('umount "%s"' % image_dev)
             logCall('umount "%s"' % image_proc)
 
-    def install_mbr(self, mbr_device, size):
+    def install_mbr(self, root_dir, mbr_device, size):
         # Install MBR
         mbr_path = os.path.join(self.image_root, 'boot', 'extlinux', 'mbr.bin')
         if not os.path.exists(mbr_path):
