@@ -659,8 +659,9 @@ class BootableImage(ImageGenerator):
             logCall("chroot %s /usr/sbin/pwconv" % dest)
 
         # allow empty password to log in for virtual appliance
-        if os.path.exists(os.path.join(dest, 'etc/pam.d/common-auth')):
-            f = open(os.path.join(dest, 'etc/pam.d/common-auth'))
+        fn = os.path.join(dest, 'etc/pam.d/common-auth')
+        if os.path.exists(fn):
+            f = open(fn)
             lines = []
             for line in f:
                 line = line.strip()
@@ -668,7 +669,7 @@ class BootableImage(ImageGenerator):
                     line += ' nullok'
                 lines.append(line)
             lines.append('')
-            f = open(os.path.join(dest, 'etc/pam.d/common-auth'), 'w')
+            f = open(fn, 'w')
             f.write('\n'.join(lines))
 
         # remove root password

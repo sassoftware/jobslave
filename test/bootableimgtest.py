@@ -468,6 +468,22 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
             self.touch(os.path.join(tmpDir, 'usr/sbin/authconfig'))
             self.touch(os.path.join(tmpDir, 'usr/sbin/usermod'))
+            common_auth = os.path.join(tmpDir, 'etc/pam.d/common-auth')
+            self.touch(common_auth)
+            f = file(common_auth, 'w')
+            f.write("""#
+# /etc/pam.d/common-auth - authentication settings common to all services
+#
+# This file is included from other service-specific PAM config files,
+# and should contain a list of the authentication modules that define
+# the central authentication scheme for use on the system
+# (e.g., /etc/shadow, LDAP, Kerberos, etc.).  The default is to use the
+# traditional Unix authentication mechanisms.
+#
+auth	required	pam_env.so
+auth	required	pam_unix2.so
+""")
+            f.close()
             self.bootable.updateKernelChangeSet = \
                     self.bootable.updateGroupChangeSet = \
                     self.bootable.fileSystemOddsNEnds = \
@@ -486,6 +502,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.open = mockOpen
             bootable_image.file = mockOpen
             self.bootable.installFileTree(tmpDir)
+            self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
             self.failIf(len(self.cmds) != 10,
