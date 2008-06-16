@@ -193,15 +193,26 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             installable_iso.getSlaveRuntimeConfig = getSlaveRuntimeConfig
 
     def testGetUpdateJob(self):
+        troveName = 'test'
+        troveVersion = versions.VersionFromString('/test.rpath.local@rpl:1/1.2-3-4')
+        troveFlavor = deps.parseFlavor('is: x86')
+        troveSpec = '%s=%s[%s]' % (troveName, troveVersion, troveFlavor)
+
         class DummyClient(object):
-            updateChangeSet = lambda *args, **kwargs: ('uJob', 'suggMap')
+            def updateChangeSet(xself, job, **kwargs):
+                self.failUnlessEqual(job, [(troveName, (None, None),
+                    (troveVersion, troveFlavor), True)])
+                return ('uJob', 'suggMap')
+        cclient = DummyClient()
+
+        def getBuildData(field):
+            self.failUnlessEqual(field, 'anaconda-custom')
+            return troveSpec
         g = installable_iso.InstallableIso({}, [])
         g.callback = installable_iso.Callback(self.status)
-        cclient = DummyClient()
-        troveSpec = 'test=/test.rpath.local@rpl:1/1-1-1[is: x86]'
-        troveName = troveSpec.split('=')[0]
-        g.getBuildData = lambda key: troveSpec
-        res = g._getUpdateJob(cclient, troveName)
+        g.getBuildData = getBuildData
+
+        res = g._getUpdateJob(cclient, 'anaconda-custom')
         ref = 'uJob'
         self.failIf(res != ref, "getUpdateJob did not perform as expected")
 

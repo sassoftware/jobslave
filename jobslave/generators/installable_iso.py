@@ -125,7 +125,7 @@ class InstallableIso(ImageGenerator):
             except conary_errors.ParseError, e:
                 if 'release strings may not contain colons' in e:
                     v = versions._VersionFromString(v, frozen=True)
-            itemList = [(troveName, (None, None), (v, f), True)]
+            itemList = [(n, (None, None), (v, f), True)]
             uJob, suggMap = cclient.updateChangeSet(itemList,
                 resolveDeps = False)
             return uJob
