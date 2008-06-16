@@ -192,7 +192,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             f = open(grub_conf)
             l = []
             rootdev_re = re.compile('root=/dev/.*? ')
-            grubroot_re = re.compile('root \(/dev/.*\)')
+            grubroot_re = re.compile('root \(.*\)')
             doubleboot_re = re.compile('/boot/boot')
             for line in f:
                 line = rootdev_re.sub('root=LABEL=root ', line)
