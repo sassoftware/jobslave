@@ -135,6 +135,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         cfgfile = self._get_grub_conf()
         if cfgfile == 'menu.lst':
             # write /etc/sysconfig/bootloader for SUSE systems
+            util.mkdirChain(os.path.join(self.image_root, 'etc', 'sysconfig'))
             f = open(
                 os.path.join(self.image_root, 'etc', 'sysconfig', 'bootloader'), 'w')
             f.write('CYCLE_DETECTION="no"\n')
