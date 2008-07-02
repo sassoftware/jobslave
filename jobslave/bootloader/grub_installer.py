@@ -176,6 +176,8 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 'bootman.conf'), 'w')
             print >>bootman_config, 'BOOTLOADER=grub'
             bootman_config.close()
+
+            bootloader.writeBootmanConfigs(self)
             logCall('chroot "%s" /sbin/bootman' % self.image_root)
 
         # Workaround for RPL-2423

@@ -6,7 +6,6 @@
 
 import os
 
-from conary.lib import log
 from conary.lib import util
 
 from jobslave import bootloader
@@ -16,15 +15,8 @@ from jobslave.imagegen import logCall
 
 class ExtLinuxInstaller(bootloader.BootloaderInstaller):
     def install(self):
-        # Tell bootman where / is
-        root_conf = open(os.path.join(self.image_root, 'etc', 'bootloader.d',
-            'root.conf'), 'w')
-        print >>root_conf, 'timeout 50'
-        print >>root_conf, 'add_options ro'
-        print >>root_conf, 'root LABEL=/'
-        root_conf.close()
-
         # Create extlinux configs
+        bootloader.writeBootmanConfigs(self)
         logCall('chroot "%s" /sbin/bootman' % self.image_root)
 
         # Mount /proc (this is called after /proc is unmounted the first time)
