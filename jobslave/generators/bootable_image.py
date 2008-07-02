@@ -476,7 +476,7 @@ class BootableImage(ImageGenerator):
             shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         stdout, stderr = p.communicate()
         uuid = stdout.strip()
-        f.write('<device DEVNO="%s" TIME="%s" LABEL="/" '
+        f.write('<device DEVNO="%s" TIME="%s" LABEL="root" '
                 'UUID="%s" SEC_TYPE="ext2" TYPE="ext3">%s</device>\n'
                 % (devno, int(time.time()), uuid, dev))
         f.close()

@@ -62,5 +62,5 @@ def writeBootmanConfigs(installer):
         'etc', 'bootloader.d', 'root.conf'), 'w')
     print >> root_conf, 'timeout 50'
     print >> root_conf, 'add_options ro'
-    print >> root_conf, 'root LABEL=/'
+    print >> root_conf, 'root LABEL=root'
     root_conf.close()
