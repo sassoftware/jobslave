@@ -6,3 +6,5 @@
 \.times
 test/\.(times|coverage)
 .*,cover
+^.*project$
+^.*pydevproject$
