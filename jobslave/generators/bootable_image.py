@@ -490,8 +490,6 @@ class BootableImage(ImageGenerator):
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False)
         cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = True,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script.in'))
-        # clean up after Conary
-        uJob.troveSource.db.close()
 
     @timeMe
     def updateKernelChangeSet(self, cclient):
@@ -501,10 +499,6 @@ class BootableImage(ImageGenerator):
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False, sync = True)
         cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script-kernel'))
-
-        # clean up after Conary
-        uJob.troveSource.db.close()
-        uJob.troveSource.db.lockFileObj.close()
 
     @timeMe
     def runTagScripts(self, dest):
@@ -580,12 +574,12 @@ class BootableImage(ImageGenerator):
     def umountChrootMounts(self, dest):
         # umount all mounts inside the chroot.
         mounts = open('/proc/mounts', 'r')
-        mntlist = []
+        mntlist = set()
         for line in mounts:
             line = line.strip()
             mntpoint = line.split(' ')[1]
             if mntpoint.startswith(dest) and mntpoint != dest:
-                mntlist.append(mntpoint)
+                mntlist.add(mntpoint)
         # unmount in reverse sorted order to get /foo/bar before /foo
         for mntpoint in reversed(sorted(mntlist)):
             logCall('umount %s' % mntpoint)
