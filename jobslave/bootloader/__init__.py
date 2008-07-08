@@ -4,6 +4,8 @@
 # All rights reserved
 #
 
+import os
+
 
 class BootloaderInstaller(object):
     def __init__(self, parent, image_root):
@@ -47,3 +49,18 @@ class DummyInstaller(BootloaderInstaller):
 
     def install(self):
         pass
+
+
+def writeBootmanConfigs(installer):
+    '''
+    Write out bootloader.d entries common to syslinux and grub
+    when using bootman.
+    '''
+
+    # Tell bootman where / is
+    root_conf = open(os.path.join(installer.image_root,
+        'etc', 'bootloader.d', 'root.conf'), 'w')
+    print >> root_conf, 'timeout 50'
+    print >> root_conf, 'add_options ro'
+    print >> root_conf, 'root LABEL=root'
+    root_conf.close()

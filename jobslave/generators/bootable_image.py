@@ -204,7 +204,7 @@ class Filesystem:
             loopDev = self.fsDev
         try:
             if self.fsType == 'ext3':
-                cmd = 'mke2fs -L / -F -b 4096 %s' % loopDev
+                cmd = 'mke2fs -F -b 4096 %s' % loopDev
                 if self.size:
                     cmd += ' %s' % (self.size / 4096)
                 logCall(cmd)
@@ -476,7 +476,7 @@ class BootableImage(ImageGenerator):
             shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         stdout, stderr = p.communicate()
         uuid = stdout.strip()
-        f.write('<device DEVNO="%s" TIME="%s" LABEL="/" '
+        f.write('<device DEVNO="%s" TIME="%s" LABEL="root" '
                 'UUID="%s" SEC_TYPE="ext2" TYPE="ext3">%s</device>\n'
                 % (devno, int(time.time()), uuid, dev))
         f.close()
