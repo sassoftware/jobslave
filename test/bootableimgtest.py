@@ -16,6 +16,7 @@ import simplejson
 import xmlrpclib
 from StringIO import StringIO
 
+from conary import versions
 from conary.lib import util
 from conary.deps import deps
 
@@ -523,36 +524,46 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             self.bootable.updateGroupChangeSet = updateGroupChangeSet
             self.bootable.fileSystemOddsNEnds = fileSystemOddsNEnds
 
-    def getStubCClient(self):
-        class StubUpdateJob(object):
-            def __init__(x):
-                x.troveSource = x
-                x.db = x
-                x.lockFileObj = x
-                x.closed = False
-
-            def close(x, *args, **kwargs):
-                x.closed = True
+    def _getStubCClient(self, isKernel):
+        data = self.bootable.jobData
+        if isKernel:
+            name = 'kernel:runtime'
+            version = None
+            flavor = deps.parseFlavor(self.bootable.getKernelFlavor())
+        else:
+            name = data['troveName']
+            version = versions.ThawVersion(data['troveVersion']).asString()
+            flavor = deps.ThawFlavor(data['troveFlavor'])
+        expectedItems = [(name, (None, None), (version, flavor), True)]
 
         class CClient(object):
             def __init__(x):
-                x.uJob = StubUpdateJob()
+                x.uJob = object()
+                x.prepared = x.applied = False
             def newUpdateJob(x):
                 return x.uJob
-            prepareUpdateJob = applyUpdateJob = lambda *args, **kwargs: None
+            def prepareUpdateJob(x, uJob, items, **kwargs):
+                self.failUnless(uJob is x.uJob)
+                self.failUnlessEqual(expectedItems, items)
+                x.prepared = True
+            def applyUpdateJob(x, uJob, tagScript=None, **kwargs):
+                self.failUnless(uJob is x.uJob)
+                self.failUnless(tagScript is not None)
+                x.applied = True
+            def failUnlessRun(x):
+                self.failUnless(x.prepared, "Image trove was not installed")
+                self.failUnless(x.applied, "Kernel was not installed")
         return CClient()
 
     def testUpdateGroupChangeSet(self):
-        cclient = self.getStubCClient()
+        cclient = self._getStubCClient(False)
         self.bootable.updateGroupChangeSet(cclient)
-        self.failIf(not cclient.uJob.closed,
-                "updateGroupChangeSet did not run to completion")
+        cclient.failUnlessRun()
 
     def testUpdateKernelChangeSet(self):
-        cclient = self.getStubCClient()
+        cclient = self._getStubCClient(True)
         self.bootable.updateKernelChangeSet(cclient)
-        self.failIf(not cclient.uJob.closed,
-                "updateKernelChangeSet did not run to completion")
+        cclient.failUnlessRun()
 
     def testPostAMIOutput(self):
         class DummyProxy(object):
