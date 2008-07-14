@@ -30,24 +30,24 @@ from mcp import jobstatus
 
 MSG_INTERVAL = 5
 
-class LogHandler(logging.Handler):
+class LogHandler(logging.FileHandler):
     def __init__(self, jobId, response):
         self.jobId = jobId
         self.response = weakref.ref(response)
+
         self._msgs = ''
         self.lastSent = 0
-        logging.Handler.__init__(self)
-        d = tempfile.mkdtemp()
-        self.logfn = os.path.join(d, 'build.log')
-        self.logfd = os.open(self.logfn, os.O_CREAT|os.O_WRONLY)
 
-    def __del__(self):
-        os.close(self.logfd)
+        d = tempfile.mkdtemp()
+        logfn = os.path.join(d, 'build.log')
+        logging.FileHandler.__init__(self, logfn)
 
     def getFilename(self):
-        return self.logfn
+        return self.baseFilename
 
     def flush(self):
+        logging.FileHandler.flush(self)
+
         self.lastSent = time.time()
         try:
             msgs = self._msgs
@@ -59,6 +59,8 @@ class LogHandler(logging.Handler):
             sys.stderr.flush()
 
     def emit(self, record):
+        logging.FileHandler.emit(record)
+
         os.write(self.logfd, record.getMessage() + '\n')
         self._msgs += record.getMessage() + '\n'
         if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
@@ -144,6 +146,15 @@ class Generator(threading.Thread):
         log.setVerbosity(logging.DEBUG)
 
         threading.Thread.__init__(self)
+
+    def __del__(self):
+        # Close and remove the MCP+file logger since the logging
+        # module keeps several references otherwise
+        if hasattr(self, 'logger'):
+            rootLogger = logging.getLogger('')
+            rootLogger.removeHandler(self.logger)
+            self.logger.close()
+            del self.logger
 
     def getCookData(self, key):
         return self.jobData.get('data', {}).get(key)

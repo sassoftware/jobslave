@@ -38,7 +38,8 @@ class VHDTest(testsuite.TestCase):
         self.validateVHD(self.fn)
 
     def testDynamic(self):
-        _, outFn = tempfile.mkstemp()
+        fd, outFn = tempfile.mkstemp()
+        os.close(fd)
         try:
             vhd.makeDynamic(self.fn, outFn)
             self.validateVHD(outFn)
@@ -46,7 +47,8 @@ class VHDTest(testsuite.TestCase):
             os.unlink(outFn)
 
     def testDifference(self):
-        _, outFn = tempfile.mkstemp()
+        fd, outFn = tempfile.mkstemp()
+        os.close(fd)
         try:
             vhd.makeDifference(self.fn, outFn)
             self.validateVHD(outFn, magic = "cxsparse")

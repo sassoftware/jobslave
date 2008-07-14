@@ -5,19 +5,29 @@
 # All rights reserved
 #
 
-import os, sys
-import testhelp
-
+import logging
+import os
+import signal
 import simplejson
 import subprocess
+import sys
 import threading
 import tempfile
 
+import testhelp
+
+from conary.lib import util
+from conary.lib import log as conary_log
 from cStringIO import StringIO
+from mcp import mcp_log
+
 from jobslave import jobhandler, slave, constants, generators
 from jobslave import imagegen
 from jobslave import buildtypes
-from conary.lib import util
+
+
+log = logging.getLogger('')
+
 
 class DummyConnection(object):
     def __init__(self, *args, **kwargs):
@@ -72,6 +82,15 @@ class ThreadedJobSlave(slave.JobSlave, threading.Thread):
         slave.JobSlave.__init__(self, *args, **kwargs)
 
 
+class DummyHandler(logging.Handler):
+    '''
+    Dummy log handler. Eats all messages.
+    '''
+    def emit(self, record):
+        # om nom nom nom
+        pass
+
+
 class JobSlaveHelper(testhelp.TestCase):
     def setUp(self):
         testhelp.TestCase.setUp(self)
@@ -83,9 +102,14 @@ class JobSlaveHelper(testhelp.TestCase):
         self.slaveCfg.configLine('debugMode True')
 
         f = open ('archive/jobdata.txt')
-        self.jobSlave = ThreadedJobSlave(self.slaveCfg,
-                simplejson.loads(f.read()))
-        f.close()
+        _signal = signal.signal
+        try:
+            signal.signal = lambda x, y: None
+            self.jobSlave = ThreadedJobSlave(self.slaveCfg,
+                    simplejson.loads(f.read()))
+        finally:
+            signal.signal = _signal
+            f.close()
 
         self.finishedDir = tempfile.mkdtemp(prefix="jobslave-test-finished-images")
         self.entDir = tempfile.mkdtemp(prefix="jobslave-test-ent")
@@ -94,9 +118,17 @@ class JobSlaveHelper(testhelp.TestCase):
 
         self.testDir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 
-        # Keep conary from changing loglevel to debug while cooking
-        from conary.lib import log
-        log.setVerbosity = lambda x: None
+        # Suppress warning messages logged during tests since they are
+        # supposed to be exercising these paths.
+        conary_log.setVerbosity(conary_log.ERROR)
+
+        # Neuter a few functions that might result in unwanted output
+        # during the testsuite run:
+        # - don't let conary set the loglevel when cooking
+        conary_log.setVerbosity = lambda x: None
+        # - add a dummy handler so that logging doesn't open a
+        #   default one
+        log.addHandler(DummyHandler())
 
         # make sure we always delete mkdtemp directories
         self.mkdCreated = []
@@ -116,6 +148,34 @@ class JobSlaveHelper(testhelp.TestCase):
         for x in self.mkdCreated:
             self.suppressOutput(util.rmtree, x, ignore_errors = True)
         tempfile.mkdtemp = self.realMkdtemp
+
+        # Sanity check: make sure no-one other than us has a reference
+        # to the jobslave (the second reference is from the copy we're
+        # passing to getrefcount)
+        references = sys.getrefcount(self.jobSlave) - 2
+        if references:
+            print "WARNING: %d extra references to jobslave."
+            print "Expect unfreed resources!"
+
+        # Delete our reference to the jobslave now so that any
+        # resources it holds are freed and we can check for stragglers.
+        del self.jobSlave
+
+        # Make sure logfiles get closed
+        for handler in log.handlers:
+            log.removeHandler(handler)
+            if isinstance(handler, DummyHandler):
+                continue
+
+            print 'WARNING: Handler %r left open' % handler
+            try:
+                handler.close()
+            except:
+                import traceback
+                exc_data = sys.exc_info()
+                print '... and failed to close:'
+                print ''.join(traceback.format_exception_only(*exc_data))
+                del exc_data
 
         testhelp.TestCase.tearDown(self)
 

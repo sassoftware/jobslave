@@ -146,6 +146,7 @@ class KeyTest(testsuite.TestCase):
             trove.Trove = Trove
             changeset.ChangeSetFromFile = ChangeSetFromFile
             os.dup2(oldErr, sys.stderr.fileno())
+            os.close(oldErr)
             util.rmtree(csdir)
             util.rmtree(logFile)
 

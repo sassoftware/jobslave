@@ -74,11 +74,11 @@ class LiveIso(bootable_image.BootableImage):
 
         if fallback:
             tFile = tFile.replace('.static', '')
-            print >> sys.stderr, "Using fallback for: %s" % tFile
+            log.info("Using fallback for: %s", tFile)
             # named executable isn't suitable, use precompiled static one
             util.copyfile(os.path.join(self.fallback, tFile), dest)
         else:
-            print >> sys.stderr, "Using user defined: %s" % tFile
+            log.info("Using user-defined: %s", tFile)
             util.copyfile(src, dest)
         return not fallback
 
@@ -115,7 +115,7 @@ class LiveIso(bootable_image.BootableImage):
                 os.chmod(os.path.join(initrdDir, 'bin', tFile), 0755) # octal
 
             # FIXME: remove once nash has proper losetup args in place
-            print >> sys.stderr, "Forcing temporary nash fallback (for losetup)"
+            log.warning("Forcing temporary nash fallback (for losetup)")
             util.copyfile(os.path.join(self.fallback, 'nash'),
                           os.path.join(initrdDir, 'bin', 'nash'))
             os.chmod(os.path.join(initrdDir, 'bin', 'nash'), 0755) # octal 755

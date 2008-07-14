@@ -130,6 +130,11 @@ class InstallCallback(UpdateCallback):
 
         UpdateCallback.__init__(self)
 
+    def closeCB(self):
+        # Eliminate a reference from ConaryClient (which never frees
+        # properly) back to the parent Generator.
+        self.status = lambda x: None
+
 
 class Filesystem:
     loopDev = None
@@ -267,11 +272,11 @@ class BootableImage(ImageGenerator):
 
     def findFile(self, baseDir, fileName):
         for base, dirs, files in os.walk(baseDir):
-            matches = [x for x in files if re.match(fileName, x)]
+            matches = sorted(x for x in files if re.match(fileName, x))
             if matches:
-                print >> sys.stderr, "match found for %s" % \
-                      os.path.join(base, matches[0])
-                return os.path.join(base, matches[0])
+                path = os.path.join(base, matches[0])
+                log.info("match found for %s", path)
+                return path
         return None
 
     @timeMe
@@ -602,7 +607,8 @@ class BootableImage(ImageGenerator):
             else:
                 log.warning("Using system temporary directory")
 
-            cclient.setUpdateCallback(InstallCallback(self.status))
+            callback = InstallCallback(self.status)
+            cclient.setUpdateCallback(callback)
             self.updateGroupChangeSet(cclient)
 
             # set up the flavor for the kernel install based on the 
@@ -620,11 +626,15 @@ class BootableImage(ImageGenerator):
                 log.info('Kernel detected, skipping.')
 
             # clean up some bits Conary leaves around
+            # revisit this after conary-2 makes it into the jobslave,
+            # since most of it is obsoleted by cclient.close()
             cclient.db.close()
             cclient.db.commitLock(False) # fixed in conary 1.1.92
             if log.syslog.f:
                 log.syslog.f.close()
             log.syslog.f = None
+            del cclient
+            callback.closeCB()
 
             self.fileSystemOddsNEnds(dest)
 

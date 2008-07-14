@@ -229,6 +229,8 @@ class StubFilesystem(object):
 
 class BootableImageTest(jobslave_helper.JobSlaveHelper):
     def setUp(self):
+        jobslave_helper.JobSlaveHelper.setUp(self)
+
         data = simplejson.loads(open('archive/jobdata.txt').read())
         self.mockJobSlave = MockJobSlave()
         from jobslave.generators import constants
@@ -236,9 +238,9 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         bootable_image.BootableImage.status = lambda *args, **kwargs: None
         self.bootable = bootable_image.BootableImage(data, self.mockJobSlave)
         self.bootable.swapSize = 40960
-        jobslave_helper.JobSlaveHelper.setUp(self)
 
     def tearDown(self):
+        del self.bootable
         jobslave_helper.JobSlaveHelper.tearDown(self)
 
     def testBootableImageNotWritable(self):
@@ -394,7 +396,6 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
             util.rmtree(tmpDir)
 
     def testGetTroveSize(self):
-        createChangeSet = self.bootable.nc.createChangeSet
         calculatePartitionSizes = filesystems.calculatePartitionSizes
         try:
             self.bootable.nc.createChangeSet = lambda *args, **kwargs: None
@@ -403,7 +404,6 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
             self.failIf(self.bootable.getTroveSize(None) != (None, None),
                     "results from getTroveSize did not come from filesystem")
         finally:
-            self.bootable.nc.createChangeSet = createChangeSet
             filesystems.calculatePartitionSizes = calculatePartitionSizes
 
     def testMountAll(self):
@@ -431,7 +431,6 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
 
     def testMakeImage(self):
         self.bootable.workDir = tempfile.mkdtemp()
-        installFileTree = self.bootable.installFileTree
         try:
             def dummyInstall(*args, **kwargs):
                 self.called = True
@@ -441,7 +440,6 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
             self.bootable.installFileTree(root_dir)
             self.failIf(not self.called, "installFileTree was not called")
         finally:
-            self.bootable.installFileTree = installFileTree
             util.rmtree(self.bootable.workDir)
 
     def testFindFile(self):
@@ -461,9 +459,6 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
         saved_tmpDir = constants.tmpDir
         constants.tmpDir = tempfile.mkdtemp()
         logCall = bootable_image.logCall
-        updateGroupChangeSet = self.bootable.updateGroupChangeSet
-        updateKernelChangeSet = self.bootable.updateKernelChangeSet
-        fileSystemOddsNEnds = self.bootable.fileSystemOddsNEnds
         try:
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script.in'))
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
@@ -520,9 +515,6 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.logCall = logCall
             bootable_image.open = open
             bootable_image.file = file
-            self.bootable.updateKernelChangeSet = updateKernelChangeSet
-            self.bootable.updateGroupChangeSet = updateGroupChangeSet
-            self.bootable.fileSystemOddsNEnds = fileSystemOddsNEnds
 
     def _getStubCClient(self, isKernel):
         data = self.bootable.jobData

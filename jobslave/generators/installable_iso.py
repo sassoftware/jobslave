@@ -5,7 +5,6 @@
 #
 import httplib
 import logging
-log = logging
 import os
 import pwd
 import re
@@ -41,6 +40,10 @@ from conary.build import use
 from conary.conarycfg import ConfigFile
 from conary.conaryclient.cmdline import parseTroveSpec
 from conary.lib import util, sha1helper, openpgpfile
+
+
+log = logging.getLogger('')
+
 
 class Callback(callbacks.UpdateCallback):
     def requestingChangeSet(self):
@@ -424,7 +427,7 @@ class InstallableIso(ImageGenerator):
                 currentStatus = ''
                 nexthop = ''
                 while True:
-                    print currentStatus
+                    log.info(currentStatus)
                     contentType = httpresp.getheader('Content-Type')
                     if httpresp.status in (202, 303):
                         nexthop = httpresp.getheader('Location')

@@ -59,7 +59,6 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
             "Job was not killed on command")
 
     def testJSRun(self):
-        disconnect = self.jobSlave.disconnect
         _exit = os._exit
         def MockExit(exitCode):
             raise SystemExit(exitCode)
@@ -68,7 +67,6 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
             self.jobSlave.disconnect = lambda *args, **kwargs: None
             self.assertRaises(SystemExit, self.jobSlave.run)
         finally:
-            self.jobSlave.disconnect = disconnect
             os._exit = _exit
 
     def testInitialStatus(self):

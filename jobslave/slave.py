@@ -91,6 +91,7 @@ def catchErrors(func):
             print >> sys.stderr, "%s %s" % ("Uncaught Exception: (" + \
                 exc.__class__.__name__ + ')', str(exc))
             print >> sys.stderr, '\n'.join(traceback.format_tb(bt))
+            del bt
     return wrapper
 
 def alwaysExit(func):
@@ -142,6 +143,7 @@ class JobSlave(object):
             self.response.jobStatus(UUID, jobstatus.FAILED,
                                     'Image creation error: %s' % str(e))
             self.running = False
+            del bt
 
         try:
             while self.running:
