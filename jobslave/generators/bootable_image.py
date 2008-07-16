@@ -373,11 +373,17 @@ class BootableImage(ImageGenerator):
         fstab.write(oldFstab)
         fstab.close()
 
-        # write the /etc/sysconfig/appliance-name for rpl:2 initscripts
-        util.mkdirChain(os.path.join(fakeRoot, 'etc', 'sysconfig'))
-        appName = open(os.path.join(fakeRoot, 'etc', 'sysconfig', 'appliance-name'), 'w')
-        print >> appName, self.jobData['project']['name']
-        appName.close()
+        # Write the /etc/sysconfig/appliance-name for distro-release initscript.
+        # Only overwrite if the file is non existent or empty. (RBL-3104)
+        appliancePath = os.path.join(fakeRoot, 'etc', 'sysconfig')
+        if not os.path.exists(appliancePath):
+            util.mkdirChain(appliancePath)
+
+        appNameFile = os.path.join(appliancePath, 'appliance-name')
+        if not os.path.exists(appNameFile) or not os.path.getsize(appNameFile):
+            f = open(appNameFile, 'w')
+            f.write('%s\n' % self.jobData['project']['name'])
+            f.close()
 
     @timeMe
     def fileSystemOddsNEndsFinal(self, fakeRoot):
