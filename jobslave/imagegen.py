@@ -59,7 +59,7 @@ class LogHandler(logging.FileHandler):
             sys.stderr.flush()
 
     def emit(self, record):
-        logging.FileHandler.emit(record)
+        logging.FileHandler.emit(self, record)
 
         os.write(self.logfd, record.getMessage() + '\n')
         self._msgs += record.getMessage() + '\n'
