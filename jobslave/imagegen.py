@@ -61,7 +61,6 @@ class LogHandler(logging.FileHandler):
     def emit(self, record):
         logging.FileHandler.emit(self, record)
 
-        os.write(self.logfd, record.getMessage() + '\n')
         self._msgs += record.getMessage() + '\n'
         if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
             self.flush()
