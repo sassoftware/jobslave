@@ -45,9 +45,9 @@ class LogHandler(logging.FileHandler):
     def getFilename(self):
         return self.baseFilename
 
-    def flush(self):
-        logging.FileHandler.flush(self)
-
+    def sendMessages(self):
+        # We can't call this "flush" or FileHandler will invoke it
+        # after every emit() call, which bogs down the mcp.
         self.lastSent = time.time()
         try:
             msgs = self._msgs
@@ -62,8 +62,12 @@ class LogHandler(logging.FileHandler):
         logging.FileHandler.emit(self, record)
 
         self._msgs += record.getMessage() + '\n'
-        if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 1):
-            self.flush()
+        if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 4):
+            self.sendMessages()
+
+    def close(self):
+        logging.FileHandler.close(self)
+        self.sendMessages()
 
 
 def logCall(cmd, ignoreErrors = False):
