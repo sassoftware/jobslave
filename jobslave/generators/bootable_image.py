@@ -622,6 +622,7 @@ class BootableImage(ImageGenerator):
             self.conarycfg.useDirs = [os.path.join(dest, 'etc/conary/use')]
             self.conarycfg.initializeFlavors()
             if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
+                self.status('Installing kernel')
                 try:
                     self.updateKernelChangeSet(cclient)
                 except conaryclient.NoNewTrovesError:
@@ -641,6 +642,8 @@ class BootableImage(ImageGenerator):
             log.syslog.f = None
             del cclient
             callback.closeCB()
+
+            self.status('Finalizing install')
 
             self.fileSystemOddsNEnds(dest)
 

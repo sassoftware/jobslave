@@ -124,6 +124,9 @@ class ApplianceInstaller(bootable_image.BootableImage,
         cwd = os.getcwd()
         try:
             self.installFileTree(basePath)
+
+            self.status('Preparing to build ISOs')
+
             os.chdir(basePath)
             util.execute('tar -C %s -cpPs --to-stdout ./ | gzip > %s' % \
                              (basePath, tarball))

@@ -67,5 +67,6 @@ class RawFsImage(bootable_image.BootableImage):
         finalImage = os.path.join(self.outputDir, self.basefilename + '.fs.tar.gz')
 
         images = self.makeFSImage(sizes)
+        self.status('Compressing filesystem images')
         self.gzip(os.path.join(self.workDir, self.basefilename), finalImage)
         self.postOutput(((finalImage, 'Raw Filesystem Image'),))

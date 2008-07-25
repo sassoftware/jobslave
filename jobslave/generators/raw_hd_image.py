@@ -138,5 +138,7 @@ class RawHdImage(bootable_image.BootableImage):
         self.makeHDImage(image)
 
         finalImage = os.path.join(self.outputDir, self.basefilename + '.hdd.gz')
+
+        self.status('Compressing hard disk image')
         outFile = self.gzip(image, finalImage)
         self.postOutput(((finalImage, 'Raw Hard Disk Image'),))

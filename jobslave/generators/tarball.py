@@ -30,6 +30,7 @@ class Tarball(bootable_image.BootableImage):
         try:
             self.installFileTree(basePath)
             os.chdir(basePath)
+            self.status('Creating tarball')
             logCall('tar -C %s -cpPs --to-stdout ./ | gzip > %s' % \
                              (basePath, tarball))
             self.postOutput(((tarball, 'Tar File'),))
