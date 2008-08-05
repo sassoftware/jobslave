@@ -705,7 +705,7 @@ class BootableImage(ImageGenerator):
             if not dest:
                 dest = source + '.tar.gz'
             parDir, targetDir = os.path.split(source)
-            logCall('tar -C %s -cvS %s | gzip > %s' % (parDir, targetDir, dest))
+            logCall('tar -C %s -cv %s | gzip > %s' % (parDir, targetDir, dest))
         else:
             if not dest:
                 dest = source + '.gz'
