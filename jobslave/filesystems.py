@@ -7,7 +7,9 @@
 from conary import trove, files
 from conary.lib import util
 
+import sys
 import os
+
 
 def sortMountPoints(mounts):
     """Sorts mount points by specificity by counting os.path.sep instances."""
@@ -59,3 +61,56 @@ def calculatePartitionSizes(cs, mounts):
                         break
         seen[(n, v, f)] = True
     return mountDict, sum(mountDict.values())
+
+
+def test(args):
+    import time
+    from conary.repository.changeset import ChangeSetFromFile
+
+    def prettySize(bytes):
+        if bytes > 1073741824:
+            pretty = '%.2fGiB' % (bytes / 1073741824.0)
+        elif bytes > 1048576:
+            pretty = '%.2fMiB' % (bytes / 1048576.0)
+        elif bytes > 1024:
+            pretty = '%.2fKiB' % (bytes / 1024.0)
+        else:
+            pretty = '%dB' % bytes
+        return '%s (%d)' % (pretty, bytes)
+
+    if len(args) < 2:
+        sys.exit('Usage: %s <changeset> <mount point>+' % sys.argv[0])
+
+    changeSetPath, mountPoints = args[0], args[1:]
+
+    _start = time.time()
+    changeSet = ChangeSetFromFile(changeSetPath)
+    _stop = time.time()
+
+    csTotal = 0
+    print 'From changeset: (loaded in %.03fs)' % (_stop - _start)
+    for primaryTup in sorted(changeSet.getPrimaryTroveList()):
+        trvCs = changeSet.getNewTroveVersion(*primaryTup)
+        trv = trove.Trove(trvCs)
+        trvSize = trv.getTroveInfo().size()
+        csTotal += trvSize
+        trvSpec = '%s=%s[%s]' % primaryTup
+        print '%s=%s[%s] %s' % (primaryTup + (prettySize(trvSize),))
+    print 'Total: %s' % prettySize(csTotal)
+    print
+
+    _start = time.time()
+    sizeDict, totalSize = calculatePartitionSizes(changeSet, mountPoints)
+    _stop = time.time()
+    print 'From calculatePartitionSizes: (runtime %.03fs)' % (_stop - _start)
+    for mountPoint in sortMountPoints(mountPoints):
+        print '%-32s: %s' % (mountPoint, prettySize(sizeDict[mountPoint]))
+    print 'Total: %s' % prettySize(totalSize)
+
+    factor = float(csTotal) / float(totalSize)
+    print 'Info delta: %12d  Factor: %.03f (%+.1f%%)' % (csTotal - totalSize,
+        factor, (1 - factor) * -100.0)
+
+
+if __name__ == '__main__':
+    sys.exit(test(sys.argv[1:]))
