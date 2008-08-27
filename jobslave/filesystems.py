@@ -26,41 +26,45 @@ def sortMountPoints(mounts):
     return mounts
 
 
-def calculatePartitionSizes(cs, mounts):
-    """Iterate over every file in a changeset and returns a sum of files inside
-       each directory specified by "mounts"."""
+def calculatePartitionSizes(changeSet, mounts):
+    """
+    Iterate over every file in a C{changeSet} and return a sum of the
+    sizes for each mount in C{mounts}.
+    """
     mounts = sortMountPoints(mounts)
     mountDict = dict.fromkeys(mounts, 0)
 
-    seen = {}
-    q = util.IterableQueue()
-    for n, v, f in cs.getPrimaryTroveList():
-        q.add((n, v, f))
-    for n, v, f in q:
-        trv = trove.Trove(cs.getNewTroveVersion(n, v, f))
+    for n, v, f in changeSet.getPrimaryTroveList():
+        trv = trove.Trove(changeSet.getNewTroveVersion(n, v, f))
 
-        for (name, version, flavor), byDefault, strongRef in trv.iterTroveListInfo():
+        for troveTup, byDefault, strongRef in trv.iterTroveListInfo():
             if not byDefault:
                 continue
-            q.add((name, version, flavor))
 
-        if (n, v, f) in seen:
-            continue
+            processTrove(changeSet, mounts, mountDict, troveTup)
 
-        for pathId, path, fileId, fVer in trv.iterFileList():
-            fStr = cs.getFileChange(None, fileId)
-            fObj = files.frozenFileContentInfo(fStr)
-
-            if type(fObj) == files.RegularFileStream:
-                for mount in mounts:
-                    if path.startswith(mount):
-                        blockSize = 4096
-                        realSize = fObj.size()
-                        nearestBlock = (realSize / blockSize + 1) * blockSize
-                        mountDict[mount] += nearestBlock
-                        break
-        seen[(n, v, f)] = True
     return mountDict, sum(mountDict.values())
+
+
+def processTrove(changeSet, mounts, mountDict, troveTup):
+    """
+    Add the files from one trove C{troveTup} to the size
+    mapping in C{mountDict}.
+    """
+
+    subTrv = trove.Trove(changeSet.getNewTroveVersion(*troveTup))
+    for pathId, path, fileId, fVer in subTrv.iterFileList():
+        fStr = changeSet.getFileChange(None, fileId)
+        fObj = files.frozenFileContentInfo(fStr)
+
+        if type(fObj) == files.RegularFileStream:
+            for mount in mounts:
+                if path.startswith(mount):
+                    blockSize = 4096
+                    realSize = fObj.size()
+                    nearestBlock = (realSize / blockSize + 1) * blockSize
+                    mountDict[mount] += nearestBlock
+                    break
 
 
 def test(args):
