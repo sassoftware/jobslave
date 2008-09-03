@@ -23,9 +23,9 @@ MemAllowAutoScaleDown = "FALSE"
 # Floppy
 #####
 
-floppy0.present = "TRUE"
-floppy0.startConnected = "FALSE"
-floppy0.autodetect = "TRUE"
+floppy0.present = "FALSE"
+#floppy0.startConnected = "FALSE"
+#floppy0.autodetect = "TRUE"
 
 #####
 # Mass Storage

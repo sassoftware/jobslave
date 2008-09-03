@@ -30,9 +30,9 @@ usb.autodetect = "TRUE"
 # Floppy
 #####
 
-floppy0.present = "TRUE"
-floppy0.startConnected = "FALSE"
-floppy0.autodetect = "TRUE"
+floppy0.present = "FALSE"
+#floppy0.startConnected = "FALSE"
+#floppy0.autodetect = "TRUE"
 
 #####
 # Mass Storage
@@ -67,9 +67,9 @@ ethernet0.autodetect = "TRUE"
 # Sound
 #####
 
-sound.present = "TRUE"
-sound.virtualDev = "es1371"
-sound.autodetect = "TRUE"
+sound.present = "FALSE"
+#sound.virtualDev = "es1371"
+#sound.autodetect = "TRUE"
 
 #####
 # Misc.
