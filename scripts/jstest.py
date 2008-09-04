@@ -25,7 +25,7 @@ if not os.path.isdir(constants.tmpDir):
     conary.lib.util.mkdirChain(constants.tmpDir)
 
 jobData = {
-    "buildType": buildtypes.RAW_FS_IMAGE,
+    "buildType": buildtypes.RAW_HD_IMAGE,
     "protocolVersion": 1,
     "data": {
         "jsversion": "3.1.3",
@@ -61,7 +61,7 @@ class JobSlave(object):
 import epdb
 
 #Create the image generator object
-    generator = jobslave.jobhandler.getHandler(jobData, JobSlave())
+generator = jobslave.jobhandler.getHandler(jobData, JobSlave())
 
 try:
     generator.write()
