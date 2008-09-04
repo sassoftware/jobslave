@@ -515,7 +515,14 @@ class BootableImage(ImageGenerator):
     def runTagScripts(self, dest):
         outScript = os.path.join(dest, 'root', 'conary-tag-script')
         inScript = outScript + '.in'
-        logCall('echo "/sbin/ldconfig" > %s; cat %s | sed "s|/sbin/ldconfig||g" | grep -vx "" >> %s' % (outScript, inScript, outScript))
+        outs = open(outScript, 'wt')
+        ins = open(inScript, 'rt')
+        outs.write('/sbin/ldconfig\n')
+        for line in ins:
+            if not line.startswith('/sbin/ldconfig'):
+                outs.write(line)
+        ins.close()
+        outs.close()
         os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
 
         if self._isSUSE(dest):
