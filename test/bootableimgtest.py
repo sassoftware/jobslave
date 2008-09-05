@@ -501,10 +501,10 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
-            self.failIf(len(self.cmds) != 10,
+            self.failIf(len(self.cmds) != 9,
                     "unexpected number of external calls")
             # make sure we unmount things in the right order
-            self.failUnlessEqual(self.cmds[4:7],
+            self.failUnlessEqual(self.cmds[3:6],
                                  ['umount %s/sys/bar' %tmpDir,
                                   'umount %s/sys' %tmpDir,
                                   'umount %s/proc' %tmpDir])
