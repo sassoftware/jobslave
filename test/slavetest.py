@@ -58,17 +58,6 @@ class SlaveTest(jobslave_helper.JobSlaveHelper):
         self.failIf(self.jobSlave.jobHandler.running,
             "Job was not killed on command")
 
-    def testJSRun(self):
-        _exit = os._exit
-        def MockExit(exitCode):
-            raise SystemExit(exitCode)
-        try:
-            os._exit = MockExit
-            self.jobSlave.disconnect = lambda *args, **kwargs: None
-            self.assertRaises(SystemExit, self.jobSlave.run)
-        finally:
-            os._exit = _exit
-
     def testInitialStatus(self):
         savedTime = time.time
         try:
