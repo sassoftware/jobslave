@@ -141,14 +141,14 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
         self.failUnlessEqual(
             self.callLog,
-            ['dd if=/dev/zero of=/tmp/workdir/image.hdd count=1 seek=125 bs=4096',
-             'losetup -o65636  /tmp/workdir/image.hdd',
+            ['dd if=/dev/zero of=/tmp/workdir/image.hdd count=1 seek=2015 bs=512',
+             'losetup -o516096  /tmp/workdir/image.hdd',
              'sync',
              'pvcreate ',
              'vgcreate vg00 ',
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
-             'mke2fs -F -b 4096  0',
+             'mke2fs -F -b 4096  110',
              'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
@@ -173,14 +173,14 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
         self.failUnlessEqual(
             self.callLog,
-            ['dd if=/dev/zero of=/tmp/workdir/image.hdd count=1 seek=125 bs=4096',
-             'losetup -o65636  /tmp/workdir/image.hdd',
+            ['dd if=/dev/zero of=/tmp/workdir/image.hdd count=1 seek=2015 bs=512',
+             'losetup -o516096  /tmp/workdir/image.hdd',
              'sync',
              'pvcreate ',
              'vgcreate vg00 ',
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
-             'mke2fs -F -b 4096  0',
+             'mke2fs -F -b 4096  110',
              'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
@@ -504,7 +504,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(ref != res, "expected %s, but got %s" % \
                     (str(ref), str(res)))
             self.failIf(not self.callLog[0].startswith( \
-                    'raw2vmdk -C 0 -H 128 -S 32 -A lsilogic'),
+                    'raw2vmdk -C 0 -H 16 -S 63 -A lsilogic'),
                     "expected call to make vmdk")
             vmxData = open(os.path.join(tmpDir, 'image', 'image.vmx')).read()
             self.failIf("other26xlinux-64" not in vmxData,

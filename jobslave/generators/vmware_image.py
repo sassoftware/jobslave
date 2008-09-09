@@ -29,51 +29,46 @@ def vmEscape(data, eatNewlines = True):
     data = delim.join(data.splitlines())
     return ''.join([c for c in data if ord(c) >= 32])
 
+
+def substitute(template, variables):
+    for name, value in variables.items():
+        template = template.replace('@%s@' % name, str(value))
+    return template
+
+
 class VMwareImage(raw_hd_image.RawHdImage):
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
-        if self.adapter == 'ide':
-            cylinders = size / constants.cylindersize
-            cmd = 'raw2vmdk -C %d -H %d -S %d -A %s %s %s' % \
-                (cylinders, constants.heads, constants.sectors,
-                 self.adapter, hdImage, outfile)
-        else:
-            cylinders = (size / constants.cylindersize) * \
-                (constants.heads * constants.sectors) / \
-                (constants.scsiHeads * constants.scsiSectors)
-            cmd = 'raw2vmdk -C %d -H %d -S %d -A %s %s %s' % \
-                (cylinders, constants.scsiHeads, constants.scsiSectors,
-                 self.adapter, hdImage, outfile)
-        logCall(cmd)
+        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
+        logCall('raw2vmdk -C %d -H %d -S %d -A %s %s %s' % (
+            cylinders, constants.heads, constants.sectors,
+            self.adapter, hdImage, outfile))
 
     @bootable_image.timeMe
     def createVMX(self, outfile):
         #Read in the stub file
         infile = open(os.path.join(constants.templateDir, self.templateName),
                       'rb')
-        #Replace the @DELIMITED@ text with the appropriate values
         filecontents = infile.read()
         infile.close()
-        #@NAME@ @MEM@ @FILENAME@
 
         # Escape ", #, |, <, and >, strip out control characters
-        displayName = vmEscape(self.jobData.get('project', {}).get('name', ''))
+        displayName = self.jobData.get('project', {}).get('name', '')
+        description = self.jobData.get('description', '')
 
-        filecontents = filecontents.replace('@NAME@', displayName)
-        filecontents = filecontents.replace('@DESCRIPTION@',
-                vmEscape(self.jobData.get('description', ''),
-                    eatNewlines = False))
-        filecontents = filecontents.replace('@MEM@', str(self.vmMemory))
-        filecontents = filecontents.replace('@FILENAME@', self.basefilename)
-        filecontents = filecontents.replace('@NETWORK_CONNECTION@', \
-            self.getBuildData('natNetworking') and 'nat' or 'bridged')
-        filecontents = filecontents.replace('@ADAPTER@', self.adapter)
-        filecontents = filecontents.replace('@ADAPTERDEV@',
-                                            (self.adapter == 'lsilogic') \
-                                                and 'scsi' or 'ide')
-        filecontents = filecontents.replace('@SNAPSHOT@',
-                                            str(not self.vmSnapshots).upper())
-        filecontents = filecontents.replace('@GUESTOS@', self.getGuestOS())
+        # Substitute values into the placeholders in the templtae.
+        filecontents = substitute(filecontents, {
+            'NAME': vmEscape(displayName),
+            'DESCRIPTION': vmEscape(description, eatNewlines=False),
+            'MEM': self.vmMemory,
+            'FILENAME': self.basefilename,
+            'NETWORK_CONNECTION': (self.getBuildData('natNetworking')
+                and 'nat' or 'bridged'),
+            'ADAPTER': self.adapter,
+            'ADAPTERDEV': self.adapter == 'lsilogic' and 'scsi' or 'ide',
+            'SNAPSHOT': str(not self.vmSnapshots).upper(),
+            'GUESTOS': self.getGuestOS(),
+          })
 
         #write the file to the proper location
         ofile = open(outfile, 'wb')
@@ -137,24 +132,32 @@ class VMwareESXImage(VMwareImage):
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
-        cylinders = size / constants.cylindersize
+        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
+        extents = raw_hd_image.divCeil(size, 512)
+
+        # Generate the VMDK from template.
         infile = open(os.path.join(constants.templateDir, 'vmdisk.vmdk'), 'rb')
-        #Replace the @DELIMITED@ text with the appropriate values
         filecontents = infile.read()
         infile.close()
 
-        filecontents = filecontents.replace('@CREATE_TYPE@', self.createType)
-        filecontents = filecontents.replace('@FILENAME@', self.basefilename)
-        filecontents = filecontents.replace('@ADAPTER@', self.adapter)
-        filecontents = filecontents.replace('@EXTENTS@', str(size / 512))
-        filecontents = filecontents.replace('@CYLINDERS@', str(cylinders))
-        filecontents = filecontents.replace( \
-            '@EXT_TYPE@', self.createType == 'vmfs' and 'VMFS' or 'FLAT')
+        filecontents = substitute(filecontents, {
+            'CREATE_TYPE': self.createType,
+            'FILENAME': self.basefilename,
+            'ADAPTER': self.adapter,
+            'EXTENTS': extents,
+
+            'CYLINDERS': cylinders,
+            'HEADS': constants.heads,
+            'SECTORS': constants.sectors,
+
+            'EXT_TYPE': self.createType == 'vmfs' and 'VMFS' or 'FLAT',
+          })
 
         ofile = open(outfile, 'wb')
         ofile.write(filecontents)
         ofile.close()
 
+        # Move the raw HD image into place.
         os.rename(hdImage, outfile.replace('.vmdk', '-flat.vmdk'))
 
     def getGuestOS(self):

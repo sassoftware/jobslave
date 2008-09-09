@@ -1,23 +1,19 @@
 #
-# Copyright (c) 2004-2007 rPath, Inc.
+# Copyright (c) 2004-2008 rPath, Inc.
 #
 # All Rights Reserved
 #
 
-#Different cylinder sizes.  I don't know which is better, but I've seen
-#both: 8225280 or 516096
-cylindersize    = 516096
-sectors         = 63
-heads           = 16
-
-sectorSize = 512 # in bytes
-
-scsiSectors = 32
-scsiHeads = 128
-
-partitionOffset = 65536
-
 import os
+
+## Disk geometry
+sectorSize          = 512 # bytes per block ("sector")
+sectors             = 63  # sectors per disk
+heads               = 16  # heads per disk
+
+bytesPerCylinder    = sectors * sectorSize * heads
+partitionOffset     = 128 * sectorSize # offset of first partition (bytes)
+
 
 # path for temporary finished images
 finishedDir = os.path.join(os.path.sep, 'tmp', 'finished-images')
