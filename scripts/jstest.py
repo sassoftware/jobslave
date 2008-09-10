@@ -20,7 +20,15 @@ import os
 import sys
 import conary.lib.util
 
-constants.tmpDir = os.path.join(os.environ.get('HOME', '/') , 'tmp')
+
+# leave the resulting image writeable by the group.  This means that you can
+# set g+s on tmpDir and be able to write the results without doing chown
+# muckery
+os.umask(0002)
+
+
+constants.tmpDir = conary.lib.util.joinPaths(os.environ.get('HOME', '/') , 'tmp')
+constants.skelDir = conary.lib.util.joinPaths(os.getcwd(), 'skel')
 if not os.path.isdir(constants.tmpDir):
     conary.lib.util.mkdirChain(constants.tmpDir)
 
@@ -34,7 +42,7 @@ jobData = {
     },
     "description": "this is a test",
     "outputToken": "580466f08ddfcfa130ee85f2d48c61ced992d4d4",
-    "troveVersion": "/ubuntu.rb.rpath.com@rpath:ubuntu-hardy-devel/0.000:hardy.200809031428-1-1", #this has to be a full version (frozen with timestamp) for now
+    "troveVersion": "/ubuntu.rb.rpath.com@rpath:ubuntu-hardy-devel/0.000:hardy.200809061232-1-5", #this has to be a full version (frozen with timestamp) for now
     "UUID": "omnomnomnom",
     "project": {
         "conaryCfg": "",
@@ -42,7 +50,7 @@ jobData = {
         "name": "Test Ubuntu Linux",
         "label": "test.rpath.local@rpl:devel"
     },
-    "troveFlavor": '1#x86_64|5#use:~!vmware:~!xen',
+    "troveFlavor": '1#x86|1#x86_64|5#use:~!vmware:~!xen',
     "troveName": "group-ubuntu-packages",
     "outputUrl": "http://nowhere:31337/",
     "type": "build",

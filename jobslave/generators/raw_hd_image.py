@@ -30,8 +30,6 @@ class HDDContainer:
         self.totalSize = totalSize
         self.image = image
 
-        self.mountPoint = tempfile.mkdtemp(dir=constants.tmpDir)
-
         # create the raw file
         # NB: blocksize is unrelated to the one in constants.py, and is
         # completely arbitrary.

@@ -13,6 +13,7 @@ from conary.lib import util
 
 from jobslave import bootloader
 from jobslave import buildtypes
+from jobslave.distro_detect import *
 from jobslave.generators import constants
 from jobslave.imagegen import logCall
 
@@ -85,37 +86,50 @@ def copytree(source, dest, exceptions=None):
 
 class GrubInstaller(bootloader.BootloaderInstaller):
     def _get_grub_conf(self):
-        if os.path.exists(
-            os.path.join(self.image_root, 'etc', 'SuSE-release')):
+        if is_SUSE(self.image_root) or is_UBUNTU(self.image_root):
             return 'menu.lst'
         return 'grub.conf'
 
+    def __init__(self, parent, image_root, grub_path = '/sbin/grub'):
+        bootloader.BootloaderInstaller.__init__(self, parent, image_root)
+        self.grub_path = grub_path
+
     def setup(self):
-        if not os.path.exists(os.path.join(self.image_root, 'sbin', 'grub')):
+        if not os.path.exists(util.joinPaths(self.image_root, self.grub_path)):
             log.info("grub not found. skipping setup.")
             return
 
-        util.mkdirChain(os.path.join(self.image_root, 'boot', 'grub'))
+        util.mkdirChain(util.joinPaths(self.image_root, 'boot', 'grub'))
         # path to grub stage1/stage2 files in rPL/rLS
         util.copytree(
-            os.path.join(self.image_root, 'usr', 'share', 'grub', '*', '*'),
-            os.path.join(self.image_root, 'boot', 'grub'))
+            util.joinPaths(self.image_root, 'usr', 'share', 'grub', '*', '*'),
+            util.joinPaths(self.image_root, 'boot', 'grub'))
         # path to grub files in SLES
-        util.copytree(
-            os.path.join(self.image_root, 'usr', 'lib', 'grub', '*'),
-            os.path.join(self.image_root, 'boot', 'grub'))
-        util.mkdirChain(os.path.join(self.image_root, 'etc'))
+        if is_SUSE(self.image_root):
+            util.copytree(
+                util.joinPaths(self.image_root, 'usr', 'lib', 'grub', '*'),
+                util.joinPaths(self.image_root, 'boot', 'grub'))
+        if is_UBUNTU(self.image_root):
+            # path to grub files in x86 Ubuntu
+            util.copytree(
+                util.joinPaths(self.image_root, 'usr', 'lib', 'grub', 'x86-pc', '*'),
+                util.joinPaths(self.image_root, 'boot', 'grub'))
+            # path to grub files in x86_64 Ubuntu
+            util.copytree(
+                util.joinPaths(self.image_root, 'usr', 'lib', 'grub', 'x86_64-pc', '*'),
+                util.joinPaths(self.image_root, 'boot', 'grub'))
+        util.mkdirChain(util.joinPaths(self.image_root, 'etc'))
 
         # Create a stub grub.conf
-        if os.path.exists(os.path.join(self.image_root, 'etc', 'issue')):
-            f = open(os.path.join(self.image_root, 'etc', 'issue'))
+        if os.path.exists(util.joinPaths(self.image_root, 'etc', 'issue')):
+            f = open(util.joinPaths(self.image_root, 'etc', 'issue'))
             name = f.readline().strip()
             if not name:
                 name = self.jobData['project']['name']
             f.close()
         else:
             name = self.jobData['project']['name']
-        bootDirFiles = os.listdir(os.path.join(self.image_root, 'boot'))
+        bootDirFiles = os.listdir(util.joinPaths(self.image_root, 'boot'))
         xen = bool([x for x in bootDirFiles
             if re.match('vmlinuz-.*xen.*', x)])
         dom0 = bool([x for x in bootDirFiles
@@ -134,30 +148,31 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
         cfgfile = self._get_grub_conf()
         if cfgfile == 'menu.lst':
-            # write /etc/sysconfig/bootloader for SUSE systems
-            util.mkdirChain(os.path.join(self.image_root, 'etc', 'sysconfig'))
-            f = open(
-                os.path.join(self.image_root, 'etc', 'sysconfig', 'bootloader'), 'w')
-            f.write('CYCLE_DETECTION="no"\n')
-            f.write('CYCLE_NEXT_ENTRY="1"\n')
-            f.write('LOADER_LOCATION=""\n')
-            f.write('LOADER_TYPE="grub"\n')
-            f.close()
+            if is_SUSE(self.image_root):
+                # write /etc/sysconfig/bootloader for SUSE systems
+                util.mkdirChain(util.joinPaths(self.image_root, 'etc', 'sysconfig'))
+                f = open(
+                    util.joinPaths(self.image_root, 'etc', 'sysconfig', 'bootloader'), 'w')
+                f.write('CYCLE_DETECTION="no"\n')
+                f.write('CYCLE_NEXT_ENTRY="1"\n')
+                f.write('LOADER_LOCATION=""\n')
+                f.write('LOADER_TYPE="grub"\n')
+                f.close()
 
-        f = open(os.path.join(self.image_root, 'boot', 'grub', cfgfile), 'w')
+        f = open(util.joinPaths(self.image_root, 'boot', 'grub', cfgfile), 'w')
         f.write(conf)
         f.close()
 
-        os.chmod(os.path.join(self.image_root, 'boot', 'grub', cfgfile), 0600)
+        os.chmod(util.joinPaths(self.image_root, 'boot', 'grub', cfgfile), 0600)
         # Create the appropriate links
         if cfgfile != 'menu.lst':
-            os.symlink('grub.conf', os.path.join(
+            os.symlink('grub.conf', util.joinPaths(
                 self.image_root, 'boot', 'grub', 'menu.lst'))
             os.symlink('../boot/grub/grub.conf',
-                       os.path.join(self.image_root, 'etc', 'grub.conf'))
-        else:
+                       util.joinPaths(self.image_root, 'etc', 'grub.conf'))
+        if is_SUSE(self.image_root):
             # create /etc/grub.conf as SUSE scripts expect
-            f = open(os.path.join(self.image_root, 'etc', 'grub.conf'), 'w')
+            f = open(util.joinPaths(self.image_root, 'etc', 'grub.conf'), 'w')
             f.write('setup (hd0)\n')
             f.write('quit\n')
             f.close()
@@ -165,14 +180,14 @@ class GrubInstaller(bootloader.BootloaderInstaller):
     def install(self):
         # Now that grubby has had a chance to add the new kernel,
         # remove the template entry added in setup()
-        if os.path.exists(os.path.join(self.image_root, 'sbin', 'grubby')):
+        if os.path.exists(util.joinPaths(self.image_root, 'sbin', 'grubby')):
             logCall('chroot %s /sbin/grubby '
                     '--remove-kernel=/boot/vmlinuz-template' % self.image_root,
                     ignoreErrors=True)
 
         # If bootman is present, configure it for grub and run it
-        if os.path.exists(os.path.join(self.image_root, 'sbin', 'bootman')):
-            bootman_config = open(os.path.join(self.image_root, 'etc',
+        if os.path.exists(util.joinPaths(self.image_root, 'sbin', 'bootman')):
+            bootman_config = open(util.joinPaths(self.image_root, 'etc',
                 'bootman.conf'), 'w')
             print >> bootman_config, 'BOOTLOADER=grub'
             bootman_config.close()
@@ -182,7 +197,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
         # Workaround for RPL-2423
         cfgfile = self._get_grub_conf()
-        grub_conf = os.path.join(self.image_root, 'boot', 'grub', cfgfile)
+        grub_conf = util.joinPaths(self.image_root, 'boot', 'grub', cfgfile)
         if os.path.exists(grub_conf):
             contents = open(grub_conf).read()
             contents = re.compile('^default .*', re.M
@@ -211,7 +226,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         # Install grub into the MBR
         #  Assumed: raw hdd image at mbr_device is bind mounted at
         #  root_dir/disk.img
-        cylinders = size / constants.cylindersize
+        cylinders = size / constants.bytesPerCylinder
         grubCmds = "device (hd0) /disk.img\n" \
                    "geometry (hd0) %d %d %d\n" \
                    "root (hd0,0)\n" \
@@ -219,5 +234,5 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                         constants.heads, constants.sectors)
 
         logCall('echo -e "%s" | '
-                'chroot %s bash -c "/sbin/grub --no-floppy --batch"'
-                % (grubCmds, root_dir))
+                'chroot %s sh -c "%s --no-floppy --batch"'
+                % (grubCmds, root_dir, self.grub_path))
