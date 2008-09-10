@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2006 rPath, Inc.
+# Copyright (c) 2004-2008 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -19,6 +19,7 @@ from jobslave import filesystems
 from jobslave import generators
 from jobslave import helperfuncs
 from jobslave import loophelpers
+from jobslave.distro_detect import *
 from jobslave.filesystems import sortMountPoints
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL, logCall
 from jobslave.generators import constants
@@ -252,9 +253,6 @@ class BootableImage(ImageGenerator):
         util.mkdirChain(self.outputDir)
         self.swapSize = self.getBuildData("swapSize") * 1048576
 
-    def _isSUSE(self, dest):
-        return os.path.exists(util.joinPaths(dest, 'etc', 'SuSE-release'))
-
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
 
@@ -321,8 +319,10 @@ class BootableImage(ImageGenerator):
             exceptFiles.append(os.path.join(os.path.sep, 'etc', 'X11.*'))
 
         # use the appropriate skeleton files depending on the OS base
-        if self._isSUSE(fakeRoot):
+        if is_SUSE(fakeRoot):
             skelDir = os.path.join(constants.skelDir, 'sle')
+        if is_UBUNTU(fakeRoot):
+            skelDir = os.path.join(constants.skelDir, 'ubuntu')
         else:
             skelDir = os.path.join(constants.skelDir, 'rpl')
 
@@ -525,35 +525,46 @@ class BootableImage(ImageGenerator):
         outs.close()
         os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
 
-        if self._isSUSE(dest):
+        if is_SUSE(dest):
             # SUSE needs udev to be started in the chroot in order to
             # run mkinitrd
-            logCall("chroot %s bash -c '/etc/rc.d/boot.udev stop'" %dest)
-            logCall("chroot %s bash -c '/etc/rc.d/boot.udev start'" %dest)
-            logCall("chroot %s bash -c '/etc/rc.d/boot.udev force-reload'" %dest)
+            logCall("chroot %s sh -c '/etc/rc.d/boot.udev stop'" %dest)
+            logCall("chroot %s sh -c '/etc/rc.d/boot.udev start'" %dest)
+            logCall("chroot %s sh -c '/etc/rc.d/boot.udev force-reload'" %dest)
 
-        for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
-            tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
-            if not os.path.exists(util.joinPaths(dest, tagPath)):
-                continue
-            try:
-                logCall("chroot %s bash -c 'sh -x %s > %s 2>&1'" %
-                        (dest, tagPath, tagPath + '.output'))
-            except Exception, e:
-                exc, e, bt = sys.exc_info()
+        image_dev = os.path.join(dest, 'dev')
+        if is_UBUNTU(dest):
+            #Need devices to be available for running tag scripts
+            logCall("chroot %s sh -c '/etc/init.d/udev start'" %dest)
+            logCall("chroot %s sh -c '/etc/init.d/udev force-reload'" %dest)
+
+        try:
+            for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
+                tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
+                if not os.path.exists(util.joinPaths(dest, tagPath)):
+                    continue
                 try:
-                    log.warning('error executing %s: %s', tagPath, e)
-                    log.warning('script contents:')
-                    f = file(util.joinPaths(dest, tagPath), 'r')
-                    log.warning('----------------\n' + f.read())
-                    f.close()
-                    log.warning('script output:')
-                    f = file(util.joinPaths(dest, tagPath + '.output'), 'r')
-                    log.warning('----------------\n' + f.read())
-                    f.close()
-                except:
-                    log.warning('error recording tag handler output')
-                raise exc, e, bt
+                    logCall("chroot %s sh -c 'sh -x %s > %s 2>&1'" %
+                            (dest, tagPath, tagPath + '.output'))
+                except Exception, e:
+                    exc, e, bt = sys.exc_info()
+                    try:
+                        log.warning('error executing %s: %s', tagPath, e)
+                        log.warning('script contents:')
+                        f = file(util.joinPaths(dest, tagPath), 'r')
+                        log.warning('----------------\n' + f.read())
+                        f.close()
+                        log.warning('script output:')
+                        f = file(util.joinPaths(dest, tagPath + '.output'), 'r')
+                        log.warning('----------------\n' + f.read())
+                        f.close()
+                    except:
+                        log.warning('error recording tag handler output')
+                    raise exc, e, bt
+        finally:
+            if is_UBUNTU(dest):
+                logCall('umount "%s"' % image_dev)
+                    
 
     @timeMe
     def killChrootProcesses(self, dest):

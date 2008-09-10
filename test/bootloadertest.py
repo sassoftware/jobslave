@@ -21,13 +21,13 @@ from jobslave.bootloader import extlinux_installer
 import jobslave_helper
 
 class BootloaderTest(jobslave_helper.JobSlaveHelper):
-    def _getInstaller(self, tmpdir, handler=None, kind='extlinux', name='Foo Project'):
+    def _getInstaller(self, tmpdir, handler=None, kind='extlinux', name='Foo Project', **kw):
         if not handler:
             handler = self.getHandler(buildtypes.RAW_HD_IMAGE)
         if kind == 'grub':
-            return grub_installer.GrubInstaller(handler, tmpdir)
+            return grub_installer.GrubInstaller(handler, tmpdir, **kw)
         elif kind == 'extlinux':
-            return extlinux_installer.ExtLinuxInstaller(handler, tmpdir)
+            return extlinux_installer.ExtLinuxInstaller(handler, tmpdir, **kw)
         else:
             self.fail()
 
@@ -114,6 +114,38 @@ class BootloaderTest(jobslave_helper.JobSlaveHelper):
             f.close()
             self.failUnless(handler.jobData['project']['name'] in data,
                 'grub title not taken from job data')
+        finally:
+            util.rmtree(tmpDir)
+
+    def testUbuntu(self):
+        tmpDir = tempfile.mkdtemp()
+        try:
+            self.touch(os.path.join(tmpDir, 'usr/sbin/grub'))
+            self.touch(os.path.join(tmpDir, 'etc', 'debian_version'))
+            installer = self._getInstaller(tmpDir, kind='grub', grub_path="/usr/sbin/grub")
+            self.failUnlessEqual(installer._get_grub_conf(), 'menu.lst')
+
+            installer.setup()
+
+            fn = os.path.join(tmpDir, 'boot', 'grub', 'menu.lst')
+            f = file(fn, 'w')
+            f.write("""
+
+timeout=5
+
+# The default is read from /boot/grub/default
+default saved
+
+# test
+title Ubuntu test
+    kernel /boot/vmlinuz-2.6.24-19-server ro root=LABEL=root
+        initrd /boot/initrd.img-2.6.24-19-server
+""")
+            f.close()
+            installer.install()
+            f = file(fn)
+            lines = f.read()
+            f.close()
         finally:
             util.rmtree(tmpDir)
 
