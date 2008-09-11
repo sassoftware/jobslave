@@ -226,6 +226,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         # Install grub into the MBR
         #  Assumed: raw hdd image at mbr_device is bind mounted at
         #  root_dir/disk.img
+        #           The size requested is an integer multiple of
+        #  constants.bytesPerCylinder
+        assert not (size % constants.bytesPerCylinder), "The size passed in here must be cylinder aligned"
         cylinders = size / constants.bytesPerCylinder
         grubCmds = "device (hd0) /disk.img\n" \
                    "geometry (hd0) %d %d %d\n" \

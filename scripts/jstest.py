@@ -42,7 +42,7 @@ jobData = {
     },
     "description": "this is a test",
     "outputToken": "580466f08ddfcfa130ee85f2d48c61ced992d4d4",
-    "troveVersion": "/ubuntu.rb.rpath.com@rpath:ubuntu-hardy-devel/0.000:hardy.200809061232-1-5", #this has to be a full version (frozen with timestamp) for now
+    "troveVersion": "/ubuntu.rb.rpath.com@rpath:ubuntu-hardy-devel/0.000:hardy.200809102314-1-6", #this has to be a full version (frozen with timestamp) for now
     "UUID": "omnomnomnom",
     "project": {
         "conaryCfg": "",
