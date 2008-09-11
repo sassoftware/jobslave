@@ -15,8 +15,10 @@ import tempfile
 from conary.lib import util
 
 from jobslave import buildtypes
+import jobslave.imagegen
 from jobslave.bootloader import grub_installer
 from jobslave.bootloader import extlinux_installer
+from jobslave.generators import constants
 
 import jobslave_helper
 
@@ -117,35 +119,21 @@ class BootloaderTest(jobslave_helper.JobSlaveHelper):
         finally:
             util.rmtree(tmpDir)
 
-    def testUbuntu(self):
+    def test_install_mbr(self):
+        #Also tests alternate paths for grub e.g. for ubuntu
         tmpDir = tempfile.mkdtemp()
         try:
-            self.touch(os.path.join(tmpDir, 'usr/sbin/grub'))
+            self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
             self.touch(os.path.join(tmpDir, 'etc', 'debian_version'))
-            installer = self._getInstaller(tmpDir, kind='grub', grub_path="/usr/sbin/grub")
-            self.failUnlessEqual(installer._get_grub_conf(), 'menu.lst')
+            installer = jobslave.generators.get_bootloader(
+                            self.getHandler(buildtypes.RAW_HD_IMAGE), tmpDir)
 
-            installer.setup()
+            self.calls = []
+            self.mock(grub_installer, 'logCall', lambda x: self.calls.append(x))
 
-            fn = os.path.join(tmpDir, 'boot', 'grub', 'menu.lst')
-            f = file(fn, 'w')
-            f.write("""
-
-timeout=5
-
-# The default is read from /boot/grub/default
-default saved
-
-# test
-title Ubuntu test
-    kernel /boot/vmlinuz-2.6.24-19-server ro root=LABEL=root
-        initrd /boot/initrd.img-2.6.24-19-server
-""")
-            f.close()
-            installer.install()
-            f = file(fn)
-            lines = f.read()
-            f.close()
+            self.assertRaises(AssertionError, installer.install_mbr, tmpDir, 'asdfasdf', 516097)
+            installer.install_mbr(tmpDir, os.path.join(tmpDir, 'mbr_device'), 2 * constants.bytesPerCylinder)
+            self.failUnless('geometry (hd0) 2 16 63' in self.calls[0], 'geometry miscalculation')
         finally:
             util.rmtree(tmpDir)
 
