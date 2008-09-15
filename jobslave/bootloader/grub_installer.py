@@ -112,7 +112,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         if is_UBUNTU(self.image_root):
             # path to grub files in x86 Ubuntu
             util.copytree(
-                util.joinPaths(self.image_root, 'usr', 'lib', 'grub', 'x86-pc', '*'),
+                util.joinPaths(self.image_root, 'usr', 'lib', 'grub', 'i386-pc', '*'),
                 util.joinPaths(self.image_root, 'boot', 'grub'))
             # path to grub files in x86_64 Ubuntu
             util.copytree(
