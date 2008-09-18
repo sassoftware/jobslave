@@ -321,7 +321,7 @@ class BootableImage(ImageGenerator):
         # use the appropriate skeleton files depending on the OS base
         if is_SUSE(fakeRoot):
             skelDir = os.path.join(constants.skelDir, 'sle')
-        if is_UBUNTU(fakeRoot):
+        elif is_UBUNTU(fakeRoot):
             skelDir = os.path.join(constants.skelDir, 'ubuntu')
         else:
             skelDir = os.path.join(constants.skelDir, 'rpl')
