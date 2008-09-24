@@ -12,6 +12,10 @@
 #include <errno.h>
 #include <libgen.h>
 
+#if defined(__i386__) || defined(__x86_64__)
+# define breakpoint do {__asm__ __volatile__ ("int $03");} while (0)
+#endif
+
 /* Program version */
 #define VER                 "0.1"
 
@@ -58,7 +62,8 @@ typedef struct SparseExtentHeader {
     char        nonEndLineChar;     /* NELC */
     char        doubleEndLineChar1; /* DELC1 */
     char        doubleEndLineChar2; /* DELC2 */
-    u_int8_t    pad[435];
+    u_int16_t   compressAlgorithm;
+    u_int8_t    pad[430];
 } SparseExtentHeader;
 
 int verbose = 0;
@@ -98,6 +103,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     hd->nonEndLineChar =    NELC;
     hd->doubleEndLineChar1= DELC1;
     hd->doubleEndLineChar2= DELC2;
+    hd->compressAlgorithm = 0;
 }
 
 int writeDescriptorFile(FILE * of, const off_t outsize,
@@ -185,21 +191,22 @@ off_t copyData(const char* infile, const off_t outsize,
     u_int32_t currentSector = header->overHead;
     u_int32_t pos = 0;
     u_int64_t zero = 0L;
-    u_int8_t buf[65536];
+    u_int8_t buf[GRAINSIZE];
     size_t read;
-    u_int32_t numGrains = outsize / 65536, curGrain = 0;
-    while((read = fread((void*)&buf, sizeof(u_int8_t), 65536, in))) {
+    u_int32_t numGrains = (outsize / GRAINSIZE) + ((outsize % GRAINSIZE) ? 1 : 0);
+    u_int32_t curGrain = 0;
+    while((read = fread((void*)&buf, sizeof(u_int8_t), GRAINSIZE, in))) {
         VPRINT("Copying grain %d of %d", ++curGrain, numGrains);
         /* Check to make sure it's not all zeros */
         int i, rem, stop;
         Bool blank = 1;
         rem = read % sizeof(u_int64_t);
         stop = read - rem;
-        for(i=0; i < stop; i+=8)
+        for(i=0; i < stop; i+=sizeof(u_int64_t))
         {
             //Check one u_int64_t at a time
             //memcmp
-            if (memcmp(&buf[i], &zero, sizeof(u_int64_t))){
+            if (memcmp(&buf[i], &zero, sizeof(u_int64_t))) {
                 blank = 0;
                 break;
             }
@@ -208,6 +215,14 @@ off_t copyData(const char* infile, const off_t outsize,
             if(memcmp(&buf[i], &zero, rem)) {
                 blank = 0;
             }
+        }
+
+        /* Pad the file to be grain aligned (RBL-3487) */
+        if (read < GRAINSIZE) {
+            VPRINT("\nPadding end of file to align to grain by %d bytes.", GRAINSIZE-read);
+            for (i=read; i<GRAINSIZE; i+=sizeof(u_int64_t))
+                buf[i] = zero;
+            read = GRAINSIZE;
         }
 
         //Finally, if it's not blank, write it, and add an entry in the grainTable
