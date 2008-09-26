@@ -252,6 +252,7 @@ class BootableImage(ImageGenerator):
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(self.outputDir)
         self.swapSize = self.getBuildData("swapSize") * 1048576
+        self.swapPath = '/var/swap'
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
@@ -288,8 +289,8 @@ class BootableImage(ImageGenerator):
     def fileSystemOddsNEnds(self, fakeRoot):
         #create a swap file
         if self.swapSize:
-            swapFile = os.path.join(fakeRoot, 'var', 'swap')
-            util.mkdirChain(os.path.split(swapFile)[0])
+            swapFile = util.joinPaths(fakeRoot, self.swapPath)
+            util.mkdirChain(os.path.dirname(swapFile))
             # sparse files cannot work for swap space
             logCall('dd if=/dev/zero of=%s bs=4096 count=%d' % (
                     swapFile, self.swapSize / 4096))
@@ -408,6 +409,8 @@ class BootableImage(ImageGenerator):
         self.status("Calculating filesystem sizes...")
         sizes, totalSize = self.getTroveSize(mounts)
 
+        swapMount = self.find_mount(self.swapPath)
+
         totalSize = 0
         realSizes = {}
         for x in self.mountDict.keys():
@@ -415,6 +418,10 @@ class BootableImage(ImageGenerator):
 
             if requestedSize - sizes[x] < minFreeSpace:
                 requestedSize += sizes[x] + minFreeSpace
+
+            # Add swap file to requested size
+            if self.swapSize and x == swapMount:
+                requestedSize += self.swapSize
 
             # pad size if ext3
             if fsType == "ext3":
