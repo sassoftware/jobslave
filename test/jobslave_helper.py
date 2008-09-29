@@ -74,7 +74,7 @@ class DummyConnection(object):
 
     def insertMessage(self, message):
         message = 'message-id: dummy-message\n\n\n' + message
-        self.on_message(message)
+        self.on_message({}, message)
 
     def disconnect(self):
         pass
