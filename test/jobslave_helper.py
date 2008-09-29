@@ -37,22 +37,22 @@ class DummyConnection(object):
         self.unsubscriptions = []
         self.acks = []
 
-    def send(self, dest, message):
-        self.sent.insert(0, (dest, message))
+    def send(self, message, destination):
+        self.sent.insert(0, (destination, message))
 
-    def receive(self, message):
+    def on_message(self, headers, message):
         for listener in self.listeners:
-            listener.receive(message)
+            listener.on_message(headers, message)
 
-    def subscribe(self, dest, ack = 'auto'):
-        if dest.startswith('/queue/'):
+    def subscribe(self, destination, ack = 'auto'):
+        if destination.startswith('/queue/'):
             assert ack == 'client', 'Queue will not be able to refuse a message'
-        self.subscriptions.insert(0, dest)
+        self.subscriptions.insert(0, destination)
 
     def unsubscribe(self, dest):
         self.unsubscriptions.insert(0, dest)
 
-    def addlistener(self, listener):
+    def add_listener(self, listener):
         if listener not in self.listeners:
             self.listeners.append(listener)
 
@@ -62,6 +62,12 @@ class DummyConnection(object):
 
     def start(self):
         pass
+
+    def connect(self):
+        pass
+
+    def is_connected(self):
+        return True
 
     def ack(self, messageId):
         self.acks.append(messageId)
