@@ -48,6 +48,7 @@ class LogHandler(logging.FileHandler):
     def sendMessages(self):
         # We can't call this "flush" or FileHandler will invoke it
         # after every emit() call, which bogs down the mcp.
+        self.flush()
         self.lastSent = time.time()
         try:
             msgs = self._msgs
@@ -262,7 +263,7 @@ class Generator(threading.Thread):
                     self.status('Job failed (%s)' % (str(e).replace('\n', ' ')), status = jobstatus.FAILED)
                     log.error(btText)
                     log.error('Failed job: %s' % self.jobId)
-                    self.logger.flush()
+                    self.logger.sendMessages() #Flush() is a noop
                     try:
                         self.postFailedJobLog()
                     except:
@@ -271,10 +272,10 @@ class Generator(threading.Thread):
                         log.error(''.join(tb))
                     raise exc, e, bt
                 else:
+                    self.logger.sendMessages() #flush() is a noop
                     self.status('Job Finished',
                                 status = jobstatus.FINISHED)
                     log.info('Finished job: %s' % self.jobId)
-                    self.logger.flush()
             # place exit handlers in their own exception handling layer
             # to ensure that under no circumstances can it escape
             # use os._exit to force ending now.
