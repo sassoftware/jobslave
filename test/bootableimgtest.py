@@ -311,6 +311,24 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                 "Expected real sizes of {'/boot': 24129024} but got %s" % \
                 str(realSizes))
 
+    def testGetImageSizeWithSwap(self):
+        """
+        Verify that self.bootable.swapSize (40960) gets added to the
+        filesystem mounted at /var.
+        """
+        self.bootable.mountDict = {'/boot': (0, 10240, 'ext3'),
+                                   '/var' : (0, 0, 'swap')}
+        self.bootable.filesystems['/var'] = '/var/swap'
+        self.bootable.getTroveSize = \
+                lambda *args, **kwargs: ({'/boot': 10240,
+                                          '/var' : 0}, 0)
+        totalSize, realSizes = self.bootable.getImageSize()
+        self.failIf(totalSize != 24235520, \
+                "Expected total size of 24194560 but got %d" % totalSize)
+        self.failIf(realSizes != {'/boot': 24129024, '/var':40960}, \
+                "Expected real sizes of {'/boot': 24129024, '/var': 40960} but got %s" % \
+                str(realSizes))
+
     def testFSOddsNEnds(self):
         # deliberately run fsoddsnends with a blank chroot to ensure it
         # won't backtrace

@@ -14,6 +14,7 @@ import tempfile
 
 from conary.lib import util
 
+import jobslave.generators
 from jobslave import buildtypes
 import jobslave.imagegen
 from jobslave.bootloader import grub_installer
