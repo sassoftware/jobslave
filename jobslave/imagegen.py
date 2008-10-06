@@ -375,7 +375,7 @@ class ImageGenerator(Generator):
         print >> conaryrcFile, "installLabelPath " + ilp
         if mu:
             print >> conaryrcFile, 'includeConfigFile ' + mirrorUrl
-        print >> conaryrcFile, "pinTroves kernel([:-].*|$)"
+        print >> conaryrcFile, "pinTroves (kernel|linux-image-2\.6\.[0-9]+-[0-9]+(-[a-z]+)?)([:-].*|$)"
         if self.getBuildData("autoResolve"):
             print >> conaryrcFile, "autoResolve True"
         print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
