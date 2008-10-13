@@ -66,14 +66,15 @@ def setup():
     mcpPath         = os.getenv('MCP_PATH',             '../../mcp')
     jobslavePath    = os.getenv('JOB_SLAVE_PATH',       os.path.join(os.getcwd(), '..'))
     jsTestPath      = os.getenv('JOB_SLAVE_TEST_PATH',  os.getcwd())
+    testUtilsPath   = os.getenv('TESTUTILS_PATH', os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
     sys.path = [os.path.realpath(x) for x in (jobslavePath, jsTestPath, mcpPath,
-        conaryPath, conaryTestPath)] + sys.path
+        conaryPath, conaryTestPath, testUtilsPath)] + sys.path
     os.environ.update(dict(CONARY_PATH=conaryPath, CONARY_TEST_PATH=conaryTestPath,
         MCP_PATH=mcpPath, JOB_SLAVE_PATH=jobslavePath, JOB_SLAVE_TEST_PATH=jsTestPath,
         PYTHONPATH=(':'.join(sys.path))))
 
-    import testhelp
+    from testrunner import testhelp
     testPath = testhelp.getTestPath()
 
     global conaryDir
@@ -86,7 +87,7 @@ def setup():
     from conary.lib import coveragehook
 
     # import tools normally expected in findTrove.
-    from testhelp import context, TestCase, findPorts, SkipTestException
+    from testrunner.testhelp import context, TestCase, findPorts, SkipTestException
     sys.modules[__name__].context = context
     sys.modules[__name__].TestCase = TestCase
     sys.modules[__name__].findPorts = findPorts
@@ -116,7 +117,7 @@ def isIndividual():
 EXCLUDED_PATHS = ['dist/', '/build/', 'test', 'setup.py', 'trovebucket.py', 'gencslist.py']
 
 def main(argv=None, individual=True):
-    import testhelp
+    from testrunner import testhelp
     testhelp.isIndividual = isIndividual
     class rBuilderTestSuiteHandler(testhelp.TestSuiteHandler):
         suiteClass = testhelp.ConaryTestSuite

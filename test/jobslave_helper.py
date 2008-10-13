@@ -14,7 +14,7 @@ import sys
 import threading
 import tempfile
 
-import testhelp
+from testrunner import testhelp
 
 from conary.lib import util
 from conary.lib import log as conary_log
