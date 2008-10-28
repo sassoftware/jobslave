@@ -13,6 +13,7 @@ import signal
 import stat
 import subprocess
 import time
+import traceback
 
 # mint imports
 from jobslave import filesystems
@@ -677,8 +678,14 @@ class BootableImage(ImageGenerator):
             self.runTagScripts(dest)
             self.fileSystemOddsNEndsFinal(dest)
         finally:
-            self.killChrootProcesses(dest)
-            self.umountChrootMounts(dest)
+            try:
+                self.killChrootProcesses(dest)
+                self.umountChrootMounts(dest)
+            except Exception, e:
+                # Log it and move on
+                log.error('Error during cleanup; continuing')
+                exc, e, bt = sys.exc_info()
+                log.info(traceback.format_exc(bt))
 
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
