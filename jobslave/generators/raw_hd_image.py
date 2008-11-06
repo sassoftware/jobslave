@@ -137,6 +137,9 @@ class RawHdImage(bootable_image.BootableImage):
         try:
             bootloader_installer.install_mbr(root_dir, image, totalSize)
         finally:
+            blkidtab = os.path.join(root_dir, "etc", "blkid.tab")
+            if os.path.exists(blkidtab):
+                os.unlink(blkidtab)
             logCall('umount %s' % diskpath)
             os.unlink(diskpath)
 

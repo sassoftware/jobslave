@@ -39,7 +39,7 @@ if not os.path.exists(constants.tmpDir):
     util.mkdirChain(constants.tmpDir)
 
 jobData = {
-    'buildType': buildtypes.VMWARE_IMAGE,
+    'buildType': buildtypes.APPLIANCE_ISO,
     'protocolVersion': 1,
     'data': {
         'jsversion': '3.1.3',
