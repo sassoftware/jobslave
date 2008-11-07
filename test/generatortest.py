@@ -19,10 +19,14 @@ from conary.lib import util
 from conary.deps import deps
 import jobslave_helper
 import image_stubs
+import bootableimgtest
+import logging
 
 from jobslave import buildtypes
+from jobslave import imagegen
 # Replace generator's old superclass, BootableImage, with our
 # stub, BootableImageStub
+from testutils import mock
 from jobslave.generators import constants
 
 from jobslave.generators import raw_fs_image
@@ -36,6 +40,35 @@ from jobslave.generators import vmware_image
 from jobslave.generators import installable_iso
 from jobslave.generators import update_iso
 
+import simplejson
+
+class GeneratorThreadTest(jobslave_helper.ExecuteLoggerTest):
+    def setUp(self):
+        f = open ('archive/jobdata.txt')
+        try:
+            self.jobData = simplejson.loads(f.read())
+        finally:
+            f.close()
+        super(GeneratorThreadTest, self).setUp()
+        self.mock(os, 'fork', lambda: 0)
+        self.mock(os, 'waitpid', lambda x, y: None)
+        self.mock(os, 'setpgid', lambda x, y: None)
+        self.mock(os, '_exit', lambda x: None)
+        self.mock(imagegen, 'LogHandler', mock.MockObject())
+
+    def testRun(self):
+        parent = bootableimgtest.MockJobSlave()
+        gen = imagegen.Generator(self.jobData, parent)
+        self.mock(gen, 'write', lambda : None)
+        self.mock(imagegen.response, 'MCPResponse', jobslave_helper.DummyResponse)
+        gen.run()
+
+        self.failIf(getattr(gen, 'saveresponse') is None)
+        self.assertNotEquals(gen.response(), parent.response)
+
+        rootLogger = logging.getLogger('')
+        rootLogger.removeHandler(gen.logger)
+        del gen.logger
 
 class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
     bases = {}

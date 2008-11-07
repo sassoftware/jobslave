@@ -80,6 +80,9 @@ class DummyConnection(object):
 
 class DummyResponse(object):
     response = DummyConnection()
+    def __init__(self, node='fake-node', cfg=None):
+        self.node = node
+        self.cfg = cfg
 
 class ThreadedJobSlave(slave.JobSlave, threading.Thread):
     def __init__(self, *args, **kwargs):
@@ -179,7 +182,7 @@ class JobSlaveHelper(testhelp.TestCase):
                 import traceback
                 exc_data = sys.exc_info()
                 print '... and failed to close:'
-                print ''.join(traceback.format_exception_only(*exc_data))
+                print ''.join(traceback.format_exception_only(*exc_data[:2]))
                 del exc_data
 
         testhelp.TestCase.tearDown(self)

@@ -209,12 +209,9 @@ class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
         self.failIf(not self.detachCalled,
                 "ext3 format did not reach completion")
 
-class MockResponse(object):
-    pass
-
 class MockJobSlave(object):
     def __init__(self):
-        self.response = MockResponse()
+        self.response = jobslave_helper.DummyResponse()
         self.cfg = slave.SlaveConfig()
 
 class StubFilesystem(object):
