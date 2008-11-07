@@ -26,7 +26,7 @@ from conary.deps import deps
 from conary.lib import util, log
 
 from jobslave.generators import constants
-from mcp import jobstatus
+from mcp import jobstatus, response
 
 MSG_INTERVAL = 5
 
@@ -255,6 +255,11 @@ class Generator(threading.Thread):
             os.setpgid(0, 0)
             try:
                 try:
+                    #Reinitialize the response object
+                    #Save a reference to the MCPResponse so that GC doesn't clean it up
+                    self.saveresponse = response.MCPResponse(self.response().node, self.response().cfg)
+                    self.response = weakref.ref(self.saveresponse)
+
                     self.status('Starting job')
                     self.write()
                 except:
