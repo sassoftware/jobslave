@@ -21,7 +21,6 @@ import jobslave_helper
 import image_stubs
 
 from jobslave import buildtypes
-from jobslave import imagegen
 # Replace generator's old superclass, BootableImage, with our
 # stub, BootableImageStub
 from jobslave.generators import constants

@@ -22,7 +22,6 @@ from cStringIO import StringIO
 from mcp import mcp_log
 
 from jobslave import jobhandler, slave, constants, generators
-from jobslave import imagegen
 from jobslave import buildtypes
 
 
