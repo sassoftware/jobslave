@@ -5,19 +5,20 @@
 #
 
 import os
+import logging
 import tempfile
 
 import boto
 
-from conary.conarycfg import ConfigFile
-from conary.deps import deps
-from conary.lib import cfgtypes
 from conary.lib import util
+from conary.deps import deps
 
 from jobslave.imagegen import logCall
 
 from jobslave.generators import constants
 from jobslave.generators import raw_fs_image
+
+log = logging.getLogger()
 
 class AMIBundleError(Exception):
     def __str__(self):
@@ -40,6 +41,8 @@ class AMIImage(raw_fs_image.RawFsImage):
                                 'configuration information!'
 
         self.__dict__.update(**self.amiData)
+
+        self._kernelMetadata = {}
 
         # write out X.509 certificate data
         fd, self.ec2CertPath = tempfile.mkstemp(dir=constants.tmpDir)
@@ -78,6 +81,12 @@ class AMIImage(raw_fs_image.RawFsImage):
         ec2ImagePrefix = "%s_%s.img" % \
                 (self.basefilename, self.jobData.get('buildId'))
         try:
+            extraArgs = ''
+            if ('ec2-ari' in self._kernelMetadata and
+                'ec2-aki' in self._kernelMetadata):
+                extraArgs += (' --kernel %(ec2-aki)s --ramdisk %(ec2-ari)s'
+                              % self._kernelMetadata)
+
             logCall('ec2-bundle-image'
                 + ' -i %s' % inputFSImage
                 + ' -u %s' % self.ec2AccountId
@@ -86,6 +95,7 @@ class AMIImage(raw_fs_image.RawFsImage):
                 + ' -d %s' % bundlePath
                 + ' -p %s' % ec2ImagePrefix
                 + ' -r %s' % self.amiArch
+                + extraArgs
                 )
             bundles = [x for x in os.listdir(bundlePath) if x.endswith('.xml')]
             return bundles and bundles[0] or None
@@ -130,6 +140,37 @@ class AMIImage(raw_fs_image.RawFsImage):
         # AMI's don't have a kernel
         pass
 
+    def _findKernelMetadata(self):
+        """
+        Figure out if the kernel in the chroot has ec2 related metadata set.
+        """
+
+        bootDir = os.path.join(self.conarycfg.root, 'boot')
+        kernels = [ os.path.join('/boot', x) for x in os.listdir(bootDir) if x.startswith('vmlinuz') ]
+
+        if len(kernels) == 0:
+            log.warn('no kernel found in image')
+            return
+
+        if len(kernels) > 1:
+            log.warn('found %s kernels in this image' % len(kernels))
+
+        client = conaryclient.ConaryClient(self.conarycfg)
+        db = client.getDatabase()
+
+        kernel = [ x for x in db.iterTrovesByPath(kernels[0]) ][0]
+
+        log.info('searching for key/value metadata in %s=%s[%s]'
+                 % (kernel.getName(),
+                    kernel.getVersion(),
+                    kernel.getFlavor()))
+
+        ti = trv.getTroveInfo()
+        md = ti.metadata.get(1)
+        if 'keyValue' in md and md['keyValue'] is not None:
+            for key in md['keyValue'].keys():
+                self._kernelMetadata[key] = md['keyValue'][key]
+
     def fileSystemOddsNEnds(self, fakeroot):
         raw_fs_image.RawFsImage.fileSystemOddsNEnds(self, fakeroot)
 
@@ -141,6 +182,8 @@ class AMIImage(raw_fs_image.RawFsImage):
                     self.hugeDiskMountpoint)
         fstabFile.write("\n/dev/sda3\tswap\t\tswap\tdefaults 0 0")
         fstabFile.close()
+
+        self._findKernelMetadata()
 
     def write(self):
         totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
