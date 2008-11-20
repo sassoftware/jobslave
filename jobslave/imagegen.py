@@ -127,7 +127,7 @@ class Generator(threading.Thread):
         cfgData = StringIO.StringIO(self.jobData['project']['conaryCfg'])
         self.conarycfg.readObject(cfgData, cfgData)
 
-        self.conarycfg.configLine('pinTroves kernel([:-].*|$)')
+        self.conarycfg.configLine('pinTroves %s' % constants.pinKernelRE)
         self.conarycfg.configLine('tmpDir %s' % constants.tmpDir)
         self.conarycfg.configLine('threaded False')
 
@@ -381,7 +381,7 @@ class ImageGenerator(Generator):
         print >> conaryrcFile, "installLabelPath " + ilp
         if mu:
             print >> conaryrcFile, 'includeConfigFile ' + mirrorUrl
-        print >> conaryrcFile, "pinTroves (kernel|linux-image-2\.6\.[0-9]+-[0-9]+(-[a-z]+)?)([:-].*|$)"
+        print >> conaryrcFile, "pinTroves %s" % constants.pinKernelRE
         if self.getBuildData("autoResolve"):
             print >> conaryrcFile, "autoResolve True"
         print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"

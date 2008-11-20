@@ -39,3 +39,5 @@ anacondaImagesPath = util.joinPaths(os.path.sep, 'srv', 'jobslave', 'pixmaps')
 anacondaTemplatesPath = util.joinPaths(os.path.sep, 'tmp', 'anaconda-templates')
 templatesLabel = 'conary.rpath.com@rpl:1'
 entDir =  util.joinPaths(os.path.sep, 'srv', 'jobslave', 'entitlements')
+
+pinKernelRE = '(kernel|linux-image-2\.6\.[0-9]+-[0-9]+(-[a-z]+)?)([:-].*|$)'
