@@ -428,6 +428,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
     def testAMIOddsNEnds(self):
         g = self.getHandler(buildtypes.AMI)
+        g._findKernelMetadata = lambda *args, **kwargs: None
         tmpDir = tempfile.mkdtemp()
         g.writeConaryRc = lambda *args, **kwargs: None
         g.hugeDiskMountpoint = '/mnt/huge'
