@@ -104,6 +104,9 @@ def setup():
             lambda *args, **kwargs: None
     #end MCP specific tweaks
 
+    from testrunner.runner import setup as runnerSetup
+    runnerSetup()
+
     _setupPath = testPath
     return testPath
 

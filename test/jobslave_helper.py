@@ -14,7 +14,7 @@ import sys
 import threading
 import tempfile
 
-from testrunner import testhelp
+from rephelp import RepositoryHelper as TestCase
 
 from conary.lib import util
 from conary.lib import log as conary_log
@@ -99,9 +99,9 @@ class DummyHandler(logging.Handler):
         pass
 
 
-class JobSlaveHelper(testhelp.TestCase):
+class JobSlaveHelper(TestCase):
     def setUp(self):
-        testhelp.TestCase.setUp(self)
+        TestCase.setUp(self)
 
         self.slaveCfg = slave.SlaveConfig()
         self.slaveCfg.configLine('namespace test')
@@ -185,7 +185,7 @@ class JobSlaveHelper(testhelp.TestCase):
                 print ''.join(traceback.format_exception_only(*exc_data[:2]))
                 del exc_data
 
-        testhelp.TestCase.tearDown(self)
+        TestCase.tearDown(self)
 
     def getHandler(self, buildType):
         data = {
