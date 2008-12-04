@@ -15,8 +15,11 @@ import stat
 import sys
 import tempfile
 
+from conary import trove
 from conary.lib import util
 from conary.deps import deps
+from conary import conaryclient
+
 import jobslave_helper
 import image_stubs
 import bootableimgtest
@@ -425,6 +428,51 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                     (str(ref), str(res)))
         finally:
             boto.connect_ec2 = connect_ec2
+
+    def testAMIKernelMetadata(self):
+        """
+        Setup a chroot with a changeset that owns a files /boot/vmlinuz.* that
+        has ec2-ari and ec2-aki metadata set.
+        """
+
+        # create a component
+        repos = self.openRepository()
+        t = self.addComponent('foo:runtime', '1.0-1-1', repos=repos,
+                              fileContents=[('/boot/vmlinuz', 'foo')])
+
+        # create some metadata
+        ti = trove.TroveInfo()
+        mi = trove.MetadataItem()
+        mi.keyValue['ec2-ari'] = 'foo'
+        mi.keyValue['ec2-aki'] = 'bar'
+        ti.metadata.addItem(mi)
+
+        tl = [(t.getName(), t.getVersion(), t.getFlavor())]
+
+        # set the metadata on the component
+        repos.setTroveInfo(zip(tl, [ti] * len(tl)))
+
+        # install the component into a root
+        self.updatePkg(self.cfg.root, t.getName(), t.getVersion())
+
+        # close the repository
+        self.stopRepository()
+
+        # run method that we want to test
+        g = self.getHandler(buildtypes.AMI)
+        g.conarycfg = self.cfg
+        g.cc = conaryclient.ConaryClient(self.cfg)
+        g._findKernelMetadata()
+
+        # cleanup chroot
+        util.rmtree(self.cfg.root)
+
+        # make sure the metadata was dicovered correctly
+        self.failUnless(g._kernelMetadata == {
+            'ec2-ari': 'foo',
+            'ec2-aki': 'bar',
+        })
+
 
     def testAMIOddsNEnds(self):
         g = self.getHandler(buildtypes.AMI)
