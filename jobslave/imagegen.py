@@ -71,8 +71,9 @@ class LogHandler(logging.FileHandler):
         self.sendMessages()
 
 
-def logCall(cmd, ignoreErrors = False):
-    log.info("+ " + cmd)
+def logCall(cmd, ignoreErrors = False, logCmd = True):
+    if logCmd:
+        log.info("+ " + cmd)
     p = subprocess.Popen(cmd, shell = True,
         stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     while p.poll() is None:
