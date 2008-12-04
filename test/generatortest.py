@@ -493,7 +493,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
     def testAMIBundleError(self):
         g = self.getHandler(buildtypes.AMI)
-        def badCall(cmd):
+        def badCall(cmd, *args, **kw):
             raise RuntimeError
         logCall = ami.logCall
         try:

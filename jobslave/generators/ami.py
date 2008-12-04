@@ -95,7 +95,8 @@ class AMIImage(raw_fs_image.RawFsImage):
                 + ' -d %s' % bundlePath
                 + ' -p %s' % ec2ImagePrefix
                 + ' -r %s' % self.amiArch
-                + extraArgs
+                + extraArgs,
+                logCmd=False
                 )
             bundles = [x for x in os.listdir(bundlePath) if x.endswith('.xml')]
             return bundles and bundles[0] or None
@@ -107,7 +108,7 @@ class AMIImage(raw_fs_image.RawFsImage):
         try:
             logCall('ec2-upload-bundle -m %s -b %s -a %s -s %s' % \
                     (pathToManifest, self.ec2S3Bucket,
-                     self.ec2PublicKey, self.ec2PrivateKey))
+                     self.ec2PublicKey, self.ec2PrivateKey), logCmd=False)
         except RuntimeError:
             # all errors are translated to upload errors one level higher.
             return False
