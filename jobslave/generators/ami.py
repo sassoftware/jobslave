@@ -155,8 +155,7 @@ class AMIImage(raw_fs_image.RawFsImage):
         if len(kernels) > 1:
             log.warn('found %s kernels in this image' % len(kernels))
 
-        client = conaryclient.ConaryClient(self.conarycfg)
-        db = client.getDatabase()
+        db = self.cc.getDatabase()
 
         kernel = [ x for x in db.iterTrovesByPath(kernels[0]) ][0]
 
