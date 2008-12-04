@@ -509,7 +509,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
     def testAMIUploadError(self):
         g = self.getHandler(buildtypes.AMI)
-        def badCall(cmd):
+        def badCall(cmd, *args, **kwargs):
             raise RuntimeError
         logCall = ami.logCall
         try:
@@ -525,7 +525,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
     def testAMIRegisterError(self):
         g = self.getHandler(buildtypes.AMI)
-        def badCall(cmd):
+        def badCall(cmd, *args, **kwargs):
             raise RuntimeError
         connect_ec2 = boto.connect_ec2
         try:
