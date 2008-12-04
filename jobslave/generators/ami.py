@@ -164,7 +164,7 @@ class AMIImage(raw_fs_image.RawFsImage):
                     kernel.getVersion(),
                     kernel.getFlavor()))
 
-        ti = trv.getTroveInfo()
+        ti = kernel.getTroveInfo()
         md = ti.metadata.get(1)
         if 'keyValue' in md and md['keyValue'] is not None:
             for key in md['keyValue'].keys():
