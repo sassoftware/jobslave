@@ -44,7 +44,7 @@ def lndir(src, dest, excludes=[]):
                 curpath = p
             if curpath in excludes:
                 continue
-            if not os.path.exists(join(dest, curpath)):
+            if not os.path.exists(join(dest, curpath)) or os.path.isfile(join(dest, curpath)):
                 # this is perfectly fine since the exact same path can't appear
                 # in both the directory list and the file list.
                 if p in filenames:
