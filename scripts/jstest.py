@@ -34,17 +34,20 @@ os.umask(0002)
 constants.tmpDir = util.joinPaths(os.environ.get('HOME', '/') , 'tmp')
 constants.skelDir = util.joinPaths(os.getcwd(), '../', 'skel')
 constants.templateDir = util.joinPaths(os.getcwd(), '../', 'templates')
+constants.anacondaImagesPath = util.joinPaths(os.getcwd(), '../', 'pixmaps')
+
 
 if not os.path.exists(constants.tmpDir):
     util.mkdirChain(constants.tmpDir)
 
 jobData = {
-    'buildType': buildtypes.APPLIANCE_ISO,
+    'buildType': buildtypes.INSTALLABLE_ISO,
     'protocolVersion': 1,
     'data': {
         'jsversion': '3.1.3',
         'baseFileName': '',
         'media-template': '',
+        'anaconda-templates': '',
         'diskAdapter': 'lsilogic',
     },
     'description': 'this is a test',
@@ -57,8 +60,8 @@ jobData = {
     'UUID': tempfile.mktemp(prefix='jobslave', dir=''),
     'project': {
         'conaryCfg': '',
-        'hostname': 'flatpress-ubuntu',
-        'name': 'Test Ubuntu Linux',
+        'hostname': 'test',
+        'name': 'Test Linux',
         'label': 'test.rpath.local@rpl:devel'
     },
     'outputUrl': 'http://nowhere:31337/',
@@ -79,6 +82,7 @@ class JobSlave(object):
 if __name__ == '__main__':
     import epdb
 
+    from conary import versions
     from conary import updatecmd
     from conary import conarycfg
     from conary import conaryclient
@@ -118,6 +122,22 @@ if __name__ == '__main__':
     jobData['troveName'] = name
     jobData['troveVersion'] = frzVer
     jobData['troveFlavor'] = frzFlav
+
+    trvLst = client.repos.findTrove(versions.Label('anacondatest.rb.rpath.com@rpath:rba-5-devel'),
+                                    ('media-template', None, None),
+                                    defaultFlavor = cfg.flavor)
+
+    assert len(trvLst) == 1
+
+    jobData['data']['media-template'] = '%s=%s[%s]' % trvLst[0]
+
+    trvLst = client.repos.findTrove(versions.Label('conary.rpath.com@rpl:2'),
+                                    ('anaconda-templates', None, None),
+                                    defaultFlavor = cfg.flavor)
+
+    assert len(trvLst) == 1
+
+    jobData['data']['anaconda-templates'] = '%s=%s[%s]' % trvLst[0]
 
     #Create the image generator object
     generator = jobslave.jobhandler.getHandler(jobData, JobSlave())
