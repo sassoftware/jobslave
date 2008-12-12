@@ -79,9 +79,9 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
             assert(getContents(destDir, 'EULA') == getContents(srcDir, 'EULA'))
 
             # ensure initial contents were overwritten
-            self.failIf(getContents(destDir, 'LICENSE') == \
-                        getContents(srcDir, 'LICENSE'),
-                        "File contents were illegally overridden.")
+            self.failUnless(getContents(destDir, 'LICENSE') == \
+                            getContents(srcDir, 'LICENSE'),
+                            "File contents were not replaced.")
 
             # ensure sub directories were properly traversed
             assert(getContents(destDir, 'subdir', 'README') == \

@@ -82,18 +82,6 @@ class SplitDistroTest(jobslave_helper.JobSlaveHelper):
         assert dirList == \
                ['0', '1', '2', '3', '4', '5', '6', '7', '8']
 
-    def testLnDirModes(self):
-        tmpdir = tempfile.mkdtemp()
-        tmpdir2 = tempfile.mkdtemp()
-
-        for dir in (tmpdir, tmpdir2):
-            os.mkdir(os.path.join(dir, 'b'))
-            f = open(os.path.join(dir, 'b', 'a'), 'w')
-            f.close()
-            os.chmod(os.path.join(dir, 'b', 'a'), 0)
-            os.chmod(os.path.join(dir, 'b'), 0500)
-        splitdistro.lndir(tmpdir, tmpdir2)
-
     def testLnDirErr(self):
         tmpdir = tempfile.mkdtemp()
         tmpdir2 = tempfile.mkdtemp()
