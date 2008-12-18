@@ -12,6 +12,7 @@ import boto
 
 from conary.lib import util
 from conary.deps import deps
+from conary import conaryclient
 
 from jobslave.imagegen import logCall
 
@@ -156,9 +157,19 @@ class AMIImage(raw_fs_image.RawFsImage):
         if len(kernels) > 1:
             log.warn('found %s kernels in this image' % len(kernels))
 
-        db = self.cc.getDatabase()
+        cclient = conaryclient.ConaryClient(self.conarycfg)
+        db = cclient.getDatabase()
 
-        kernel = [ x for x in db.iterTrovesByPath(kernels[0]) ][0]
+        kernelTrvs = [ x for x in db.iterTrovesByPath(kernels[0]) ]
+
+        if len(kernelTrvs) == 0:
+            log.warn('kernel not owned by a package')
+            return
+
+        if len(kernelTrvs) > 1:
+            log.warn('file owned by multiple packages')
+
+        kernel = kernelTrvs[0]
 
         log.info('searching for key/value metadata in %s=%s[%s]'
                  % (kernel.getName(),
