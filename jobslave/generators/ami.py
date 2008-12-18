@@ -162,6 +162,8 @@ class AMIImage(raw_fs_image.RawFsImage):
 
         kernelTrvs = [ x for x in db.iterTrovesByPath(kernels[0]) ]
 
+        cclient.close()
+
         if len(kernelTrvs) == 0:
             log.warn('kernel not owned by a package')
             return
