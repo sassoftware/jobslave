@@ -409,23 +409,35 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
         self.failIf(not g.uploadAMIBundle(pathToManifest),
                 "Unexpected error during upload")
-        self.failIf(self.callLog != \
-                ['ec2-upload-bundle -m /tmp/fake/path -b fake_s3_bucket ' \
-                '-a fake_public_key -s fake_private_key'],
+        self.failUnless(isinstance(self.callLog[0], tuple))
+        self.failIf(self.callLog[0][0] != \
+                'ec2-upload-bundle -m /tmp/fake/path -b fake_s3_bucket ' \
+                '-a fake_public_key -s fake_private_key',
                 "upload call not formed as expected")
+        # Check that the proxy was sent to the command
+        self.assertEquals(self.callLog[0][1], {'https_proxy': 'https://jim:bar@proxy.example.com:888/', 'http_proxy': 'http://jim:bar@proxy.example.com:888/'})
 
     def testRegisterAMI(self):
         g = self.getHandler(buildtypes.AMI)
+        self.initargs = None
         class FakeBoto(object):
+            def __init__(s, *a, **k):
+                self.initargs = (a, k)
             register_image = lambda *args, **kwargs: 'fakeAMIId'
             modify_image_attribute = lambda *args, **kwargs: None
         connect_ec2 = boto.connect_ec2
         try:
-            boto.connect_ec2 = lambda *args, **kwargs: FakeBoto()
+            boto.connect_ec2 = lambda *args, **kwargs: FakeBoto(*args, **kwargs)
             res = g.registerAMI('/tmp/fake_path')
             ref = ('fakeAMIId', 'fake_s3_bucket/fake_path')
             self.failIf(ref != res, "expected %s but got %s" % \
                     (str(ref), str(res)))
+            self.assertEquals(self.initargs[1], {
+                'proxy': 'proxy.example.com',
+                'proxy_user': 'jim',
+                'proxy_port': 888,
+                'proxy_pass': 'bar',
+                })
         finally:
             boto.connect_ec2 = connect_ec2
 

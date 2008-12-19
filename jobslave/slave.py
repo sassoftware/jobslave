@@ -22,6 +22,7 @@ from jobslave.helperfuncs import getIP, getSlaveRuntimeConfig
 
 from mcp import client, queue, response, jobstatus, slavestatus
 
+from conary import conarycfg
 from conary.lib import cfgtypes, util
 from conary.lib.sha1helper import sha1ToString
 
@@ -81,6 +82,7 @@ class SlaveConfig(client.MCPClientConfig):
     nodeName = (cfgtypes.CfgString, None)
     conaryProxy = (cfgtypes.CfgString, None)
     debugMode = (cfgtypes.CfgBool, True)
+    entitlement           =  conarycfg.CfgEntitlement
 
 def catchErrors(func):
     def wrapper(self, *args, **kwargs):

@@ -71,11 +71,14 @@ class LogHandler(logging.FileHandler):
         self.sendMessages()
 
 
-def logCall(cmd, ignoreErrors = False, logCmd = True):
+def logCall(cmd, ignoreErrors = False, logCmd = True, **kw):
     if logCmd:
-        log.info("+ " + cmd)
+        env = kw.get('env', {})
+        env = ''.join(['%s="%s "' % (k,v) for k,v in env.iteritems()])
+        log.info("+ " + env + cmd)
     p = subprocess.Popen(cmd, shell = True,
-        stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        stdout = subprocess.PIPE, stderr = subprocess.PIPE,
+        **kw)
     while p.poll() is None:
         rList, junk, junk = select.select([p.stdout, p.stderr], [], [])
         for rdPipe in rList:

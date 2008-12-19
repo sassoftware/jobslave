@@ -203,7 +203,10 @@ class JobSlaveHelper(TestCase):
             'outputQueue': 'test',
             'name': 'Test Project',
             'entitlements': {'conary.rpath.com': ('class', 'key')},
-            'buildType' : buildType}
+            'buildType' : buildType,
+            'proxy': {'http': 'http://jim:bar@proxy.example.com:888/',
+                      'https': 'https://jim:bar@proxy.example.com:888/',},
+            }
         if buildType == buildtypes.AMI:
             data['amiData'] = {'ec2S3Bucket' : 'fake_s3_bucket',
                     'ec2Certificate' : 'fake_ec2_certificate',
@@ -258,7 +261,10 @@ class ExecuteLoggerTest(JobSlaveHelper):
 
         class FakePopen:
             def __init__(self2, cmd, *args, **kwargs):
-                self.callLog.append(cmd)
+                if 'env' in kwargs:
+                    self.callLog.append((cmd, kwargs['env']))
+                else:
+                    self.callLog.append(cmd)
                 self2.stderr = StringIO()
                 self2.stdout = StringIO()
                 self2.returncode = 0

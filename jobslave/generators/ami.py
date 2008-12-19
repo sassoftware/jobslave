@@ -7,6 +7,8 @@
 import os
 import logging
 import tempfile
+import urlparse
+import urllib
 
 import boto
 
@@ -107,20 +109,47 @@ class AMIImage(raw_fs_image.RawFsImage):
 
     def uploadAMIBundle(self, pathToManifest):
         try:
+            env = None
+            proxy = self.jobData.get('proxy')
+            if proxy is not None:
+                env = {'http_proxy': proxy['http'],
+                       'https_proxy': proxy['https'],
+                      }
             logCall('ec2-upload-bundle -m %s -b %s -a %s -s %s' % \
                     (pathToManifest, self.ec2S3Bucket,
-                     self.ec2PublicKey, self.ec2PrivateKey), logCmd=False)
+                     self.ec2PublicKey, self.ec2PrivateKey), logCmd=False,
+                     env=env)
         except RuntimeError:
             # all errors are translated to upload errors one level higher.
             return False
         return True
+
+    @classmethod
+    def splitProxyUrl(self, proxyUrl):
+        if proxyUrl:
+            scheme, netloc, path, query, fragment = urlparse.urlsplit(proxyUrl)
+            userpass, hostport = urllib.splituser(netloc)
+            host, port = urllib.splitnport(hostport, None)
+            if userpass:
+                user, passwd = urllib.splitpasswd(userpass)
+            else:
+                user, passwd = None, None
+            splitUrl = scheme, user, passwd, host, port, path, \
+                query or None, fragment or None
+        else:
+            splitUrl = [ None ] * 7
+        kwargs = {}
+        kwargs['proxy_user'], kwargs['proxy_pass'], \
+            kwargs['proxy'], kwargs['proxy_port'] = splitUrl[1:5]
+        return kwargs
 
     def registerAMI(self, pathToManifest):
         amiId = None
         amiS3ManifestName = '%s/%s' % (self.ec2S3Bucket,
                 os.path.basename(pathToManifest))
         try:
-            c = boto.connect_ec2(self.ec2PublicKey, self.ec2PrivateKey)
+            kwargs = self.splitProxyUrl(self.jobData.get('proxy', {}).get('https'))
+            c = boto.connect_ec2(self.ec2PublicKey, self.ec2PrivateKey, **kwargs)
             amiId = str(c.register_image(amiS3ManifestName))
             if self.ec2LaunchGroups:
                 c.modify_image_attribute(amiId, attribute='launchPermission',
