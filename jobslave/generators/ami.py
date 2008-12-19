@@ -12,7 +12,7 @@ import urllib
 
 import boto
 
-from conary.lib import util
+from conary.lib import util, log as conary_log
 from conary.deps import deps
 from conary import conaryclient
 
@@ -186,12 +186,19 @@ class AMIImage(raw_fs_image.RawFsImage):
         if len(kernels) > 1:
             log.warn('found %s kernels in this image' % len(kernels))
 
+        # Still stuck with Conary 1.1.31.z, so no getDatabase()
+        # or cclient.close()
         cclient = conaryclient.ConaryClient(self.conarycfg)
-        db = cclient.getDatabase()
+        db = cclient.db
 
         kernelTrvs = [ x for x in db.iterTrovesByPath(kernels[0]) ]
 
-        cclient.close()
+        cclient.db.close()
+        cclient.db.commitLock(False)
+        if conary_log.syslog.f:
+            conary_log.syslog.f.close()
+        conary_log.syslog.f = None
+        del cclient
 
         if len(kernelTrvs) == 0:
             log.warn('kernel not owned by a package')
