@@ -10,8 +10,8 @@ import os
 
 ## Disk geometry
 sectorSize          = 512 # bytes per block ("sector")
-sectors             = 63  # sectors per disk
-heads               = 16  # heads per disk
+sectors             = 32  # sectors per disk
+heads               = 64  # heads per disk
 
 bytesPerCylinder    = sectors * sectorSize * heads
 partitionOffset     = 128 * sectorSize # offset of first partition (bytes)

@@ -11,6 +11,8 @@ import os
 import sys
 import time
 
+from jobslave.generators import constants
+
 SEEK_SET = 0
 SEEK_CUR = 1
 SEEK_END = 2
@@ -126,9 +128,9 @@ class VHDFooter(PackedHeader):
          ("reserved",       "427s", "")
     ]
 
-    cylinderSize = 516096
-    sectors = 63
-    heads = 16
+    cylinderSize = constants.bytesPerCylinder
+    sectors = constants.sectors
+    heads = constants.heads
 
     def __setattr__(self, name, val):
         if name == 'originalSize':

@@ -161,7 +161,11 @@ class Generator(threading.Thread):
         if hasattr(self, 'logger'):
             rootLogger = logging.getLogger('')
             rootLogger.removeHandler(self.logger)
-            self.logger.close()
+            try:
+                self.logger.close()
+            except ValueError:
+                # file closed
+                pass
             del self.logger
 
     def getCookData(self, key):

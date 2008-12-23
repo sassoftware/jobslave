@@ -133,7 +133,7 @@ class BootloaderTest(jobslave_helper.JobSlaveHelper):
 
             self.assertRaises(AssertionError, installer.install_mbr, tmpDir, 'asdfasdf', 516097)
             installer.install_mbr(tmpDir, os.path.join(tmpDir, 'mbr_device'), 2 * constants.bytesPerCylinder)
-            self.failUnless('geometry (hd0) 2 16 63' in self.calls[0], 'geometry miscalculation')
+            self.failUnless('geometry (hd0) 2 64 32' in self.calls[0], 'geometry miscalculation')
         finally:
             util.rmtree(tmpDir)
 
