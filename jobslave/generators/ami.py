@@ -111,9 +111,9 @@ class AMIImage(raw_fs_image.RawFsImage):
         try:
             env = None
             proxy = self.jobData.get('proxy')
-            if proxy is not None:
-                env = {'http_proxy': proxy['http'],
-                       'https_proxy': proxy['https'],
+            if proxy:
+                env = {'http_proxy': proxy.get('http', ''),
+                       'https_proxy': proxy.get('https', ''),
                       }
             logCall('ec2-upload-bundle -m %s -b %s -a %s -s %s' % \
                     (pathToManifest, self.ec2S3Bucket,

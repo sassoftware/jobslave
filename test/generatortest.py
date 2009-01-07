@@ -417,6 +417,21 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         # Check that the proxy was sent to the command
         self.assertEquals(self.callLog[0][1], {'https_proxy': 'https://jim:bar@proxy.example.com:888/', 'http_proxy': 'http://jim:bar@proxy.example.com:888/'})
 
+    def testUploadAMIBundleNoProxy(self):
+        g = self.getHandler(buildtypes.AMI)
+        g.jobData['proxy'] = {}
+        pathToManifest = '/tmp/fake/path'
+
+        self.failIf(not g.uploadAMIBundle(pathToManifest),
+                "Unexpected error during upload")
+        self.failUnless(isinstance(self.callLog[0], tuple))
+        self.failIf(self.callLog[0][0] != \
+                'ec2-upload-bundle -m /tmp/fake/path -b fake_s3_bucket ' \
+                '-a fake_public_key -s fake_private_key',
+                "upload call not formed as expected")
+        # Check that the proxy was sent to the command
+        self.assertEquals(self.callLog[0][1], None)
+
     def testRegisterAMI(self):
         g = self.getHandler(buildtypes.AMI)
         self.initargs = None
