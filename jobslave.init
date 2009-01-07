@@ -26,7 +26,7 @@ start() {
     echo -n "Starting $LONGNAME:"
     mount /dev/xvda2 /tmp/
     modprobe loop max_loop=256
-    sudo sysctl -w net.ipv4.tcp_sack=0
+    sysctl -w net.ipv4.tcp_sack=0
     screen -d -m bash -c "$DAEMON 2>&1 |tee jobslave.log"
     echo ""
 }
