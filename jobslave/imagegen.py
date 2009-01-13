@@ -33,7 +33,7 @@ MSG_INTERVAL = 5
 class LogHandler(logging.FileHandler):
     def __init__(self, jobId, response):
         self.jobId = jobId
-        self.response = weakref.ref(response)
+        self.response = response
 
         self._msgs = ''
         self.lastSent = 0
@@ -53,7 +53,7 @@ class LogHandler(logging.FileHandler):
         try:
             msgs = self._msgs
             self._msgs = ''
-            self.response().jobLog(self.jobId, msgs)
+            self.response.jobLog(self.jobId, msgs)
         except Exception, e:
             if self._msgs:
                 print >> sys.stderr, "Warning: log message was lost:", self._msgs
@@ -114,9 +114,10 @@ class Generator(threading.Thread):
 
     def __init__(self, jobData, parent):
         self.pid = None
+        self.logger = None
         self.jobData = scrubUnicode(jobData)
-        self.response = weakref.ref(parent.response)
         self.parent = weakref.ref(parent)
+        self.response = None
         self.workDir = None
 
         self.jobId = self.jobData['UUID']
@@ -146,19 +147,12 @@ class Generator(threading.Thread):
         self.cc = conaryclient.ConaryClient(self.conarycfg)
         self.nc = self.cc.getRepos()
 
-        rootLogger = logging.getLogger('')
-        for handler in rootLogger.handlers[:]:
-            rootLogger.removeHandler(handler)
-        self.logger = LogHandler(self.jobId, parent.response)
-        rootLogger.addHandler(self.logger)
-        log.setVerbosity(logging.DEBUG)
-
         threading.Thread.__init__(self)
 
     def __del__(self):
         # Close and remove the MCP+file logger since the logging
         # module keeps several references otherwise
-        if hasattr(self, 'logger'):
+        if getattr(self, 'logger', None):
             rootLogger = logging.getLogger('')
             rootLogger.removeHandler(self.logger)
             try:
@@ -166,7 +160,7 @@ class Generator(threading.Thread):
             except ValueError:
                 # file closed
                 pass
-            del self.logger
+            self.logger = None
 
     def getCookData(self, key):
         return self.jobData.get('data', {}).get(key)
@@ -223,8 +217,15 @@ class Generator(threading.Thread):
         else:
             msg, status = self._lastStatus
 
+        if self.response:
+            # In child with its own response object
+            resp = self.response
+        else:
+            # In parent process
+            resp = self.parent().response
+
         try:
-            self.response().jobStatus(self.jobId, status, msg)
+            resp.jobStatus(self.jobId, status, msg)
         except:
             print >> sys.stderr, "Error logging status to MCP:", msg
 
@@ -263,10 +264,18 @@ class Generator(threading.Thread):
             os.setpgid(0, 0)
             try:
                 try:
-                    #Reinitialize the response object
-                    #Save a reference to the MCPResponse so that GC doesn't clean it up
-                    self.saveresponse = response.MCPResponse(self.response().node, self.response().cfg)
-                    self.response = weakref.ref(self.saveresponse)
+                    # Make a new response object (so we don't collide with
+                    # the parent process).
+                    self.response = response.MCPResponse(self.parent().cfg.nodeName,
+                            self.parent().cfg)
+
+                    rootLogger = logging.getLogger('')
+                    for handler in rootLogger.handlers[:]:
+                        rootLogger.removeHandler(handler)
+                    log.setVerbosity(logging.DEBUG)
+
+                    self.logger = LogHandler(self.jobId, self.response)
+                    rootLogger.addHandler(self.logger)
 
                     self.status('Starting job')
                     self.write()

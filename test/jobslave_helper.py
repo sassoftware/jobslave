@@ -84,6 +84,9 @@ class DummyResponse(object):
         self.node = node
         self.cfg = cfg
 
+    def jobStatus(self, jobId, status, msg):
+        pass
+
 class ThreadedJobSlave(slave.JobSlave, threading.Thread):
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self)

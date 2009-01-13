@@ -57,7 +57,13 @@ class GeneratorThreadTest(jobslave_helper.ExecuteLoggerTest):
         self.mock(os, 'waitpid', lambda x, y: None)
         self.mock(os, 'setpgid', lambda x, y: None)
         self.mock(os, '_exit', lambda x: None)
-        self.mock(imagegen, 'LogHandler', mock.MockObject())
+
+        class LogHandler(object):
+            def __init__(x, jobId, response):
+                x.jobId = jobId
+                x.response = response
+            acquire = release = lambda x: None
+        self.mock(imagegen, 'LogHandler', LogHandler)
 
     def testRun(self):
         parent = bootableimgtest.MockJobSlave()
@@ -66,8 +72,9 @@ class GeneratorThreadTest(jobslave_helper.ExecuteLoggerTest):
         self.mock(imagegen.response, 'MCPResponse', jobslave_helper.DummyResponse)
         gen.run()
 
-        self.failIf(getattr(gen, 'saveresponse') is None)
-        self.assertNotEquals(gen.response(), parent.response)
+        self.failIf(gen.response is None)
+        self.failIf(gen.response is parent.response)
+        self.failIf(gen.logger.response is parent.response)
 
         rootLogger = logging.getLogger('')
         rootLogger.removeHandler(gen.logger)
