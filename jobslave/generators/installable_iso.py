@@ -32,7 +32,6 @@ from conary import conaryclient
 from conary import conarycfg
 from conary.deps import deps
 from conary import versions
-from conary import errors as conary_errors
 from conary.repository import changeset
 from conary.repository import errors
 from conary import trove
@@ -124,10 +123,13 @@ class InstallableIso(ImageGenerator):
         if trvSpec and trvSpec.upper() != 'NONE':
             n, v, f = parseTroveSpec(trvSpec)
             try:
-                v = versions._VersionFromString(v, frozen=False)
-            except conary_errors.ParseError, e:
-                if 'release strings may not contain colons' in e:
-                    v = versions._VersionFromString(v, frozen=True)
+                v = versions.ThawVersion(v)
+            except:
+                try:
+                    v = versions.VersionFromString(v)
+                except:
+                    log.error("Bad version string %r in custom trove field %r"
+                            " -- using it anyway.", v, troveName)
             itemList = [(n, (None, None), (v, f), True)]
             uJob, suggMap = cclient.updateChangeSet(itemList,
                 resolveDeps = False)

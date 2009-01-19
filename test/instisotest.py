@@ -20,6 +20,7 @@ import image_stubs
 
 from conary.lib import util, sha1helper
 from conary.deps import deps
+from conary import errors as conary_errors
 from conary import versions
 
 
@@ -194,27 +195,34 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
 
     def testGetUpdateJob(self):
         troveName = 'test'
-        troveVersion = versions.VersionFromString('/test.rpath.local@rpl:1/1.2-3-4')
         troveFlavor = deps.parseFlavor('is: x86')
-        troveSpec = '%s=%s[%s]' % (troveName, troveVersion, troveFlavor)
 
         class DummyClient(object):
             def updateChangeSet(xself, job, **kwargs):
                 self.failUnlessEqual(job, [(troveName, (None, None),
                     (troveVersion, troveFlavor), True)])
                 return ('uJob', 'suggMap')
-        cclient = DummyClient()
-
         def getBuildData(field):
             self.failUnlessEqual(field, 'anaconda-custom')
-            return troveSpec
+            return '%s=%s[%s]' % (troveName, troveVersionString, troveFlavor)
+        cclient = DummyClient()
         g = installable_iso.InstallableIso({}, [])
         g.callback = installable_iso.Callback(self.status)
         g.getBuildData = getBuildData
 
-        res = g._getUpdateJob(cclient, 'anaconda-custom')
-        ref = 'uJob'
-        self.failIf(res != ref, "getUpdateJob did not perform as expected")
+        # Normal version (e.g. from user entry)
+        troveVersion = versions.VersionFromString(
+                '/test.rpath.local@rpl:1/1.2-3-4')
+        troveVersionString = troveVersion.asString()
+        self.failUnlessEqual(g._getUpdateJob(cclient, 'anaconda-custom'),
+                'uJob')
+
+        # Frozen version (e.g. from trove picker)
+        troveVersion = versions.ThawVersion(
+                '/test.rpath.local@rpl:1/1234567890.0:1.2-3-4')
+        troveVersionString = troveVersion.freeze()
+        self.failUnlessEqual(g._getUpdateJob(cclient, 'anaconda-custom'),
+                'uJob')
 
     def testGetNVF(self):
         class DummyUJob(object):
