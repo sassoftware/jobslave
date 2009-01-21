@@ -211,7 +211,7 @@ class Filesystem:
             loopDev = self.fsDev
         try:
             if self.fsType == 'ext3':
-                cmd = 'mke2fs -F -b 4096 %s' % loopDev
+                cmd = 'mke2fs -F -b 4096 -I 128 %s' % loopDev
                 if self.size:
                     cmd += ' %s' % (self.size / 4096)
                 logCall(cmd)

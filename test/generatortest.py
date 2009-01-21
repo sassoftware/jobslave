@@ -131,7 +131,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              ['dd if=/dev/zero of=/tmp/workdir/image/image-swap.swap count=1 seek=-1 bs=4096',
               'mkswap -L swap /tmp/workdir/image/image-swap.swap',
               'dd if=/dev/zero of=/tmp/workdir/image/image-root.ext3 count=1 seek=-1 bs=4096',
-              'mke2fs -F -b 4096 /tmp/workdir/image/image-root.ext3 0',
+              'mke2fs -F -b 4096 -I 128 /tmp/workdir/image/image-root.ext3 0',
               'tune2fs -i 0 -c 0 -j -L "root" /tmp/workdir/image/image-root.ext3']
         )
 
@@ -190,7 +190,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'vgcreate vg00 ',
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
-             'mke2fs -F -b 4096  240',
+             'mke2fs -F -b 4096 -I 128  240',
              'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
@@ -222,7 +222,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'vgcreate vg00 ',
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
-             'mke2fs -F -b 4096  240',
+             'mke2fs -F -b 4096 -I 128  240',
              'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
