@@ -146,7 +146,7 @@ class JobSlaveHelper(TestCase):
         self.realMkdtemp = tempfile.mkdtemp
 
         def fakeMkdtemp(*args, **kwargs):
-            kwargs["prefix"] = self._TestCase__testMethodName
+            kwargs['prefix'] = 'test'
             d = self.realMkdtemp(*args, **kwargs)
             self.mkdCreated.append(d)
             return d

@@ -402,11 +402,25 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             f.write('')
             f.close()
             g = self.getHandler(buildtypes.AMI)
+            g._kernelMetadata['ec2-aki'] = 'aki-zzzzzz'
+            g._kernelMetadata['ec2-ari'] = 'ari-zzzzzz'
+            mock.mockMethod(g.getBuildData)
+            g.getBuildData._mock.setReturn('asdfg,hjkl', 'ec2ProductCode')
+
             ref = os.path.basename(fakeBundle)
             res = g.createAMIBundle(inputFSImage, bundlePath)
-            self.failIf(ref != res, "expected %s but got %s" % (ref, res))
-            self.failIf(not self.callLog[0].startswith('ec2-bundle-image'),
-                    "Expected ec2 bundle call")
+            self.failUnlessEqual(ref, res)
+
+            self.failUnlessEqual(len(self.callLog), 1)
+            called = self.callLog[0]
+            self.failUnlessEqual(called.split()[0], 'ec2-bundle-image')
+            for x in 'cdiku':
+                self.failUnless(' -%s ' % x in called)
+            self.failUnless(' -p "image_None.img"' in called)
+            self.failUnless(' -r "i386"' in called)
+            self.failUnless(' --kernel "aki-zzzzzz"' in called)
+            self.failUnless(' --ramdisk "ari-zzzzzz"' in called)
+            self.failUnless(' --productcodes "asdfg,hjkl"' in called)
         finally:
             util.rmtree(bundlePath)
 
