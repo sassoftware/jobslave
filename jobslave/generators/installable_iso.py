@@ -20,6 +20,7 @@ import urlparse
 from jobslave.generators import constants
 from jobslave import gencslist
 from jobslave import splitdistro
+from jobslave.imagegen import logCall
 from jobslave.splitdistro import call
 from jobslave.generators.anaconda_images import AnacondaImages
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
@@ -267,15 +268,19 @@ class InstallableIso(ImageGenerator):
         # extract constants.py from the stage2.img template and override the BETANAG flag
         # this would be better if constants.py could load a secondary constants.py
         stage2Path = tempfile.mkdtemp(dir=constants.tmpDir)
-        call('/sbin/fsck.cramfs', topdir + '/rPath/base/stage2.img', '-x', stage2Path)
-        call('cp', stage2Path + '/usr/lib/anaconda/constants.py', tmpPath)
+        logCall(['/sbin/fsck.cramfs', topdir + '/rPath/base/stage2.img',
+            '-x', stage2Path + '/stage2/'])
+        logCall(['/bin/cp',
+            stage2Path + '/stage2/usr/lib/anaconda/constants.py', tmpPath])
 
         betaNag = self.getBuildData('betaNag')
-        call('sed', '-i', 's/BETANAG = 1/BETANAG = %d/' % int(betaNag), tmpPath + '/constants.py')
+        logCall(['/bin/sed',
+            '-i', 's/BETANAG = 1/BETANAG = %d/' % int(betaNag),
+            tmpPath + '/constants.py'])
         util.rmtree(stage2Path, ignore_errors = True)
 
         # create cramfs
-        call('mkcramfs', tmpPath, productPath)
+        logCall(['/usr/bin/mkcramfs', tmpPath, productPath])
 
         # clean up
         util.rmtree(tmpPath, ignore_errors = True)

@@ -72,13 +72,36 @@ class LogHandler(logging.FileHandler):
 
 
 def logCall(cmd, ignoreErrors = False, logCmd = True, **kw):
+    """
+    Run command C{cmd}, logging the command run and all its output.
+
+    If C{cmd} is a string, it will be interpreted as a shell command.
+    Otherwise, it should be a list where the first item is the program name and
+    subsequent items are arguments to the program.
+
+    @param cmd: Program or shell command to run.
+    @type  cmd: C{basestring or list}
+    @param ignoreErrors: If C{True}, don't raise an exception on a 
+            non-zero return code.
+    @type  ignoreErrors: C{bool}
+    @param logCmd: If C{False}, don't log the command invoked.
+    @type  logCmd: C{bool}
+    @param kw: All other keyword arguments are passed to L{subprocess.Popen}
+    @type  kw: C{dict}
+    """
+
     if logCmd:
+        if isinstance(cmd, basestring):
+            niceString = cmd
+        else:
+            niceString = ' '.join(repr(x) for x in cmd)
         env = kw.get('env', {})
         env = ''.join(['%s="%s "' % (k,v) for k,v in env.iteritems()])
-        log.info("+ " + env + cmd)
-    p = subprocess.Popen(cmd, shell = True,
-        stdout = subprocess.PIPE, stderr = subprocess.PIPE,
-        **kw)
+        log.info("+ %s%s", env, niceString)
+
+    p = subprocess.Popen(cmd, shell=isinstance(cmd, basestring),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kw)
+
     while p.poll() is None:
         rList, junk, junk = select.select([p.stdout, p.stderr], [], [])
         for rdPipe in rList:
@@ -87,9 +110,13 @@ def logCall(cmd, ignoreErrors = False, logCmd = True, **kw):
             if msg:
                 action("++ " + msg)
 
+    # pylint: disable-msg=E1103
     stdout, stderr = p.communicate()
-    [log.info("++ " + outLine) for outLine in stdout.splitlines()]
-    [log.debug("++ " + errLine) for errLine in stderr.splitlines()]
+    for x in stderr.splitlines():
+        log.info("++ (stderr) %s", x)
+    for x in stdout.splitlines():
+        log.info("++ (stdout) %s", x)
+
     if p.returncode and not ignoreErrors:
         raise RuntimeError("Error executing command: %s (return code %d)" % (cmd, p.returncode))
     else:
