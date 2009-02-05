@@ -91,7 +91,7 @@ class AMIImage(raw_fs_image.RawFsImage):
                 extraArgs += (' --kernel "%(ec2-aki)s" --ramdisk "%(ec2-ari)s"'
                               % self._kernelMetadata)
 
-            productCode = self.getBuildData('ec2ProductCode')
+            productCode = self.amiData.get('ec2ProductCode', None)
             if productCode:
                 extraArgs += ' --productcodes "%s"' % productCode
 

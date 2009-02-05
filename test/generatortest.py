@@ -405,7 +405,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             g._kernelMetadata['ec2-aki'] = 'aki-zzzzzz'
             g._kernelMetadata['ec2-ari'] = 'ari-zzzzzz'
             mock.mockMethod(g.getBuildData)
-            g.getBuildData._mock.setReturn('asdfg,hjkl', 'ec2ProductCode')
+            g.amiData = {'ec2ProductCode': 'asdfg,hjkl'}
 
             ref = os.path.basename(fakeBundle)
             res = g.createAMIBundle(inputFSImage, bundlePath)
