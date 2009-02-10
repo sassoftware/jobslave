@@ -259,7 +259,8 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             g.getConaryClient = lambda *args, **kwargs: FakeClient()
             g._getUpdateJob = lambda *args, **kwargs: True
             g.writeProductImage(topdir, 'x86')
-            self.failIf(len(self.callLog) != 9, "unexpected number of calls")
+            self.failUnlessEqual([x[0] for x in self.callLog],
+                    ['sed', 'tar', 'tar', 'tar', 'tar', '/usr/bin/mkcramfs'])
         finally:
             os.unlink = unlink
             installable_iso.AnacondaImages = AnacondaImages
