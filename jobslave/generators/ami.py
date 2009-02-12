@@ -85,19 +85,24 @@ class AMIImage(raw_fs_image.RawFsImage):
                 (self.basefilename, self.jobData.get('buildId'))
         try:
             extraArgs = ''
+
             if ('ec2-ari' in self._kernelMetadata and
                 'ec2-aki' in self._kernelMetadata):
-                extraArgs += (' --kernel %(ec2-aki)s --ramdisk %(ec2-ari)s'
+                extraArgs += (' --kernel "%(ec2-aki)s" --ramdisk "%(ec2-ari)s"'
                               % self._kernelMetadata)
 
+            productCode = self.amiData.get('ec2ProductCode', None)
+            if productCode:
+                extraArgs += ' --productcodes "%s"' % productCode
+
             logCall('ec2-bundle-image'
-                + ' -i %s' % inputFSImage
-                + ' -u %s' % self.ec2AccountId
-                + ' -c %s' % self.ec2CertPath
-                + ' -k %s' % self.ec2CertKeyPath
-                + ' -d %s' % bundlePath
-                + ' -p %s' % ec2ImagePrefix
-                + ' -r %s' % self.amiArch
+                + ' -i "%s"' % inputFSImage
+                + ' -u "%s"' % self.ec2AccountId
+                + ' -c "%s"' % self.ec2CertPath
+                + ' -k "%s"' % self.ec2CertKeyPath
+                + ' -d "%s"' % bundlePath
+                + ' -p "%s"' % ec2ImagePrefix
+                + ' -r "%s"' % self.amiArch
                 + extraArgs,
                 logCmd=False
                 )

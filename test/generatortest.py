@@ -131,7 +131,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              ['dd if=/dev/zero of=/tmp/workdir/image/image-swap.swap count=1 seek=-1 bs=4096',
               'mkswap -L swap /tmp/workdir/image/image-swap.swap',
               'dd if=/dev/zero of=/tmp/workdir/image/image-root.ext3 count=1 seek=-1 bs=4096',
-              'mke2fs -F -b 4096 /tmp/workdir/image/image-root.ext3 0',
+              'mke2fs -F -b 4096 -I 128 /tmp/workdir/image/image-root.ext3 0',
               'tune2fs -i 0 -c 0 -j -L "root" /tmp/workdir/image/image-root.ext3']
         )
 
@@ -190,7 +190,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'vgcreate vg00 ',
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
-             'mke2fs -F -b 4096  240',
+             'mke2fs -F -b 4096 -I 128  240',
              'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
@@ -222,7 +222,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
              'vgcreate vg00 ',
              'losetup -o65536  /tmp/workdir/image.hdd',
              'sync',
-             'mke2fs -F -b 4096  240',
+             'mke2fs -F -b 4096 -I 128  240',
              'tune2fs -i 0 -c 0 -j -L "root" ',
              'losetup -d ',
              'lvcreate -n swap -L0K vg00',
@@ -402,11 +402,25 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             f.write('')
             f.close()
             g = self.getHandler(buildtypes.AMI)
+            g._kernelMetadata['ec2-aki'] = 'aki-zzzzzz'
+            g._kernelMetadata['ec2-ari'] = 'ari-zzzzzz'
+            mock.mockMethod(g.getBuildData)
+            g.amiData = {'ec2ProductCode': 'asdfg,hjkl'}
+
             ref = os.path.basename(fakeBundle)
             res = g.createAMIBundle(inputFSImage, bundlePath)
-            self.failIf(ref != res, "expected %s but got %s" % (ref, res))
-            self.failIf(not self.callLog[0].startswith('ec2-bundle-image'),
-                    "Expected ec2 bundle call")
+            self.failUnlessEqual(ref, res)
+
+            self.failUnlessEqual(len(self.callLog), 1)
+            called = self.callLog[0]
+            self.failUnlessEqual(called.split()[0], 'ec2-bundle-image')
+            for x in 'cdiku':
+                self.failUnless(' -%s ' % x in called)
+            self.failUnless(' -p "image_None.img"' in called)
+            self.failUnless(' -r "i386"' in called)
+            self.failUnless(' --kernel "aki-zzzzzz"' in called)
+            self.failUnless(' --ramdisk "ari-zzzzzz"' in called)
+            self.failUnless(' --productcodes "asdfg,hjkl"' in called)
         finally:
             util.rmtree(bundlePath)
 

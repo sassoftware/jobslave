@@ -211,7 +211,7 @@ class Filesystem:
             loopDev = self.fsDev
         try:
             if self.fsType == 'ext3':
-                cmd = 'mke2fs -F -b 4096 %s' % loopDev
+                cmd = 'mke2fs -F -b 4096 -I 128 %s' % loopDev
                 if self.size:
                     cmd += ' %s' % (self.size / 4096)
                 logCall(cmd)
@@ -619,45 +619,49 @@ class BootableImage(ImageGenerator):
             logCall('mount -t proc none %s' % os.path.join(dest, 'proc'))
             logCall('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
 
-            self.conarycfg.root = dest
-            self.conarycfg.installLabelPath = [versions.VersionFromString(self.baseVersion).branch().label()]
-
-            cclient = conaryclient.ConaryClient(self.conarycfg)
             if os.access(constants.tmpDir, os.W_OK):
                 util.settempdir(constants.tmpDir)
                 log.info("Using %s as tmpDir" % constants.tmpDir)
             else:
                 log.warning("Using system temporary directory")
 
-            callback = InstallCallback(self.status)
-            cclient.setUpdateCallback(callback)
-            self.updateGroupChangeSet(cclient)
+            self.conarycfg.root = dest
+            self.conarycfg.installLabelPath = [versions.VersionFromString(self.baseVersion).branch().label()]
 
-            # set up the flavor for the kernel install based on the 
-            # rooted flavor setup.
-            self.conarycfg.useDirs = [os.path.join(dest, 'etc/conary/use')]
-            self.conarycfg.initializeFlavors()
-            if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
-                self.status('Installing kernel')
-                try:
-                    self.updateKernelChangeSet(cclient)
-                except conaryclient.NoNewTrovesError:
-                    log.info('strongly-included kernel found--no new kernel trove to sync')
-                except errors.TroveNotFound:
-                    log.info('no kernel found at all. skipping.')
-            else:
-                log.info('Kernel detected, skipping.')
+            callback = None
+            cclient = conaryclient.ConaryClient(self.conarycfg)
+            try:
+                callback = InstallCallback(self.status)
+                cclient.setUpdateCallback(callback)
 
-            # clean up some bits Conary leaves around
-            # revisit this after conary-2 makes it into the jobslave,
-            # since most of it is obsoleted by cclient.close()
-            cclient.db.close()
-            cclient.db.commitLock(False) # fixed in conary 1.1.92
-            if log.syslog.f:
-                log.syslog.f.close()
-            log.syslog.f = None
-            del cclient
-            callback.closeCB()
+                self.updateGroupChangeSet(cclient)
+
+                # set up the flavor for the kernel install based on the 
+                # rooted flavor setup.
+                self.conarycfg.useDirs = [os.path.join(dest, 'etc/conary/use')]
+                self.conarycfg.initializeFlavors()
+                if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
+                    self.status('Installing kernel')
+                    try:
+                        self.updateKernelChangeSet(cclient)
+                    except conaryclient.NoNewTrovesError:
+                        log.info('strongly-included kernel found--no new kernel trove to sync')
+                    except errors.TroveNotFound:
+                        log.info('no kernel found at all. skipping.')
+                else:
+                    log.info('Kernel detected, skipping.')
+            finally:
+                # clean up some bits Conary leaves around
+                # revisit this after conary-2 makes it into the jobslave,
+                # since most of it is obsoleted by cclient.close()
+                cclient.db.close()
+                cclient.db.commitLock(False) # fixed in conary 1.1.92
+                if log.syslog.f:
+                    log.syslog.f.close()
+                log.syslog.f = None
+                if callback:
+                    callback.closeCB()
+                cclient = callback = None
 
             self.status('Finalizing install')
 

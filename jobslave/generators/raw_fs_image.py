@@ -57,8 +57,11 @@ class RawFsImage(bootable_image.BootableImage):
             # Install image contents.
             self.installFileTree(root)
         finally:
-            self.umountAll()
-            util.rmtree(root, ignore_errors = True)
+            try:
+                self.umountAll()
+                util.rmtree(root, ignore_errors = True)
+            except:
+                log.logger.exception("Error unmounting partitions:")
 
         return imgFiles
 
