@@ -691,9 +691,12 @@ class BootableImage(ImageGenerator):
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
         # set up shadow passwords/md5 passwords
+        authConfigCmd = ('chroot %s %%s --kickstart --enablemd5 --enableshadow'
+                         ' --disablecach' % dest)
         if os.path.exists(os.path.join(dest, 'usr/sbin/authconfig')):
-            logCall("chroot %s /usr/sbin/authconfig --kickstart --enablemd5 "
-                "--enableshadow --disablecache" % dest)
+            logCall(authConfigCmd % '/usr/sbin/authconfig')
+        elif os.path.exists(os.path.join(dest, 'usr/bin/authconfig')):
+            logCall(authConfigCmd % '/usr/bin/authconfig')
         elif os.path.exists(os.path.join(dest, 'usr/sbin/pwconv')):
             logCall("chroot %s /usr/sbin/pwconv" % dest)
 
