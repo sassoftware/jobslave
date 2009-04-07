@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ovf:Envelope  xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:ovf="http://www.vmware.com/schema/ovf/1/envelope" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ovf:version="0.9">
+  <References>
+    <File ovf:href="@FILENAME@-disk1.vmdk" ovf:id="file1" ovf:size="@SIZE@"/>
+  </References>
+  <Section xsi:type="ovf:DiskSection_Type">
+    <Info>Meta-information about the virtual disks</Info>
+    <Disk ovf:capacity="@CAPACITY@" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/specifications/vmdk.html#sparse"/>
+  </Section>
+  <Section xsi:type="ovf:NetworkSection_Type">
+    <Info>The list of logical networks</Info>
+    <Network ovf:name="bridged">
+      <Description>The bridged network</Description>
+    </Network>
+  </Section>
+  <Content ovf:id="@NAME@" xsi:type="ovf:VirtualSystem_Type">
+    <Info>A virtual machine</Info>
+<!-- if @GUESTOS@ == other26xlinux
+    <Section ovf:id="36" xsi:type="ovf:OperatingSystemSection_Type">
+-->
+<!-- if @GUESTOS@ == other26xlinux-64
+    <Section ovf:id="107" xsi:type="ovf:OperatingSystemSection_Type">
+-->
+      <Info>The kind of installed guest operating system</Info>
+    </Section>
+    <Section xsi:type="ovf:VirtualHardwareSection_Type">
+      <Info>Virtual hardware requirements for a virtual machine</Info>
+      <System>
+        <vssd:InstanceId>0</vssd:InstanceId>
+        <vssd:VirtualSystemIdentifier>@NAME@</vssd:VirtualSystemIdentifier>
+        <vssd:VirtualSystemType>vmx-04</vssd:VirtualSystemType>
+      </System>
+      <Item>
+        <rasd:Caption>1 virtual CPU(s)</rasd:Caption>
+        <rasd:Description>Number of Virtual CPUs</rasd:Description>
+        <rasd:InstanceId>1</rasd:InstanceId>
+        <rasd:ResourceType>3</rasd:ResourceType>
+        <rasd:AllocationUnits>MegaHertz</rasd:AllocationUnits>
+        <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+      </Item>
+      <Item>
+        <rasd:Caption>@MEM@MB of memory</rasd:Caption>
+        <rasd:Description>Memory Size</rasd:Description>
+        <rasd:InstanceId>2</rasd:InstanceId>
+        <rasd:ResourceType>4</rasd:ResourceType>
+        <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
+        <rasd:VirtualQuantity>@MEM@</rasd:VirtualQuantity>
+      </Item>
+      <Item ovf:required="false">
+        <rasd:Caption>usb</rasd:Caption>
+        <rasd:Description>USB Controller</rasd:Description>
+        <rasd:InstanceId>3</rasd:InstanceId>
+        <rasd:ResourceType>23</rasd:ResourceType>
+        <rasd:Address>0</rasd:Address>
+        <rasd:BusNumber>0</rasd:BusNumber>
+      </Item>
+<!-- if @ADAPTERDEV@ == ide
+      <Item>
+        <rasd:Caption>ideController1</rasd:Caption>
+        <rasd:Description>IDE Controller</rasd:Description>
+        <rasd:InstanceId>4</rasd:InstanceId>
+        <rasd:ResourceType>5</rasd:ResourceType>
+        <rasd:Address>1</rasd:Address>
+        <rasd:BusNumber>1</rasd:BusNumber>
+      </Item>
+-->
+<!-- if @ADAPTERDEV@ == scsi
+      <Item>
+        <rasd:Caption>scsiController0</rasd:Caption>
+        <rasd:Description>SCSI Controller</rasd:Description>
+        <rasd:InstanceId>4</rasd:InstanceId>
+        <rasd:ResourceType>6</rasd:ResourceType>
+        <rasd:ResourceSubType>lsilogic</rasd:ResourceSubType>
+        <rasd:Address>0</rasd:Address>
+        <rasd:BusNumber>0</rasd:BusNumber>
+      </Item>
+-->
+      <Item>
+        <rasd:Caption>ideController1</rasd:Caption>
+        <rasd:Description>IDE Controller</rasd:Description>
+        <rasd:InstanceId>5</rasd:InstanceId>
+        <rasd:ResourceType>5</rasd:ResourceType>
+        <rasd:Address>1</rasd:Address>
+        <rasd:BusNumber>1</rasd:BusNumber>
+      </Item>
+      <Item ovf:required="false">
+        <rasd:Caption>cdrom1</rasd:Caption>
+        <rasd:InstanceId>6</rasd:InstanceId>
+        <rasd:ResourceType>15</rasd:ResourceType>
+        <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
+        <rasd:Parent>5</rasd:Parent>
+        <rasd:AddressOnParent>0</rasd:AddressOnParent>
+      </Item>
+      <Item>
+        <rasd:Caption>disk1</rasd:Caption>
+        <rasd:InstanceId>7</rasd:InstanceId>
+        <rasd:ResourceType>17</rasd:ResourceType>
+        <rasd:HostResource>/disk/vmdisk1</rasd:HostResource>
+        <rasd:Parent>4</rasd:Parent>
+        <rasd:AddressOnParent>0</rasd:AddressOnParent>
+      </Item>
+      <Item>
+        <rasd:Caption>ethernet0</rasd:Caption>
+        <rasd:Description>PCNet32 ethernet adapter on &quot;bridged&quot;</rasd:Description>
+        <rasd:InstanceId>8</rasd:InstanceId>
+        <rasd:ResourceType>10</rasd:ResourceType>
+        <rasd:ResourceSubType>PCNet32</rasd:ResourceSubType>
+        <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
+<!-- if @NETWORK_CONNECTION@ == nat
+        <rasd:Connection>nat</rasd:Connection>
+        <rasd:AddressOnParent>2</rasd:AddressOnParent>
+-->
+<!-- if @NETWORK_CONNECTION@ == bridged
+        <rasd:Connection>bridged</rasd:Connection>
+        <rasd:AddressOnParent>1</rasd:AddressOnParent>
+-->
+      </Item>
+    </Section>
+    <Section ovf:required="false" xsi:type="ovf:AnnotationSection_Type">
+      <Info>A human-readable annotation</Info>
+      <Annotation>Generated by rBuilder: http://www.rpath.com/</Annotation>
+    </Section>
+  </Content>
+</ovf:Envelope>

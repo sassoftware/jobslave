@@ -599,8 +599,8 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g.outputDir = tmpDir
         try:
             g.write()
-            ref = ['image.vmx']
-            res = os.listdir(os.path.join(tmpDir, 'image'))
+            ref = sorted(['image.vmx', 'image.ovf'])
+            res = sorted(os.listdir(os.path.join(tmpDir, 'image')))
             self.failIf(ref != res, "expected %s, but got %s" % \
                     (str(ref), str(res)))
             self.failIf(not self.callLog[0].startswith( \
@@ -609,6 +609,14 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             vmxData = open(os.path.join(tmpDir, 'image', 'image.vmx')).read()
             self.failIf("other26xlinux-64" in vmxData,
                     "expected 32 bit image")
+            ovfData = open(os.path.join(tmpDir, 'image', 'image.ovf')).read()
+            self.failIf('ovf:id="107"' in ovfData)
+            self.failIf('ovf:id="36"' not in ovfData)
+            self.failIf('<rasd:Caption>scsiController0</rasd:Caption>' in ovfData)
+            self.failIf('@' in ovfData)
+            self.failIf('<!--' in ovfData)
+            self.failIf('-->' in ovfData)
+            self.failIf('<rasd:Connection>bridged</rasd:Connection>' not in ovfData)
         finally:
             util.rmtree(tmpDir)
         self.resetPopen()
@@ -620,7 +628,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.injectPopen("")
         g = vmware_image.VMwareImage({}, [])
 
-        g.makeHDImage = lambda x: open(x, 'w').write('')
+        g.makeHDImage = lambda x: open(x, 'w').write(' ')
         g.baseFlavor = deps.parseFlavor("some,random,junk is: x86_64")
         g.adapter = 'lsilogic'
         tmpDir = tempfile.mkdtemp()
@@ -628,16 +636,26 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g.outputDir = tmpDir
         try:
             g.write()
-            ref = ['image.vmx']
+            ref = ['image.vmx', 'image.ovf']
             res = os.listdir(os.path.join(tmpDir, 'image'))
             self.failIf(ref != res, "expected %s, but got %s" % \
                     (str(ref), str(res)))
             self.failIf(not self.callLog[0].startswith( \
-                    'raw2vmdk -C 0 -H 64 -S 32 -A lsilogic'),
+                    'raw2vmdk -C 1 -H 64 -S 32 -A lsilogic'),
                     "expected call to make vmdk")
             vmxData = open(os.path.join(tmpDir, 'image', 'image.vmx')).read()
             self.failIf("other26xlinux-64" not in vmxData,
                     "expected 64 bit image")
+            ovfData = open(os.path.join(tmpDir, 'image', 'image.ovf')).read()
+            self.failIf('ovf:id="107"' not in ovfData)
+            self.failIf('ovf:id="36"' in ovfData)
+            self.failIf('<rasd:Caption>scsiController0</rasd:Caption>' not in ovfData)
+            self.failIf('@' in ovfData)
+            self.failIf('<!--' in ovfData)
+            self.failIf('-->' in ovfData)
+            self.failIf('<rasd:Connection>bridged</rasd:Connection>' not in ovfData)
+            self.failIf('ovf:capacity="1"' not in ovfData)
+            self.failIf('<File ovf:href="image-disk1.vmdk" ovf:id="file1" ovf:size="0"' not in ovfData)
         finally:
             util.rmtree(tmpDir)
         self.resetPopen()

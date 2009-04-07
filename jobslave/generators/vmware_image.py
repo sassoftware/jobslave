@@ -31,12 +31,37 @@ def vmEscape(data, eatNewlines = True):
 
 
 def substitute(template, variables):
+    l = []
+    excludeLines = False
+    # first go through the file looking for <!-- if @KEY@ == val
+    for line in template.split('\n'):
+        # check for a condition
+        if line.startswith('<!-- if'):
+            fields = line.split()
+            if len(fields) != 5:
+                raise RuntimeError('invalid template file')
+            key = fields[2][1:-1]
+            value = fields[4]
+            # if the condition is not met, start skipping lines
+            if variables[key] != value:
+                excludeLines = True
+            continue
+        elif line.startswith('-->'):
+            # end of the conditional section, start including
+            # stuff again
+            excludeLines = False
+            continue
+        if not excludeLines:
+            l.append(line)
+    template = '\n'.join(l)
     for name, value in variables.items():
         template = template.replace('@%s@' % name, str(value))
     return template
 
 
 class VMwareImage(raw_hd_image.RawHdImage):
+    useOVF = True
+
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
         cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
@@ -56,8 +81,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         displayName = self.jobData.get('project', {}).get('name', '')
         description = self.jobData.get('description', '')
 
-        # Substitute values into the placeholders in the templtae.
-        filecontents = substitute(filecontents, {
+        variables = {
             'NAME': vmEscape(displayName),
             'DESCRIPTION': vmEscape(description, eatNewlines=False),
             'MEM': self.vmMemory,
@@ -68,12 +92,28 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'ADAPTERDEV': self.adapter == 'lsilogic' and 'scsi' or 'ide',
             'SNAPSHOT': str(not self.vmSnapshots).upper(),
             'GUESTOS': self.getGuestOS(),
-          })
+            'SIZE': str(self.vmdkSize),
+            'CAPACITY': str(self.vmdkCapacity),
+            }
+        # Substitute values into the placeholders in the templtae.
+        filecontents = substitute(filecontents, variables)
 
         #write the file to the proper location
         ofile = open(outfile, 'wb')
         ofile.write(filecontents)
         ofile.close()
+
+        # if we have a sparse disk, we can write out an .ovf too
+        if self.useOVF:
+            assert(self.getGuestOS() in ('other26xlinux', 'other26xlinux-64'))
+            infile = open(os.path.join(constants.templateDir, 'vmware.ovf.in'),
+                          'rb')
+            filecontents = infile.read()
+            infile.close()
+            filecontents = substitute(filecontents, variables)
+            ovfPath = os.path.join(os.path.dirname(outfile),
+                                   self.basefilename + '.ovf')
+            file(ovfPath, 'wb').write(filecontents)
 
     def setModes(self, baseDir):
         files = os.listdir(baseDir)
@@ -94,8 +134,12 @@ class VMwareImage(raw_hd_image.RawHdImage):
         vmdkPath = os.path.join(workingDir, self.basefilename + '.vmdk')
         vmxPath = os.path.join(workingDir, self.basefilename + '.vmx')
 
-        size = os.stat(image)[stat.ST_SIZE]
-        self.createVMDK(image, vmdkPath, size)
+        self.vmdkCapacity = os.stat(image)[stat.ST_SIZE]
+        self.createVMDK(image, vmdkPath, self.vmdkCapacity)
+        try:
+            self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
+        except OSError:
+            pass
 
         self.createVMX(vmxPath)
         self.setModes(workingDir)
@@ -110,6 +154,8 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.templateName = 'vmwareplayer.vmx'
         self.productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
         self.suffix = '.vmware.tar.gz'
+        self.vmdkSize = 0
+        self.vmdkCapacity = 0
 
         if self.adapter == 'lsilogic':
             self.scsiModules = True
@@ -120,6 +166,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         return "other26xlinux" + suffix
 
 class VMwareESXImage(VMwareImage):
+    useOVF = False
     def __init__(self, *args, **kwargs):
         VMwareImage.__init__(self, *args, **kwargs)
         self.adapter = 'lsilogic'
