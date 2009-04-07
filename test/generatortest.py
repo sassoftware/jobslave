@@ -636,8 +636,8 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g.outputDir = tmpDir
         try:
             g.write()
-            ref = ['image.vmx', 'image.ovf']
-            res = os.listdir(os.path.join(tmpDir, 'image'))
+            ref = sorted(['image.vmx', 'image.ovf'])
+            res = sorted(os.listdir(os.path.join(tmpDir, 'image')))
             self.failIf(ref != res, "expected %s, but got %s" % \
                     (str(ref), str(res)))
             self.failIf(not self.callLog[0].startswith( \
