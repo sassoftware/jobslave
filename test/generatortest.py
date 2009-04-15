@@ -655,7 +655,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf('-->' in ovfData)
             self.failIf('<rasd:Connection>bridged</rasd:Connection>' not in ovfData)
             self.failIf('ovf:capacity="1"' not in ovfData)
-            self.failIf('<File ovf:href="image-disk1.vmdk" ovf:id="file1" ovf:size="0"' not in ovfData)
+            self.failIf('<File ovf:href="image.vmdk" ovf:id="file1" ovf:size="0"' not in ovfData)
         finally:
             util.rmtree(tmpDir)
         self.resetPopen()
