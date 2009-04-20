@@ -1,7 +1,7 @@
 from jobslave.generators.installable_iso import InstallableIso
 from jobslave.generators.live_iso import LiveIso
 from jobslave.generators.raw_hd_image import RawHdImage
-from jobslave.generators.vmware_image import VMwareImage, VMwareESXImage
+from jobslave.generators.vmware_image import VMwareImage, VMwareESXImage, VMwareOVFImage
 from jobslave.generators.stub_image import StubImage
 from jobslave.generators.netboot_image import NetbootImage
 from jobslave.generators.group_trove import GroupTroveCook
@@ -24,6 +24,7 @@ jobHandlers = {
     buildtypes.RAW_HD_IMAGE:      RawHdImage,
     buildtypes.VMWARE_IMAGE:      VMwareImage,
     buildtypes.VMWARE_ESX_IMAGE:  VMwareESXImage,
+    buildtypes.VMWARE_OVF_IMAGE:  VMwareOVFImage,
     buildtypes.RAW_FS_IMAGE:      RawFsImage,
     buildtypes.TARBALL:           Tarball,
     buildtypes.NETBOOT_IMAGE:     NetbootImage,

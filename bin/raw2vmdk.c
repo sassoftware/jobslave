@@ -213,7 +213,7 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
 }
 
 int writeCompressedGrainDirectory(u_int32_t numGTs, u_int32_t * gd, FILE * of) {
-    int bytesWritten;
+    off_t bytesWritten;
     MetaDataMarker gdm;
     memset(&gdm, 0, sizeof(MetaDataMarker));
     gdm.numSectors = 1;  /* this needs to be determined by number of GTs */
@@ -223,7 +223,7 @@ int writeCompressedGrainDirectory(u_int32_t numGTs, u_int32_t * gd, FILE * of) {
     VPRINT("Writing Grain Directory\n");
     bytesWritten += _fwrite((void *) gd, sizeof(u_int32_t), numGTs, of);
     /* pad to a sector boundary */
-    int padding = SECTORSIZE - bytesWritten % SECTORSIZE;
+    off_t padding = SECTORSIZE - bytesWritten % SECTORSIZE;
     if (padding != SECTORSIZE) {
         bytesWritten += zeropad(padding, of);
     } 
@@ -247,7 +247,7 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     z_stream strm;
     int ret;
     int compressedBytes = 0;
-    int bytesWritten = 0;
+    off_t bytesWritten = 0;
     u_int8_t buf[GRAINSIZE];
     u_int8_t outbuf[2*GRAINSIZE];
     memset(buf, 0, GRAINSIZE*sizeof(u_int8_t));
@@ -288,7 +288,7 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     bytesWritten = _fwrite((void *)&gm, sizeof(GrainMarker), 1, of);
     bytesWritten += _fwrite((void *)&outbuf, sizeof(u_int8_t), compressedBytes, of);
     VPRINT("Wrote a compressed grain of %d bytes\n", bytesWritten);
-    int padding = bytesWritten % SECTORSIZE;
+    off_t padding = bytesWritten % SECTORSIZE;
     if (padding) {
         bytesWritten += zeropad(SECTORSIZE - padding, of);
     }
@@ -457,6 +457,7 @@ int main(int argc, char ** argv) {
     memset(adapter, 0, 256);
     strncpy(adapter, "ide", 3);
 
+    memset(&istat, 0, sizeof(struct stat));
     memset(zerograin, 0, GRAINSIZE);
 
     // Parse command line options

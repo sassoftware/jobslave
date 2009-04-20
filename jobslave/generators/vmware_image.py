@@ -67,7 +67,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
         logCall('raw2vmdk -C %d -H %d -S %d -A %s %s %s' % (
             cylinders, constants.heads, constants.sectors,
-            self.adapter, hdImage, outfile))
+            hdImage, outfile))
 
     @bootable_image.timeMe
     def createVMX(self, outfile):
@@ -164,6 +164,14 @@ class VMwareImage(raw_hd_image.RawHdImage):
         suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
                 and "-64" or ""
         return "other26xlinux" + suffix
+
+class VMwareOVFImage(VMwareImage):
+    @bootable_image.timeMe
+    def createVMDK(self, hdImage, outfile, size):
+        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
+        logCall('raw2vmdk -C %d -H %d -S %d -s %s %s' % (
+            cylinders, constants.heads, constants.sectors,
+            self.adapter, hdImage, outfile))
 
 class VMwareESXImage(VMwareImage):
     useOVF = False
