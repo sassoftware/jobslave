@@ -38,17 +38,15 @@ class RawFsImage(bootable_image.BootableImage):
         try:
             # create an image file per mount point
             imgFiles = {}
-            for mountPoint in self.mountDict.keys():
-                requestedSize, minFreeSpace, fsType = self.mountDict[mountPoint]
-
-                if requestedSize - sizes[mountPoint] < minFreeSpace:
-                    requestedSize += sizes[mountPoint] + minFreeSpace
+            for mountPoint, (_, _, fsType) in self.mountDict.items():
+                size = sizes[mountPoint]
 
                 tag = mountPoint.replace("/", "")
                 tag = tag and tag or "root"
-                imgFiles[mountPoint] = self.mntPointFileName(mountPoint)
-                log.info("creating mount point %s as %s size of %d" % (mountPoint, imgFiles[mountPoint], requestedSize))
-                fs = self.makeBlankFS(imgFiles[mountPoint], fsType, requestedSize, fsLabel = mountPoint)
+                imgFiles[mountPoint] = path = self.mntPointFileName(mountPoint)
+                log.info("Creating mount point %s at %s with size %d bytes",
+                        mountPoint, path, size)
+                fs = self.makeBlankFS(path, fsType, size, fsLabel=mountPoint)
 
                 self.addFilesystem(mountPoint, fs)
 
