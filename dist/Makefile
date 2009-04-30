@@ -9,7 +9,7 @@ all: default-all
 
 install: default-install
 	install -D -m0644 config $(DESTDIR)$(jsdir)/config
-	install -D -m0755 jobslave.init $(DESTDIR)$(initdir)/jobslave.init
+	install -D -m0755 jobslave.init $(DESTDIR)$(initdir)/jobslave
 
 clean: default-clean
 
