@@ -1,6 +1,3 @@
-(^|/)\.hg($|/)
-^state$
-^state.journal$
 ~$
 \.(pyc|pyo|o|so|swp|swo|orig|rej)$
 \.times
@@ -8,3 +5,5 @@ test/\.(times|coverage)
 .*,cover
 ^.*project$
 ^.*pydevproject$
+
+^bin/raw2vmdk$

@@ -1,6 +1,9 @@
-/* Copyright (C) 2006 rPath, Inc.
+/* Copyright (C) 2006, 2009 rPath, Inc.
  * All rights reserved.
  */
+
+#define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64
 
 #include <sys/types.h>
 #include <sys/stat.h>
