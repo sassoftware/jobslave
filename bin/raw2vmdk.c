@@ -119,7 +119,7 @@ typedef struct SparseExtentHeader {
     char        doubleEndLineChar1; /* DELC1 */
     char        doubleEndLineChar2; /* DELC2 */
     u_int16_t   compressAlgorithm;
-    u_int8_t    pad[430];
+    u_int8_t    pad[433];
 } SparseExtentHeader;
 
 int verbose = 0;
