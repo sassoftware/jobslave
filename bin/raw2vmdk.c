@@ -159,7 +159,11 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     }
 
     /* The overHead is grain aligned */
-    hd->overHead = (vmdkType == MONOLITHIC_SPARSE ? ceil(metadatasize / (float) hd->grainSize) * hd->grainSize : GRAINSECTORS);
+    if (vmdkType == MONOLITHIC_SPARSE) {
+        hd->overHead = ceil((hd->gdOffset + metadatasize) / (float) hd->grainSize) * hd->grainSize;
+    } else {
+        hd->overHead = GRAINSECTORS;
+    }
     hd->uncleanShutdown =   0;
     hd->singleEndLineChar = SELC;
     hd->nonEndLineChar =    NELC;
