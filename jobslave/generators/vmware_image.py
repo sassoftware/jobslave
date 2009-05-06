@@ -60,7 +60,7 @@ def substitute(template, variables):
 
 
 class VMwareImage(raw_hd_image.RawHdImage):
-    useOVF = True
+    useOVF = False
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
@@ -71,12 +71,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     @bootable_image.timeMe
     def createVMX(self, outfile):
-        #Read in the stub file
-        infile = open(os.path.join(constants.templateDir, self.templateName),
-                      'rb')
-        filecontents = infile.read()
-        infile.close()
-
         # Escape ", #, |, <, and >, strip out control characters
         displayName = self.jobData.get('project', {}).get('name', '')
         description = self.jobData.get('description', '')
@@ -95,13 +89,20 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'SIZE': str(self.vmdkSize),
             'CAPACITY': str(self.vmdkCapacity),
             }
-        # Substitute values into the placeholders in the templtae.
-        filecontents = substitute(filecontents, variables)
 
         #write the file to the proper location
-        ofile = open(outfile, 'wb')
-        ofile.write(filecontents)
-        ofile.close()
+        # Don't write a vmx for OVF images, since we've not tested that
+        if not self.useOVF:
+            #Read in the stub file
+            infile = open(os.path.join(constants.templateDir, self.templateName),
+                      'rb')
+            filecontents = infile.read()
+            infile.close()
+            # Substitute values into the placeholders in the templtae.
+            filecontents = substitute(filecontents, variables)
+            ofile = open(outfile, 'wb')
+            ofile.write(filecontents)
+            ofile.close()
 
         # if we have a sparse disk, we can write out an .ovf too
         if self.useOVF:
@@ -166,6 +167,8 @@ class VMwareImage(raw_hd_image.RawHdImage):
         return "other26xlinux" + suffix
 
 class VMwareOVFImage(VMwareImage):
+    useOVF = True
+
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
         cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
