@@ -150,7 +150,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
             self.createOvfVMDK(vmdkPath.replace('.vmdk', '-flat.vmdk'),
                             vmdkPath,
                             self.vmdkCapacity)
-            self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
+            try:
+                self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
+            except OSError:
+                # this should only happen in the test suite
+                pass
             self.createVMX(ovfPath, type='ovf')
             util.remove(vmdkPath.replace('.vmdk', '-flat.vmdk'))
             self.setModes(workingDir)
