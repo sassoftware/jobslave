@@ -162,7 +162,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             util.remove(vmdkPath.replace('.vmdk', '-flat.vmdk'))
             self.setModes(workingDir)
             self.gzip(workingDir, ovfOutputFile)
-            outputs.append((ovfOutputFile, 'OVF Image'))
+            outputs.append((ovfOutputFile, self.productName + ' OVF Image'))
 
         self.postOutput(outputs)
 
