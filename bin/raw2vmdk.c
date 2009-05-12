@@ -66,6 +66,8 @@ u_int8_t zerograin[GRAINSIZE];
 typedef u_int64_t  SectorType;
 typedef u_int8_t   Bool;
 
+#pragma pack(1)
+
 typedef struct Marker {
      SectorType val;
      u_int32_t     size;
@@ -96,8 +98,6 @@ typedef struct MetaDataMarker {
      u_int8_t      pad[496];    /* pad with zeroes */
      // sizeof() is more useful when the metadata is left out
 } MetaDataMarker;
-
-#pragma pack(1)
 
 typedef struct SparseExtentHeader {
     u_int32_t   magicNumber;        /* VMDK */
