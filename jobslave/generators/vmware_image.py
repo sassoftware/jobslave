@@ -61,6 +61,7 @@ def substitute(template, variables):
 
 class VMwareImage(raw_hd_image.RawHdImage):
     useOVF = False
+    useVMX = True
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
@@ -124,7 +125,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         workingDir = os.path.join(self.workDir, self.basefilename)
         outputFile = os.path.join(self.outputDir, self.basefilename + self.suffix)
         ovfOutputFile = outputFile.replace(self.suffix, '-ovf.tar.gz')
-        outputs = [(outputFile, self.productName + ' Image')]
+        outputs = []
         self.makeHDImage(image)
         self.status('Creating %s Image' % self.productName)
         util.mkdirChain(workingDir)
@@ -139,9 +140,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
         except OSError:
             pass
 
-        self.createVMX(vmxPath)
-        self.setModes(workingDir)
-        self.gzip(workingDir, outputFile)
+        if self.useVMX:
+            self.createVMX(vmxPath)
+            self.setModes(workingDir)
+            self.gzip(workingDir, outputFile)
+            outputs.append((outputFile, self.productName + ' Image'))
 
         # now create OVF in addition, if applicable
         if self.useOVF:
@@ -184,6 +187,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
 class VMwareOVFImage(VMwareImage):
     useOVF = True
+    useVMX = False
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
@@ -191,6 +195,8 @@ class VMwareOVFImage(VMwareImage):
 
 class VMwareESXImage(VMwareImage):
     useOVF = True
+    useVMX = True
+
     def __init__(self, *args, **kwargs):
         VMwareImage.__init__(self, *args, **kwargs)
         self.adapter = 'lsilogic'
