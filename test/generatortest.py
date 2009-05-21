@@ -42,6 +42,7 @@ from jobslave.generators import vpc
 from jobslave.generators import vmware_image
 from jobslave.generators import installable_iso
 from jobslave.generators import update_iso
+from jobslave.generators import ovf_image
 
 import simplejson
 
@@ -87,16 +88,21 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         constants.tmpDir = tempfile.mkdtemp()
         jobslave_helper.ExecuteLoggerTest.setUp(self)
         self.bases['RawFsImage'] = raw_fs_image.RawFsImage.__bases__
-        raw_fs_image.RawFsImage.__bases__ = (image_stubs.BootableImageStub,)
+        raw_fs_image.RawFsImage.__bases__ = (image_stubs.BootableImageStub,
+                                             ovf_image.OvfImage)
 
         self.bases['RawHdImage'] = raw_hd_image.RawHdImage.__bases__
-        raw_hd_image.RawHdImage.__bases__ = (image_stubs.BootableImageStub,)
+        raw_hd_image.RawHdImage.__bases__ = (image_stubs.BootableImageStub,
+                                             ovf_image.OvfImage)
 
         self.bases['Tarball'] = tarball.Tarball.__bases__
         tarball.Tarball.__bases__ = (image_stubs.BootableImageStub,)
 
         self.bases['UpdateISO'] = update_iso.UpdateIso.__bases__
         update_iso.UpdateIso.__bases__ = (image_stubs.InstallableIsoStub,)
+
+        # self.bases['OvfImage'] = ovf_image.OvfImage.__bases__
+        # ovf_image.OvfImage.__bases__ = (image_stubs.BootableImageStub,)
 
         constants.templateDir = os.path.join(os.path.dirname( \
                 os.path.dirname(os.path.abspath(__file__))), 'templates')
@@ -591,11 +597,14 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.injectPopen("")
         g = vmware_image.VMwareImage({}, [])
 
+        g.jobData['description'] = 'test vmware image description'
+
         g.makeHDImage = lambda x: open(x, 'w').write('')
         g.adapter = 'ide'
         g.baseFlavor = deps.parseFlavor("xen,domU is: x86")
         tmpDir = tempfile.mkdtemp()
         g.workDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
         g.outputDir = tmpDir
         try:
             g.write()
@@ -634,6 +643,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         tmpDir = tempfile.mkdtemp()
         g.workDir = tmpDir
         g.outputDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
         try:
             g.write()
             ref = sorted(['image.vmx', 'image.ovf'])
@@ -735,6 +745,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             g.__class__.__base__.prepareTemplates = prepareTemplates
             util.rmtree(tmpDir)
 
+
 class GeneratorsMetaTest(jobslave_helper.ExecuteLoggerTest):
     def testUpdateIsoApi(self):
         # this test exists to force engineers to pay attention to how api
@@ -763,6 +774,294 @@ class GeneratorsMetaTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(uvarkw != ivarkw,
                     "%s method in update ISO does not match keyword args" % \
                             funcName)
+
+
+class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
+    bases = {}
+    def setUp(self):
+        self.savedTmpDir = constants.tmpDir
+        constants.tmpDir = tempfile.mkdtemp()
+        jobslave_helper.ExecuteLoggerTest.setUp(self)
+        self.bases['RawFsImage'] = raw_fs_image.RawFsImage.__bases__
+        raw_fs_image.RawFsImage.__bases__ = (image_stubs.BootableImageStub,
+                                             ovf_image.OvfImage)
+
+        self.bases['RawHdImage'] = raw_hd_image.RawHdImage.__bases__
+        raw_hd_image.RawHdImage.__bases__ = (image_stubs.BootableImageStub,
+                                             ovf_image.OvfImage)
+
+        self.bases['Tarball'] = tarball.Tarball.__bases__
+        tarball.Tarball.__bases__ = (image_stubs.BootableImageStub,)
+
+        self.bases['UpdateISO'] = update_iso.UpdateIso.__bases__
+        update_iso.UpdateIso.__bases__ = (image_stubs.InstallableIsoStub,)
+
+        # self.bases['OvfImage'] = ovf_image.OvfImage.__bases__
+        # ovf_image.OvfImage.__bases__ = (image_stubs.BootableImageStub,)
+
+        constants.templateDir = os.path.join(os.path.dirname( \
+                os.path.dirname(os.path.abspath(__file__))), 'templates')
+
+
+    def tearDown(self):
+        raw_fs_image.RawFsImage.__bases__ = self.bases['RawFsImage']
+        raw_hd_image.RawHdImage.__bases__ = self.bases['RawHdImage']
+        tarball.Tarball.__bases__ = self.bases['Tarball']
+        update_iso.UpdateIso.__bases__ = self.bases['UpdateISO']
+
+        util.rmtree(constants.tmpDir, ignore_errors = True)
+        constants.tmpDir = self.savedTmpDir
+        jobslave_helper.ExecuteLoggerTest.tearDown(self)
+
+    def testVMwareImageOvf1Dot0(self):
+        self.injectPopen("")
+        g = vmware_image.VMwareImage({}, [])
+        g.buildOVF10 = True
+
+        g.jobData['description'] = 'Test Description'
+
+        g.makeHDImage = lambda x: open(x, 'w').write('')
+        g.adapter = 'ide'
+        g.baseFlavor = deps.parseFlavor("xen,domU is: x86")
+        tmpDir = tempfile.mkdtemp()
+        g.workDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
+        g.outputDir = tmpDir
+        g.useOVF = False
+
+        # Expected results
+        expectedOvfXml = """\
+<?xml version='1.0' encoding='UTF-8'?>
+<ovf:Envelope xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1">
+  <ovf:References>
+    <ovf:File ovf:href="image.vmdk.gz" ovf:id="file_1" ovf:size="0" ovf:compression="gzip"/>
+  </ovf:References>
+  <ovf:DiskSection>
+    <ovf:Info>Describes the set of virtual disks</ovf:Info>
+    <ovf:Disk ovf:diskId="disk_1" ovf:capacity="0" ovf:fileRef="file_1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#sparse"/>
+  </ovf:DiskSection>
+  <ovf:NetworkSection>
+    <ovf:Info>List of logical networks used in the package</ovf:Info>
+  </ovf:NetworkSection>
+  <ovf:VirtualSystemCollection ovf:id="image">
+    <ovf:VirtualSystem ovf:info="Test Description" ovf:id="image">
+      <ovf:VirtualHardwareSection>
+        <ovf:Info>Describes the set of virtual hardware</ovf:Info>
+        <ovf:Item>
+          <rasd:Caption>Virtual CPU</rasd:Caption>
+          <rasd:Description>Number of virtual CPUs</rasd:Description>
+          <rasd:ElementName>some virt cpu</rasd:ElementName>
+          <rasd:InstanceID>1</rasd:InstanceID>
+          <rasd:ResourceType>3</rasd:ResourceType>
+          <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
+          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Description>Memory Size</rasd:Description>
+          <rasd:ElementName>some mem size</rasd:ElementName>
+          <rasd:InstanceID>2</rasd:InstanceID>
+          <rasd:ResourceType>4</rasd:ResourceType>
+          <rasd:VirtualQuantity>256</rasd:VirtualQuantity>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:Caption>Harddisk</rasd:Caption>
+          <rasd:ElementName>Hard disk</rasd:ElementName>
+          <rasd:HostResource>ovf://disk/disk_1</rasd:HostResource>
+          <rasd:InstanceID>5</rasd:InstanceID>
+          <rasd:Parent>4</rasd:Parent>
+          <rasd:ResourceType>17</rasd:ResourceType>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:Caption>SCSI Controller 0 - LSI Logic</rasd:Caption>
+          <rasd:ElementName>LSILOGIC</rasd:ElementName>
+          <rasd:InstanceID>4</rasd:InstanceID>
+          <rasd:ResourceSubType>LsiLogic</rasd:ResourceSubType>
+          <rasd:ResourceType>6</rasd:ResourceType>
+        </ovf:Item>
+      </ovf:VirtualHardwareSection>
+    </ovf:VirtualSystem>
+  </ovf:VirtualSystemCollection>
+</ovf:Envelope>
+"""        
+
+        oldOsUnlink = os.unlink
+        deleted = []
+        def unlink(*args):
+            deleted.append(*args)
+        os.unlink = unlink
+
+        try:
+            g.write()
+            ovfFileContents = open(g.ovfPath).read()
+            self.assertEquals(expectedOvfXml, ovfFileContents)
+            
+            expectedCall1 = 'tar -C %s -cv %s -f %s'
+            expectedCall2 = 'tar -C %s -rv %s -f %s'
+            self.assertEquals(expectedCall1 % \
+                (g.workingDir, g.ovfFileName, g.ovaPath),
+                self.callLog[1])
+            self.assertEquals(expectedCall2 % \
+                (g.outputDir, 
+                 g.basefilename + '.vmdk.gz',
+                 g.ovaPath),
+                self.callLog[2])
+        finally:
+            os.unlink = oldOsUnlink
+            util.rmtree(tmpDir)
+
+        self.resetPopen()
+
+        self.assertEquals(len(g.posted_output), 2)
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) OVF 1.0 Image')
+        self.assertEquals(g.posted_output[1][1], 'VMware (R) Image')
+
+    def testAMIOvf(self):
+        g = self.getHandler(buildtypes.AMI)
+        g.buildOVF10 = True
+        g.createAMIBundle = lambda *args, **kwargs: '/fake/path'
+        g.uploadAMIBundle = lambda *args, **kwargs: True
+        g.registerAMI = lambda *args, **kwargs: ('testId', 'testManifest')
+        g.postAMI = lambda amiID, amiManifestName: None
+        g.jobData['description'] = 'Test Description'
+        g.write()
+
+        expectedXml = """\
+<?xml version='1.0' encoding='UTF-8'?>
+<ovf:Envelope xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1">
+  <ovf:References>
+    <ovf:File ovf:href="image-root.ext3" ovf:size="100" ovf:id="file_1"/>
+  </ovf:References>
+  <ovf:DiskSection>
+    <ovf:Info>Describes the set of virtual disks</ovf:Info>
+    <ovf:Disk ovf:diskId="disk_1" ovf:capacity="100" ovf:fileRef="file_1" ovf:format="http://www.rpath.com"/>
+  </ovf:DiskSection>
+  <ovf:NetworkSection>
+    <ovf:Info>List of logical networks used in the package</ovf:Info>
+  </ovf:NetworkSection>
+  <ovf:VirtualSystemCollection ovf:id="image">
+    <ovf:VirtualSystem ovf:info="Test Description" ovf:id="image">
+      <ovf:VirtualHardwareSection>
+        <ovf:Info>Describes the set of virtual hardware</ovf:Info>
+        <ovf:Item>
+          <rasd:Caption>Virtual CPU</rasd:Caption>
+          <rasd:Description>Number of virtual CPUs</rasd:Description>
+          <rasd:ElementName>some virt cpu</rasd:ElementName>
+          <rasd:InstanceID>1</rasd:InstanceID>
+          <rasd:ResourceType>3</rasd:ResourceType>
+          <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
+          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Description>Memory Size</rasd:Description>
+          <rasd:ElementName>some mem size</rasd:ElementName>
+          <rasd:InstanceID>2</rasd:InstanceID>
+          <rasd:ResourceType>4</rasd:ResourceType>
+          <rasd:VirtualQuantity>256</rasd:VirtualQuantity>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:Caption>Harddisk</rasd:Caption>
+          <rasd:ElementName>Hard disk</rasd:ElementName>
+          <rasd:HostResource>ovf://disk/disk_1</rasd:HostResource>
+          <rasd:InstanceID>5</rasd:InstanceID>
+          <rasd:Parent>4</rasd:Parent>
+          <rasd:ResourceType>17</rasd:ResourceType>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:Caption>SCSI Controller 0 - LSI Logic</rasd:Caption>
+          <rasd:ElementName>LSILOGIC</rasd:ElementName>
+          <rasd:InstanceID>4</rasd:InstanceID>
+          <rasd:ResourceSubType>LsiLogic</rasd:ResourceSubType>
+          <rasd:ResourceType>6</rasd:ResourceType>
+        </ovf:Item>
+      </ovf:VirtualHardwareSection>
+    </ovf:VirtualSystem>
+  </ovf:VirtualSystemCollection>
+</ovf:Envelope>
+"""
+        expectedCall1 = 'tar -C %s -cv %s -f %s'
+        expectedCall2 = 'tar -C %s -rv %s -f %s'
+
+        self.assertEquals(expectedXml, g.ovfXml)
+        self.assertEquals(self.callLog[3], 
+            expectedCall1 % (g.workingDir, g.ovfFileName, g.ovaPath))
+        self.assertEquals(self.callLog[4],
+            expectedCall2 % (g.outputDir, g.basefilename + '-root.ext3',
+                             g.ovaPath))
+        self.assertEquals(g.posted_output[0][0], g.ovaPath)
+        self.assertEquals(g.posted_output[0][1], 'AMI OVF 1.0 Image')
+
+    def testRawHdImageOvf1Dot0(self):
+        self.injectPopen("")
+
+        g = raw_hd_image.RawHdImage({}, [])
+        g.buildOVF10 = True
+        g.jobData['description'] = 'Test Description'
+
+        g.write()
+
+        expectedXml = """\
+<?xml version='1.0' encoding='UTF-8'?>
+<ovf:Envelope xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1">
+  <ovf:References>
+    <ovf:File ovf:href="image.hdd.gz" ovf:id="file_1" ovf:size="2097152" ovf:compression="gzip"/>
+  </ovf:References>
+  <ovf:DiskSection>
+    <ovf:Info>Describes the set of virtual disks</ovf:Info>
+    <ovf:Disk ovf:diskId="disk_1" ovf:capacity="2097152" ovf:fileRef="file_1" ovf:format="http://www.rpath.com"/>
+  </ovf:DiskSection>
+  <ovf:NetworkSection>
+    <ovf:Info>List of logical networks used in the package</ovf:Info>
+  </ovf:NetworkSection>
+  <ovf:VirtualSystemCollection ovf:id="image">
+    <ovf:VirtualSystem ovf:info="Test Description" ovf:id="image">
+      <ovf:VirtualHardwareSection>
+        <ovf:Info>Describes the set of virtual hardware</ovf:Info>
+        <ovf:Item>
+          <rasd:Caption>Virtual CPU</rasd:Caption>
+          <rasd:Description>Number of virtual CPUs</rasd:Description>
+          <rasd:ElementName>some virt cpu</rasd:ElementName>
+          <rasd:InstanceID>1</rasd:InstanceID>
+          <rasd:ResourceType>3</rasd:ResourceType>
+          <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
+          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Description>Memory Size</rasd:Description>
+          <rasd:ElementName>some mem size</rasd:ElementName>
+          <rasd:InstanceID>2</rasd:InstanceID>
+          <rasd:ResourceType>4</rasd:ResourceType>
+          <rasd:VirtualQuantity>256</rasd:VirtualQuantity>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:Caption>Harddisk</rasd:Caption>
+          <rasd:ElementName>Hard disk</rasd:ElementName>
+          <rasd:HostResource>ovf://disk/disk_1</rasd:HostResource>
+          <rasd:InstanceID>5</rasd:InstanceID>
+          <rasd:Parent>4</rasd:Parent>
+          <rasd:ResourceType>17</rasd:ResourceType>
+        </ovf:Item>
+        <ovf:Item>
+          <rasd:Caption>SCSI Controller 0 - LSI Logic</rasd:Caption>
+          <rasd:ElementName>LSILOGIC</rasd:ElementName>
+          <rasd:InstanceID>4</rasd:InstanceID>
+          <rasd:ResourceSubType>LsiLogic</rasd:ResourceSubType>
+          <rasd:ResourceType>6</rasd:ResourceType>
+        </ovf:Item>
+      </ovf:VirtualHardwareSection>
+    </ovf:VirtualSystem>
+  </ovf:VirtualSystemCollection>
+</ovf:Envelope>
+"""
+        
+        self.resetPopen()
+        self.assertEquals(expectedXml, g.ovfXml)
+        self.assertEquals(len(g.posted_output), 2)
+        self.assertEquals(g.posted_output[0][1], 'Raw Hard Disk OVF 1.0 Image')
+        self.assertEquals(g.posted_output[1][1], 'Raw Hard Disk Image')
+
 
 
 if __name__ == "__main__":

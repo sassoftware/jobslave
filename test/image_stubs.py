@@ -3,6 +3,7 @@
 #
 # All Rights Reserved
 #
+import os
 import sys
 from conary import versions
 from conary.deps import deps
@@ -50,8 +51,11 @@ class BootableImageStub(ImageGeneratorStub):
         self.workDir = '/tmp/workdir'
         self.outputDir = '/tmp/outputdir'
         self.basefilename = 'image'
+        self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.mountDict = {'/': (0, 100, 'ext3'), 'swap': (0, 100, 'swap')}
         self.jobData = jobData
+        self.buildOvf = jobData.get('buildOvf', False)
+        self.outputFileList = []
 
         if jobData.has_key('troveVersion'):
             versionStr = self.jobData['troveVersion']

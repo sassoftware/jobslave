@@ -146,6 +146,7 @@ class Generator(threading.Thread):
         self.parent = weakref.ref(parent)
         self.response = None
         self.workDir = None
+        self.outputFileList = []
 
         self.jobId = self.jobData['UUID']
         self.UUID = \
@@ -391,6 +392,7 @@ class ImageGenerator(Generator):
                            'arch': self.arch}
 
         self.basefilename = basefilename
+        self.buildOVF10 = self.getBuildData('buildOVF10')
 
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()

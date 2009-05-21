@@ -16,6 +16,7 @@ from conary.lib import util, log as conary_log
 from conary.deps import deps
 from conary import conaryclient
 
+from jobslave import buildtypes
 from jobslave.imagegen import logCall
 
 from jobslave.generators import constants
@@ -43,6 +44,7 @@ class AMIImage(raw_fs_image.RawFsImage):
             raise RuntimeError, 'Cannot build Amazon Machine Image without ' \
                                 'configuration information!'
 
+        self.productName = buildtypes.typeNamesShort[buildtypes.AMI]
         self.__dict__.update(**self.amiData)
 
         self._kernelMetadata = {}
@@ -243,6 +245,11 @@ class AMIImage(raw_fs_image.RawFsImage):
         totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
         images = self.makeFSImage(sizes)
 
+        if self.buildOVF10:
+            self.diskFormat = 'EXT3'
+            self.capacity = totalSize
+            self.createOvf(images['/'], sizes['/'])
+
         tmpBundlePath = tempfile.mkdtemp(prefix='amibundle',
                 dir=constants.tmpDir)
         self.status("Creating the AMI bundle")
@@ -258,3 +265,4 @@ class AMIImage(raw_fs_image.RawFsImage):
             raise AMIRegistrationError
 
         self.postAMI(amiId, amiManifestName)
+        self.postOutput(self.outputFileList)

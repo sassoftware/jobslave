@@ -93,7 +93,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'SNAPSHOT': str(not self.vmSnapshots).upper(),
             'GUESTOS': self.getGuestOS(),
             'SIZE': str(self.vmdkSize),
-            'CAPACITY': str(self.vmdkCapacity),
+            'CAPACITY': str(self.capacity),
             }
         # Substitute values into the placeholders in the templtae.
         filecontents = substitute(filecontents, variables)
@@ -125,26 +125,36 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
-        workingDir = os.path.join(self.workDir, self.basefilename)
         outputFile = os.path.join(self.outputDir, self.basefilename + self.suffix)
+        vmdkGzOutputFile = os.path.join(self.outputDir, 
+                                      self.basefilename + '.vmdk.gz')
 
         self.makeHDImage(image)
         self.status('Creating %s Image' % self.productName)
-        util.mkdirChain(workingDir)
-        vmdkPath = os.path.join(workingDir, self.basefilename + '.vmdk')
-        vmxPath = os.path.join(workingDir, self.basefilename + '.vmx')
+        util.mkdirChain(self.workingDir)
+        vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
+        vmxPath = os.path.join(self.workingDir, self.basefilename + '.vmx')
 
-        self.vmdkCapacity = os.stat(image)[stat.ST_SIZE]
-        self.createVMDK(image, vmdkPath, self.vmdkCapacity)
+        self.capacity = os.stat(image)[stat.ST_SIZE]
+        self.createVMDK(image, vmdkPath, self.capacity)
         try:
             self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         except OSError:
             pass
 
+
+        if self.buildOVF10:
+            self.diskFormat = 'VMDK'
+            self.gzip(vmdkPath, vmdkGzOutputFile)
+            self.createOvf(vmdkGzOutputFile, self.vmdkSize, diskCompressed=True)
+            os.unlink(vmdkGzOutputFile)
+
         self.createVMX(vmxPath)
-        self.setModes(workingDir)
-        self.gzip(workingDir, outputFile)
-        self.postOutput(((outputFile, self.productName + ' Image'),))
+        self.setModes(self.workingDir)
+        self.gzip(self.workingDir, outputFile)
+
+        self.outputFileList.append((outputFile, self.productName + ' Image'))
+        self.postOutput(self.outputFileList)
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
@@ -155,7 +165,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
         self.suffix = '.vmware.tar.gz'
         self.vmdkSize = 0
-        self.vmdkCapacity = 0
+        self.capacity = 0
 
         if self.adapter == 'lsilogic':
             self.scsiModules = True
