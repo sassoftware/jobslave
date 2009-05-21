@@ -608,7 +608,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g.outputDir = tmpDir
         try:
             g.write()
-            ref = sorted(['image.vmx', 'image.ovf'])
+            ref = sorted(['image.vmx'])
             res = sorted(os.listdir(os.path.join(tmpDir, 'image')))
             self.failIf(ref != res, "expected %s, but got %s" % \
                     (str(ref), str(res)))
@@ -618,14 +618,6 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             vmxData = open(os.path.join(tmpDir, 'image', 'image.vmx')).read()
             self.failIf("other26xlinux-64" in vmxData,
                     "expected 32 bit image")
-            ovfData = open(os.path.join(tmpDir, 'image', 'image.ovf')).read()
-            self.failIf('ovf:id="107"' in ovfData)
-            self.failIf('ovf:id="36"' not in ovfData)
-            self.failIf('<rasd:Caption>scsiController0</rasd:Caption>' in ovfData)
-            self.failIf('@' in ovfData)
-            self.failIf('<!--' in ovfData)
-            self.failIf('-->' in ovfData)
-            self.failIf('<rasd:Connection>bridged</rasd:Connection>' not in ovfData)
         finally:
             util.rmtree(tmpDir)
         self.resetPopen()
@@ -646,7 +638,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         g.workingDir = os.path.join(g.workDir, g.basefilename)
         try:
             g.write()
-            ref = sorted(['image.vmx', 'image.ovf'])
+            ref = sorted(['image.vmx'])
             res = sorted(os.listdir(os.path.join(tmpDir, 'image')))
             self.failIf(ref != res, "expected %s, but got %s" % \
                     (str(ref), str(res)))
@@ -656,6 +648,33 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             vmxData = open(os.path.join(tmpDir, 'image', 'image.vmx')).read()
             self.failIf("other26xlinux-64" not in vmxData,
                     "expected 64 bit image")
+        finally:
+            util.rmtree(tmpDir)
+        self.resetPopen()
+
+        self.assertEquals(len(g.posted_output), 1)
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) Image')
+
+    def testVMwareOVFImage(self):
+        self.injectPopen("")
+        g = vmware_image.VMwareOVFImage({}, [])
+
+        g.makeHDImage = lambda x: open(x, 'w').write(' ')
+        g.baseFlavor = deps.parseFlavor("some,random,junk is: x86_64")
+        g.adapter = 'lsilogic'
+        tmpDir = tempfile.mkdtemp()
+        g.workDir = tmpDir
+        g.outputDir = tmpDir
+
+        try:
+            g.write()
+            ref = sorted(['image.ovf'])
+            res = sorted(os.listdir(os.path.join(tmpDir, 'image')))
+            self.failIf(ref != res, "expected %s, but got %s" % \
+                    (str(ref), str(res)))
+            self.failIf(not self.callLog[0].startswith( \
+                    'raw2vmdk -C 1 -H 64 -S 32 -s'),
+                    "expected call to make vmdk")
             ovfData = open(os.path.join(tmpDir, 'image', 'image.ovf')).read()
             self.failIf('ovf:id="107"' not in ovfData)
             self.failIf('ovf:id="36"' in ovfData)
@@ -671,7 +690,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.resetPopen()
 
         self.assertEquals(len(g.posted_output), 1)
-        self.assertEquals(g.posted_output[0][1], 'VMware (R) Image')
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) OVF Image')
 
     def testVMwareSetModes(self):
         g = vmware_image.VMwareImage({}, [])
@@ -913,8 +932,8 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
         self.resetPopen()
 
         self.assertEquals(len(g.posted_output), 2)
-        self.assertEquals(g.posted_output[0][1], 'VMware (R) OVF 1.0 Image')
-        self.assertEquals(g.posted_output[1][1], 'VMware (R) Image')
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) Image')
+        self.assertEquals(g.posted_output[1][1], 'VMware (R) OVF 1.0 Image')
 
     def testAMIOvf(self):
         g = self.getHandler(buildtypes.AMI)

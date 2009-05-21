@@ -536,12 +536,17 @@ class BootableImage(ImageGenerator):
         outs.close()
         os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
 
-        if is_SUSE(dest):
+        if is_SUSE(dest, version=10):
             # SUSE needs udev to be started in the chroot in order to
             # run mkinitrd
             logCall("chroot %s sh -c '/etc/rc.d/boot.udev stop'" %dest)
             logCall("chroot %s sh -c '/etc/rc.d/boot.udev start'" %dest)
             logCall("chroot %s sh -c '/etc/rc.d/boot.udev force-reload'" %dest)
+        elif is_SUSE(dest, version=11):
+            # SLES 11 won't start udev since the socket already exists, must
+            # bind mount dev instead.
+            open('%s/etc/sysconfig/mkinitrd' % dest, 'w').write('OPTIONS="-A"\n')
+            logCall("mount -o bind /dev %s/dev" % dest)
 
         for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
             tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
@@ -565,6 +570,9 @@ class BootableImage(ImageGenerator):
                 except:
                     log.warning('error recording tag handler output')
                 raise exc, e, bt
+
+        if is_SUSE(dest, version=11):
+            logCall("umount %s/dev" % dest)
 
 
     @timeMe

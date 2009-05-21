@@ -60,7 +60,8 @@ def substitute(template, variables):
 
 
 class VMwareImage(raw_hd_image.RawHdImage):
-    useOVF = True
+    useOVF = False
+    useVMX = True
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
@@ -69,14 +70,16 @@ class VMwareImage(raw_hd_image.RawHdImage):
             cylinders, constants.heads, constants.sectors,
             self.adapter, hdImage, outfile))
 
-    @bootable_image.timeMe
-    def createVMX(self, outfile):
-        #Read in the stub file
-        infile = open(os.path.join(constants.templateDir, self.templateName),
-                      'rb')
-        filecontents = infile.read()
-        infile.close()
 
+    @bootable_image.timeMe
+    def createOvfVMDK(self, hdImage, outfile, size):
+        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
+        logCall('raw2vmdk -C %d -H %d -S %d -s %s %s' % (
+            cylinders, constants.heads, constants.sectors,
+            hdImage, outfile))
+
+    @bootable_image.timeMe
+    def createVMX(self, outfile, type='vmx'):
         # Escape ", #, |, <, and >, strip out control characters
         displayName = self.jobData.get('project', {}).get('name', '')
         description = self.jobData.get('description', '')
@@ -95,25 +98,19 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'SIZE': str(self.vmdkSize),
             'CAPACITY': str(self.capacity),
             }
-        # Substitute values into the placeholders in the templtae.
-        filecontents = substitute(filecontents, variables)
 
         #write the file to the proper location
+        #Read in the stub file
+        template = (type == 'ovf') and 'vmware.ovf.in' or self.templateName
+        infile = open(os.path.join(constants.templateDir, template),
+                  'rb')
+        filecontents = infile.read()
+        infile.close()
+        # Substitute values into the placeholders in the templtae.
+        filecontents = substitute(filecontents, variables)
         ofile = open(outfile, 'wb')
         ofile.write(filecontents)
         ofile.close()
-
-        # if we have a sparse disk, we can write out an .ovf too
-        if self.useOVF:
-            assert(self.getGuestOS() in ('other26xlinux', 'other26xlinux-64'))
-            infile = open(os.path.join(constants.templateDir, 'vmware.ovf.in'),
-                          'rb')
-            filecontents = infile.read()
-            infile.close()
-            filecontents = substitute(filecontents, variables)
-            ovfPath = os.path.join(os.path.dirname(outfile),
-                                   self.basefilename + '.ovf')
-            file(ovfPath, 'wb').write(filecontents)
 
     def setModes(self, baseDir):
         files = os.listdir(baseDir)
@@ -128,12 +125,15 @@ class VMwareImage(raw_hd_image.RawHdImage):
         outputFile = os.path.join(self.outputDir, self.basefilename + self.suffix)
         vmdkGzOutputFile = os.path.join(self.outputDir, 
                                       self.basefilename + '.vmdk.gz')
+        ovfOutputFile = outputFile.replace(self.suffix, '-ovf.tar.gz')
 
         self.makeHDImage(image)
         self.status('Creating %s Image' % self.productName)
+
         util.mkdirChain(self.workingDir)
         vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
         vmxPath = os.path.join(self.workingDir, self.basefilename + '.vmx')
+        ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
 
         self.capacity = os.stat(image)[stat.ST_SIZE]
         self.createVMDK(image, vmdkPath, self.capacity)
@@ -142,6 +142,12 @@ class VMwareImage(raw_hd_image.RawHdImage):
         except OSError:
             pass
 
+        if self.useVMX:
+            self.createVMX(vmxPath)
+            self.setModes(self.workingDir)
+            self.gzip(self.workingDir, outputFile)
+            self.outputFileList.append(
+                (outputFile, self.productName + ' Image'))
 
         if self.buildOVF10:
             self.diskFormat = 'VMDK'
@@ -149,11 +155,25 @@ class VMwareImage(raw_hd_image.RawHdImage):
             self.createOvf(vmdkGzOutputFile, self.vmdkSize, diskCompressed=True)
             os.unlink(vmdkGzOutputFile)
 
-        self.createVMX(vmxPath)
-        self.setModes(self.workingDir)
-        self.gzip(self.workingDir, outputFile)
+        # now create OVF in addition, if applicable
+        if self.useOVF:
+            util.remove(vmxPath)
+            util.remove(vmdkPath)
+            self.createOvfVMDK(vmdkPath.replace('.vmdk', '-flat.vmdk'),
+                            vmdkPath,
+                            self.vmdkCapacity)
+            try:
+                self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
+            except OSError:
+                # this should only happen in the test suite
+                pass
+            self.createVMX(ovfPath, type='ovf')
+            util.remove(vmdkPath.replace('.vmdk', '-flat.vmdk'))
+            self.setModes(self.workingDir)
+            self.gzip(self.workingDir, ovfOutputFile)
+            self.outputFileList.append(
+                (ovfOutputFile, self.productName + ' OVF Image'))
 
-        self.outputFileList.append((outputFile, self.productName + ' Image'))
         self.postOutput(self.outputFileList)
 
     def __init__(self, *args, **kwargs):
@@ -176,15 +196,17 @@ class VMwareImage(raw_hd_image.RawHdImage):
         return "other26xlinux" + suffix
 
 class VMwareOVFImage(VMwareImage):
+    useOVF = True
+    useVMX = False
+
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
-        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
-        logCall('raw2vmdk -C %d -H %d -S %d -s %s %s' % (
-            cylinders, constants.heads, constants.sectors,
-            hdImage, outfile))
+        self.createOvfVMDK(hdImage, outfile, size)
 
 class VMwareESXImage(VMwareImage):
-    useOVF = False
+    useOVF = True
+    useVMX = True
+
     def __init__(self, *args, **kwargs):
         VMwareImage.__init__(self, *args, **kwargs)
         self.adapter = 'lsilogic'

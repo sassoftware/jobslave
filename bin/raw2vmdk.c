@@ -1,6 +1,9 @@
-/* Copyright (C) 2006 rPath, Inc.
+/* Copyright (C) 2006, 2009 rPath, Inc.
  * All rights reserved.
  */
+
+#define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -63,6 +66,8 @@ u_int8_t zerograin[GRAINSIZE];
 typedef u_int64_t  SectorType;
 typedef u_int8_t   Bool;
 
+#pragma pack(1)
+
 typedef struct Marker {
      SectorType val;
      u_int32_t     size;
@@ -94,8 +99,6 @@ typedef struct MetaDataMarker {
      // sizeof() is more useful when the metadata is left out
 } MetaDataMarker;
 
-#pragma pack(1)
-
 typedef struct SparseExtentHeader {
     u_int32_t   magicNumber;        /* VMDK */
     u_int32_t   version;            /* 1 */
@@ -116,7 +119,7 @@ typedef struct SparseExtentHeader {
     char        doubleEndLineChar1; /* DELC1 */
     char        doubleEndLineChar2; /* DELC2 */
     u_int16_t   compressAlgorithm;
-    u_int8_t    pad[430];
+    u_int8_t    pad[433];
 } SparseExtentHeader;
 
 int verbose = 0;
@@ -156,7 +159,11 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     }
 
     /* The overHead is grain aligned */
-    hd->overHead = (vmdkType == MONOLITHIC_SPARSE ? ceil(metadatasize / (float) hd->grainSize) * hd->grainSize : GRAINSECTORS);
+    if (vmdkType == MONOLITHIC_SPARSE) {
+        hd->overHead = ceil((hd->gdOffset + metadatasize) / (float) hd->grainSize) * hd->grainSize;
+    } else {
+        hd->overHead = GRAINSECTORS;
+    }
     hd->uncleanShutdown =   0;
     hd->singleEndLineChar = SELC;
     hd->nonEndLineChar =    NELC;

@@ -1,0 +1,55 @@
+#
+# Copyright (c) 2009 rPath, Inc.
+#
+# All rights reserved.
+#
+
+PYVER=`python -c 'import sys; print sys.version[:3]'`
+PYTHON = /usr/bin/python$(PYVER)
+
+
+default-all: subdirs-all bin-all
+
+default-install: subdirs-install bin-install pyfiles-install
+
+default-clean: subdirs-clean
+	rm -f *~ .??*~ .#* *.pyo *.pyc *,cover $(generated_files) $(bin_progs) *.orig *.ccs
+
+
+subdirs-all:
+ifdef SUBDIRS
+	for d in $(SUBDIRS); do make -C $$d DIR=$$d all || exit 1; done
+endif
+
+subdirs-clean:
+ifdef SUBDIRS
+	for d in $(SUBDIRS); do make -C $$d DIR=$(DIR)/$$d clean || exit 1; done
+endif
+
+subdirs-install:
+ifdef SUBDIRS
+	for d in $(SUBDIRS); do make -C $$d DIR=$(DIR)/$$d install || exit 1; done
+endif
+
+
+bin-all: $(bin_progs)
+
+bin-install: $(bin_progs)
+ifdef bin_files
+	mkdir -p $(DESTDIR)$(bindir)
+	install -m0755 $(bin_files) $(DESTDIR)$(bindir)/
+endif
+ifdef bin_progs
+	mkdir -p $(DESTDIR)$(bindir)
+	install -m0755 $(bin_progs) $(DESTDIR)$(bindir)/
+endif
+
+
+pyfiles-install: $(python_files)
+ifdef python_files
+	mkdir -p $(DESTDIR)$(sitedir)/$(DIR)
+	install -m0644 $(python_files) $(DESTDIR)$(sitedir)/$(DIR)/
+endif
+
+
+.PHONY: all install clean
