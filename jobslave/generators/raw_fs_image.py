@@ -73,6 +73,7 @@ class RawFsImage(bootable_image.BootableImage,
         self.gzip(os.path.join(self.workDir, self.basefilename), finalImage)
 
         if self.buildOVF10:
+            self.productName = 'Raw Filesystem'
             self.capacity = totalSize
             self.diskFormat = 'EXT3'
             self.createOvf(finalImage, sizes['/'], diskCompressed=True)

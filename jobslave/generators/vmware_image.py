@@ -161,7 +161,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             util.remove(vmdkPath)
             self.createOvfVMDK(vmdkPath.replace('.vmdk', '-flat.vmdk'),
                             vmdkPath,
-                            self.vmdkCapacity)
+                            self.capacity)
             try:
                 self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
             except OSError:

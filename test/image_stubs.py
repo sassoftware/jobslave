@@ -54,7 +54,7 @@ class BootableImageStub(ImageGeneratorStub):
         self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.mountDict = {'/': (0, 100, 'ext3'), 'swap': (0, 100, 'swap')}
         self.jobData = jobData
-        self.buildOvf = jobData.get('buildOvf', False)
+        self.buildOVF10 = jobData.get('buildOvf', False)
         self.outputFileList = []
 
         if jobData.has_key('troveVersion'):
