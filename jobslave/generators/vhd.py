@@ -57,7 +57,7 @@ class PackedHeader(object):
         self.fmtDict = dict((x[0], x[2]) for x in self.fmtList)
 
         self.uuid = os.urandom(16)
-        self.timeStamp = time.time() - Y2K_UTC
+        self.timeStamp = long(time.time() - Y2K_UTC)
 
     def updateChecksum(self):
         self.checksum = 0
@@ -65,7 +65,7 @@ class PackedHeader(object):
         footer = PackedHeader.pack(self)
         for x in struct.unpack("%sB" % struct.calcsize(self.fmt), footer):
             self.checksum += x
-        self.checksum = int(~self.checksum)
+        self.checksum = 0xffffffff & ~self.checksum
 
     def pack(self):
         assert None not in self.fmtDict.values()
@@ -122,7 +122,7 @@ class VHDFooter(PackedHeader):
          ("currentSize",    "Q",    None),
          ("diskGeometry",   "4s",   None),
          ("diskType",       "I",    VHDDiskType.Fixed),
-         ("checksum",       "i",    0),
+         ("checksum",       "I",    0),
          ("uuid",           "16s",  None),
          ("savedState",     "1b",   0),
          ("reserved",       "427s", "")
@@ -313,7 +313,7 @@ def makeDifference(inFn, outFn, parentName = None):
     header.parentUuid = footer.uuid
     header.parentTimeStamp = os.stat(inFn)[stat.ST_MTIME] - Y2K_UTC
 
-    footer.timeStamp = time.time() - Y2K_UTC
+    footer.timeStamp = long(time.time() - Y2K_UTC)
     # VHD specification indicates this field must be utf-16
     header.parentName = parentName.encode('utf-16be')
 
