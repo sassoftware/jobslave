@@ -528,14 +528,23 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         tmpDir = tempfile.mkdtemp()
         g.writeConaryRc = lambda *args, **kwargs: None
         g.hugeDiskMountpoint = '/mnt/huge'
+        fstab = os.path.join(tmpDir, 'etc/fstab')
+        # This would normally be done by BootableImage.fileSystemOddsNEnds
         try:
+            util.mkdirChain(os.path.join(tmpDir, 'etc'))
+
+            g.amiArch = 'i386'
             g.fileSystemOddsNEnds(tmpDir)
-            f = open(os.path.join(tmpDir, 'etc', 'fstab'))
-            data = f.read()
-            self.failIf(data != \
-                    '\n/dev/sda2\t/mnt/huge\t\text3\tdefaults 1 2' \
-                    '\n/dev/sda3\tswap\t\tswap\tdefaults 0 0',
-                    "Unexpected mount structure")
+            self.failUnlessEqual(open(fstab).read(), '\n'
+                    '/dev/sda2 /mnt/huge ext3 defaults 0 0\n'
+                    '/dev/sda3 swap swap defaults 0 0\n')
+            os.unlink(fstab)
+
+            g.amiArch = 'x86_64'
+            g.fileSystemOddsNEnds(tmpDir)
+            self.failUnlessEqual(open(fstab).read(), '\n'
+                    '/dev/sdb /mnt/huge ext3 defaults 0 0\n')
+            os.unlink(fstab)
         finally:
             util.rmtree(tmpDir)
 

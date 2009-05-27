@@ -21,7 +21,8 @@ from jobslave.imagegen import logCall
 from jobslave.generators import constants
 from jobslave.generators import raw_fs_image
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
+
 
 class AMIBundleError(Exception):
     def __str__(self):
@@ -69,6 +70,12 @@ class AMIImage(raw_fs_image.RawFsImage):
         # get the spot we're going to mount the hyooge disk on (/dev/sda2)
         self.hugeDiskMountpoint = \
                 self.getBuildData('amiHugeDiskMountpoint')
+
+        # Work around bad proddef values (RBL-4671)
+        if self.hugeDiskMountpoint == 'false':
+            log.warning("Ignoring bogus AMI mountpoint %r",
+                    self.hugeDiskMountpoint)
+            self.hugeDiskMountpoint = None
 
         # make sure we can actually use this arch
         if self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')):
@@ -228,14 +235,36 @@ class AMIImage(raw_fs_image.RawFsImage):
     def fileSystemOddsNEnds(self, fakeroot):
         raw_fs_image.RawFsImage.fileSystemOddsNEnds(self, fakeroot)
 
-        # append some useful things to /etc/fstab for AMIs
-        util.mkdirChain(os.path.join(fakeroot, 'etc'))
-        fstabFile = file(os.path.join(fakeroot, 'etc', 'fstab'), 'a+')
-        if self.hugeDiskMountpoint:
-            fstabFile.write("\n/dev/sda2\t%s\t\text3\tdefaults 1 2" % \
-                    self.hugeDiskMountpoint)
-        fstabFile.write("\n/dev/sda3\tswap\t\tswap\tdefaults 0 0")
-        fstabFile.close()
+        # Add some useful entries to fstab
+        scratchDisk = swapDisk = None
+        if self.amiArch == 'i386':
+            # 32bit is assumed to be booted as a "small" instance.
+            # Disk layout as of 2009-05:
+            #  * /dev/sda1 - root
+            #  * /dev/sda2 - preformatted ext3 (scratch mount)
+            #  * /dev/sda3 - preformatted swap
+            scratchDisk = '/dev/sda2'
+            swapDisk = '/dev/sda3'
+        else:
+            # 64bit is assumed to be booted as "large" or better.
+            # Disk layout as of 2009-05:
+            #  * /dev/sda1 - root
+            #  * /dev/sdb  - preformatted ext3 (scratch mount)
+            #  * /dev/sdc  - preformatted ext3
+            scratchDisk = '/dev/sdb'
+
+        fstab = open(os.path.join(fakeroot, 'etc', 'fstab'), 'a')
+        print >> fstab
+        if scratchDisk and self.hugeDiskMountpoint:
+            # fs_passno (the last field) is 0 to ensure that a change in the
+            # way Amazon does scratch disks does not result in boot failures.
+            # The disk will never need checking anyway because it was just
+            # formatted.
+            print >> fstab, "%s %s ext3 defaults 0 0" % (
+                    scratchDisk, self.hugeDiskMountpoint)
+        if swapDisk:
+            print >> fstab, "%s swap swap defaults 0 0" % (swapDisk,)
+        fstab.close()
 
         self._findKernelMetadata()
 
