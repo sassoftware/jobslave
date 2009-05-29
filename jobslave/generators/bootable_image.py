@@ -702,6 +702,11 @@ class BootableImage(ImageGenerator):
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
+        # remove root password
+        if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
+            logCall("chroot %s sh -c \"egrep -q '^root:\*:0:0:' /etc/passwd && usermod -p '' root\"" % dest,
+                ignoreErrors=True)
+
         # set up shadow passwords/md5 passwords
         authConfigCmd = ('chroot %s %%s --kickstart --enablemd5 --enableshadow'
                          ' --disablecach' % dest)
@@ -725,11 +730,6 @@ class BootableImage(ImageGenerator):
             lines.append('')
             f = open(fn, 'w')
             f.write('\n'.join(lines))
-
-        # remove root password
-        if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
-            logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
-                ignoreErrors=True)
 
         # Finish installation of bootloader
         bootloader_installer.install()
