@@ -94,4 +94,6 @@ class XenOVA(raw_hd_image.RawHdImage):
         self.status('Creating XVA Image')
         logCall('tar -cv -f "%s" -C "%s" -T "%s"' % \
                          (deliverable, topDir, manifest_path))
-        self.postOutput(((deliverable, 'Citrix XenServer (TM) Image'),))
+        self.outputFileList.append((deliverable, 'Citrix XenServer (TM) Image'),)
+
+        self.postOutput(self.outputFileList)            

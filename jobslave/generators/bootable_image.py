@@ -250,10 +250,13 @@ class BootableImage(ImageGenerator):
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
         self.workDir = os.path.join(constants.tmpDir, self.jobId)
+        self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(self.outputDir)
+        util.mkdirChain(self.workingDir)
         self.swapSize = self.getBuildData("swapSize") * 1048576
         self.swapPath = '/var/swap'
+        self.outputFileList = []
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs

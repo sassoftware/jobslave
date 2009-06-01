@@ -3,6 +3,7 @@
 #
 # All Rights Reserved
 #
+import os
 import sys
 from conary import versions
 from conary.deps import deps
@@ -30,6 +31,19 @@ class GeneratorStub(object):
     def status(self, status, statusMessage = None):
         pass
 
+    def createOvf(self, *args, **kw):
+        from jobslave.generators import ovf_image
+        self.ovfImage = ovf_image.OvfImage(*args, **kw)
+        self.ovfImage.createOvf()
+        self.ovfImage.writeOvf()
+        rval = self.ovfImage.createOva()
+
+        self.ovfXml = self.ovfImage.ovfXml
+        self.ovfPath = self.ovfImage.ovfPath
+        self.ovfFileName = self.ovfImage.ovfFileName
+
+        return rval
+
 class ImageGeneratorStub(GeneratorStub):
     arch = 'x86'
     jobId = 'test.rpath.local-build-1-2'
@@ -50,8 +64,11 @@ class BootableImageStub(ImageGeneratorStub):
         self.workDir = '/tmp/workdir'
         self.outputDir = '/tmp/outputdir'
         self.basefilename = 'image'
+        self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.mountDict = {'/': (0, 100, 'ext3'), 'swap': (0, 100, 'swap')}
         self.jobData = jobData
+        self.buildOVF10 = jobData.get('buildOvf', False)
+        self.outputFileList = []
 
         if jobData.has_key('troveVersion'):
             versionStr = self.jobData['troveVersion']

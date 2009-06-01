@@ -64,12 +64,14 @@ def setup():
     conaryPath      = os.getenv('CONARY_PATH')
     conaryTestPath  = os.getenv('CONARY_TEST_PATH',     os.path.join(conaryPath, '..', 'conary-test'))
     mcpPath         = os.getenv('MCP_PATH',             '../../mcp')
+    pyovfPath       = os.getenv('PYOVF_PATH',           '../../pyovf')
     jobslavePath    = os.getenv('JOB_SLAVE_PATH',       os.path.join(os.getcwd(), '..'))
     jsTestPath      = os.getenv('JOB_SLAVE_TEST_PATH',  os.getcwd())
     testUtilsPath   = os.getenv('TESTUTILS_PATH', os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    xobjPath        = os.getenv('XOBJ_PATH', '../../xobj/py')
 
     sys.path = [os.path.realpath(x) for x in (jobslavePath, jsTestPath, mcpPath,
-        conaryPath, conaryTestPath, testUtilsPath)] + sys.path
+        conaryPath, conaryTestPath, testUtilsPath, pyovfPath, xobjPath)] + sys.path
     os.environ.update(dict(CONARY_PATH=conaryPath, CONARY_TEST_PATH=conaryTestPath,
         MCP_PATH=mcpPath, JOB_SLAVE_PATH=jobslavePath, JOB_SLAVE_TEST_PATH=jsTestPath,
         PYTHONPATH=(':'.join(sys.path))))
