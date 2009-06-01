@@ -7,6 +7,7 @@
 import logging
 import os
 import signal
+import stat
 import StringIO
 import subprocess
 import select
@@ -25,7 +26,7 @@ from conary import versions
 from conary.deps import deps
 from conary.lib import util, log
 
-from jobslave.generators import constants
+from jobslave.generators import constants, ovf_image
 from mcp import jobstatus, response
 
 MSG_INTERVAL = 5
@@ -135,6 +136,8 @@ def scrubUnicode(data):
     else:
         return data
 
+def getFileSize(filePath):
+    return os.stat(filePath)[stat.ST_SIZE]
 
 class Generator(threading.Thread):
     configObject = None
@@ -432,3 +435,12 @@ class ImageGenerator(Generator):
             print >> conaryrcFile, "autoResolve True"
         print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
         conaryrcFile.close()
+
+    def createOvf(self, *args, **kw):
+        self.ovfImage = ovf_image.OvfImage(*args, **kw)
+        ovfObj = self.ovfImage.createOvf()
+        ovfXml = self.ovfImage.writeOvf()
+        ovaPath = self.ovfImage.createOva()
+
+        return ova
+      

@@ -10,7 +10,7 @@ import tempfile
 from jobslave import buildtypes
 from jobslave import lvm
 from jobslave.imagegen import logCall, log
-from jobslave.generators import bootable_image, constants, ovf_image
+from jobslave.generators import bootable_image, constants
 
 from conary.lib import util
 
@@ -54,8 +54,7 @@ class HDDContainer:
         sfdisk.close()
 
 
-class RawHdImage(bootable_image.BootableImage,
-                 ovf_image.OvfImage):
+class RawHdImage(bootable_image.BootableImage):
     def makeHDImage(self, image):
         _, realSizes = self.getImageSize()
         lvmContainer = None
@@ -157,7 +156,6 @@ class RawHdImage(bootable_image.BootableImage,
 
     def write(self):
         self.productName = 'Raw Hard Disk'
-        self.diskFormat = 'EXT3'
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
         self.capacity = self.makeHDImage(image)
 
@@ -167,7 +165,13 @@ class RawHdImage(bootable_image.BootableImage,
         outFile = self.gzip(image, finalImage)
 
         if self.buildOVF10:
-            self.createOvf(finalImage, self.capacity, diskCompressed=True)
+            self.ovaPath = self.createOvf(self.basefilename,
+                self.jobData['description'], constants.RAWHD, finalImage,
+                self.capacity, self.capacity, True, self.workingDir, 
+                self.outputDir)
+            self.outputFileList.append((self.ovaPath,
+                'Raw Hard Disk %s' % constants.OVFIMAGETAG))
+
 
         self.outputFileList.append((finalImage, 'Raw Hard Disk Image'),)
         self.postOutput(self.outputFileList)

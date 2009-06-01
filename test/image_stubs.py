@@ -31,6 +31,19 @@ class GeneratorStub(object):
     def status(self, status, statusMessage = None):
         pass
 
+    def createOvf(self, *args, **kw):
+        from jobslave.generators import ovf_image
+        self.ovfImage = ovf_image.OvfImage(*args, **kw)
+        self.ovfImage.createOvf()
+        self.ovfImage.writeOvf()
+        rval = self.ovfImage.createOva()
+
+        self.ovfXml = self.ovfImage.ovfXml
+        self.ovfPath = self.ovfImage.ovfPath
+        self.ovfFileName = self.ovfImage.ovfFileName
+
+        return rval
+
 class ImageGeneratorStub(GeneratorStub):
     arch = 'x86'
     jobId = 'test.rpath.local-build-1-2'

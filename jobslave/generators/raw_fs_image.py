@@ -8,14 +8,13 @@ import os
 import tempfile
 
 from jobslave.bootloader import grub_installer
-from jobslave.generators import bootable_image, constants, ovf_image
+from jobslave.generators import bootable_image, constants
 from jobslave.filesystems import sortMountPoints
 from jobslave.imagegen import logCall
 
 from conary.lib import util, log
 
-class RawFsImage(bootable_image.BootableImage,
-                 ovf_image.OvfImage):
+class RawFsImage(bootable_image.BootableImage):
     def makeBlankFS(self, image, fsType, size, fsLabel = None):
         if os.path.exists(image):
             util.rmtree(image)
@@ -73,10 +72,11 @@ class RawFsImage(bootable_image.BootableImage,
         self.gzip(os.path.join(self.workDir, self.basefilename), finalImage)
 
         if self.buildOVF10:
-            self.productName = 'Raw Filesystem'
-            self.capacity = totalSize
-            self.diskFormat = 'EXT3'
-            self.createOvf(finalImage, sizes['/'], diskCompressed=True)
+            self.ovaPath = self.createOvf(self.basefilename,
+                self.jobData['description'], constants.RAWFS, finalImage, 
+                sizes['/'], totalSize, True, self.workingDir, self.outputDir)
+            self.outputFileList.append((self.ovaPath, 
+                'Raw Filesystem %s' % constants.OVFIMAGETAG))
 
         self.outputFileList.append((finalImage, 'Raw Filesystem Image'))
         self.postOutput(self.outputFileList)

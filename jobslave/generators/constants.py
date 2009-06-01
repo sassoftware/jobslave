@@ -42,26 +42,28 @@ entDir =  util.joinPaths(os.path.sep, 'srv', 'jobslave', 'entitlements')
 
 pinKernelRE = '(kernel|linux-image-2\.6\.[0-9]+-[0-9]+(-[a-z]+)?)([:-].*|$)'
 
-# ovf 
+# ovf related constants
 OVF_EXTENSION = 'ovf'
 OVA_EXTENSION = 'ova'
 
 DISKFORMATS = {
     'VMDK'      : 1,
-    'EXT3'      : 2,
+    'VHD'       : 2,
+    'RAWFS'     : 3,
+    'RAWHD'     : 4,
 }
 
 sys.modules[__name__].__dict__.update(DISKFORMATS)
 
 DISKFORMATURLS = {
-    VMDK    : \
-        'http://www.vmware.com/interfaces/specifications/vmdk.html#sparse',
-    EXT3    : \
-        'http://www.rpath.com',
+    VMDK : 'http://www.vmware.com/interfaces/specifications/vmdk.html#sparse',
+    RAWFS : 'http://wiki.rpath.com/wiki/rBuilder_Online:Raw_Filesystem_Image',
+    RAWHD : 'http://wiki.rpath.com/wiki/rBuilder_Online:Raw_Hard_Disk_Image',
+    VHD  : 'http://www.microsoft.com/technet/virtualserver/downloads/vhdspec.mspx'
 }
 
 NETWORKSECTIONINFO = 'List of logical networks used in the package'
 DISKSECTIONINFO = 'Describes the set of virtual disks'
 VIRTUALHARDWARESECTIONINFO = 'Describes the set of virtual hardware'
 FILECOMPRESSION = 'gzip'
-OVFIMAGETAG = ' OVF 1.0 Image'
+OVFIMAGETAG = 'OVF 1.0 Image'

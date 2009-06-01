@@ -150,9 +150,15 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 (outputFile, self.productName + ' Image'))
 
         if self.buildOVF10:
-            self.diskFormat = 'VMDK'
             self.gzip(vmdkPath, vmdkGzOutputFile)
-            self.createOvf(vmdkGzOutputFile, self.vmdkSize, diskCompressed=True)
+
+            self.ovaPath = self.createOvf(self.basefilename,
+                self.jobData['description'], constants.VMDK, vmdkGzOutputFile,
+                self.capacity, self.vmdkSize, True, self.workingDir,
+                self.outputDir)
+            self.outputFileList.append((self.ovaPath,
+                self.productName + ' %s' % constants.OVFIMAGETAG))
+
             os.unlink(vmdkGzOutputFile)
 
         # now create OVF in addition, if applicable
