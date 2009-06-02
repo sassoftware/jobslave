@@ -36,6 +36,13 @@ class GeneratorStub(object):
         self.ovfImage = ovf_image.OvfImage(*args, **kw)
         self.ovfImage.createOvf()
         self.ovfImage.writeOvf()
+
+        def createManifest(*args):
+            self.ovfImage.manifestFileName = '%s.mf' % self.basefilename
+
+        self.ovfImage.createManifest = createManifest
+        self.ovfImage.createManifest()
+
         rval = self.ovfImage.createOva()
 
         self.ovfXml = self.ovfImage.ovfXml

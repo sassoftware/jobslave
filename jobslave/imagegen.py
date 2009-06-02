@@ -395,7 +395,7 @@ class ImageGenerator(Generator):
                            'arch': self.arch}
 
         self.basefilename = basefilename
-        self.buildOVF10 = self.getBuildData('buildOVF10')
+        self.buildOVF10 = self.getBuildData('buildOVF1_0')
 
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()
@@ -440,7 +440,8 @@ class ImageGenerator(Generator):
         self.ovfImage = ovf_image.OvfImage(*args, **kw)
         ovfObj = self.ovfImage.createOvf()
         ovfXml = self.ovfImage.writeOvf()
+        self.ovfImage.createManifest()
         ovaPath = self.ovfImage.createOva()
 
-        return ova
+        return ovaPath
       

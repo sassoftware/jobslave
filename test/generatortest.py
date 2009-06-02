@@ -866,10 +866,15 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
                 (g.workingDir, g.ovfFileName, g.ovaPath),
                 self.callLog[1])
             self.assertEquals(expectedCall2 % \
+                (g.workingDir, 
+                 g.basefilename + '.mf',
+                 g.ovaPath),
+                self.callLog[2])
+            self.assertEquals(expectedCall2 % \
                 (g.outputDir, 
                  g.basefilename + '.vmdk.gz',
                  g.ovaPath),
-                self.callLog[2])
+                self.callLog[3])
         finally:
             os.unlink = oldOsUnlink
             util.rmtree(tmpDir)
@@ -897,6 +902,9 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
         self.assertEquals(self.callLog[3], 
             expectedCall1 % (g.workingDir, g.ovfFileName, g.ovaPath))
         self.assertEquals(self.callLog[4],
+            expectedCall2 % (g.workingDir, g.basefilename + '.mf',
+                             g.ovaPath))
+        self.assertEquals(self.callLog[5],
             expectedCall2 % (g.outputDir, g.basefilename + '-root.ext3',
                              g.ovaPath))
         self.assertEquals(g.posted_output[0][0], g.ovaPath)
@@ -941,6 +949,9 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
         g.makeHDImage = lambda image: 1500000000
         g.createVHD = lambda *args, **kwargs: None
 
+        def createManifest(*args):
+            g.ovfImage.manifestFileName = g.basefilename + '.mf'
+        ovf_image.XenOvfImage.createManifest = createManifest
         g.write()
 
         self.resetPopen()

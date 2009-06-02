@@ -78,6 +78,7 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
 
             self.ovfObj = self.ovfImage.createOvf()
             self.ovfXml = self.ovfImage.writeOvf()
+            self.ovfImage.createManifest()
             self.ovaPath = self.ovfImage.createOva()
             self.outputFileList.append((self.ovaPath,
                 '%s %s' % (self.productName, constants.OVFIMAGETAG)))

@@ -45,6 +45,7 @@ pinKernelRE = '(kernel|linux-image-2\.6\.[0-9]+-[0-9]+(-[a-z]+)?)([:-].*|$)'
 # ovf related constants
 OVF_EXTENSION = 'ovf'
 OVA_EXTENSION = 'ova'
+MF_EXTENSION = 'mf'
 
 DISKFORMATS = {
     'VMDK'      : 1,

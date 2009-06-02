@@ -6,6 +6,7 @@
 
 import os
 import os.path
+import sha
 import sys
 
 from jobslave import buildtypes
@@ -33,7 +34,7 @@ class Memory(ovf.Item):
 class Harddisk(ovf.Item):
     rasd_Caption = 'Harddisk'
     rasd_ElementName = 'Hard disk'
-    rasd_HostResource = 'ovf://disk/disk_1'
+    rasd_HostResource = 'ovf://disk/diskId'
     rasd_InstanceID = '5'
     rasd_Parent = '4'
     rasd_ResourceType = '17'
@@ -57,7 +58,6 @@ class OvfImage(object):
     def __init__(self, imageName, imageDescription, diskFormat,
                   diskFilePath, diskFileSize, diskCapacity, diskCompressed,
                   workingDir, outputDir):
-
         self.imageName = imageName
         self.imageDescription = imageDescription
         self.diskFormat = diskFormat
@@ -68,9 +68,14 @@ class OvfImage(object):
         self.workingDir = workingDir
         self.outputDir = outputDir
 
+        self.diskFileName = os.path.split(self.diskFilePath)[1]
+
         self.instanceIdCounter = 0
         self.fileIdCounter = 0
         self.diskIdCounter = 0
+
+        # Initial empty ovf object.
+        self.ovf = helper.NewOvf()
 
     def _getInstanceId(self):
         """
@@ -94,50 +99,62 @@ class OvfImage(object):
         self.diskIdCounter += 1
         return 'diskId_%s' % str(self.diskIdCounter)
 
-    def createOvf(self):
-        # Initial empty ovf object.
-        self.ovf = helper.NewOvf()
-
-        self.diskFileName = os.path.split(self.diskFilePath)[1]
-
-        # Set network and disk info in ovf.
-        self.ovf.NetworkSection.Info = constants.NETWORKSECTIONINFO
-        self.ovf.DiskSection.Info = constants.DISKSECTIONINFO
-        self.ovf.VirtualSystemCollection.id = self.imageName
-
+    def addFileReferences(self):
         # Add file references to ovf.
-        fileRef = ovf.FileReference(id=self._getFileId(),
+        self.fileRef = ovf.FileReference(id=self._getFileId(),
                                     href=self.diskFileName,
                                     size=self.diskFileSize)
         if self.diskCompressed:
-            fileRef.compression = constants.FILECOMPRESSION
-        self.ovf.addFileReference(fileRef)
+            self.fileRef.compression = constants.FILECOMPRESSION
+        self.ovf.addFileReference(self.fileRef)
 
-        # Add virtual system to ovf with a virutal hardware section.
-        virtSystem = ovf.VirtualSystem(id=self.imageName)
-        virtSystem.Info = self.imageDescription
+    def addHardwareDefaults(self, VirtualHardware):
+        VirtualHardware.addItem(Cpu())
+        VirtualHardware.addItem(Memory())
+        VirtualHardware.addItem(Network())
+        hd = Harddisk()
+        hd.HostResource = 'ovf://disk/%s' % self.diskId
+        VirtualHardware.addItem(hd)
+        VirtualHardware.addItem(ScsiController())
+
+    def addVirtualHardware(self, virtualSystem):
         vhws = ovf.VirtualHardwareSection(
                 Info=constants.VIRTUALHARDWARESECTIONINFO)
-        vhws.addItem(Cpu())
-        vhws.addItem(Memory())
-        vhws.addItem(Network())
-        vhws.addItem(Harddisk())
-        vhws.addItem(ScsiController())
+
+        self.addHardwareDefaults(vhws)                
 
         # vhws.System = ovf.System()
         # vhws.System.ElementName = self.imageName
         # vhws.System.InstanceID = self._getInstanceId()
         # vhws.System.VirtualSystemType = 'Virtual System Type'
 
-        virtSystem.addVirtualHardwareSection(vhws)
+        virtualSystem.addVirtualHardwareSection(vhws)
+
+    def addVirtualSystem(self):
+        # Add virtual system to ovf with a virutal hardware section.
+        virtSystem = ovf.VirtualSystem(id=self.imageName)
+        virtSystem.Info = self.imageDescription
+        self.addVirtualHardware(virtSystem)
         self.ovf.addVirtualSystem(virtSystem)
 
+    def addDisks(self):
         # Add disk files to ovf.
         format = ovf.DiskFormat(
             constants.DISKFORMATURLS[self.diskFormat])
-        disk = ovf.Disk(diskId=self._getDiskId(), fileRef=fileRef,
+        self.diskId = self._getDiskId()
+        disk = ovf.Disk(diskId=self.diskId, fileRef=self.fileRef,
                         format=format, capacity=self.diskCapacity)
         self.ovf.addDisk(disk)
+
+    def createOvf(self):
+        # Set network and disk info in ovf.
+        self.ovf.NetworkSection.Info = constants.NETWORKSECTIONINFO
+        self.ovf.DiskSection.Info = constants.DISKSECTIONINFO
+        self.ovf.VirtualSystemCollection.id = self.imageName
+
+        self.addFileReferences()
+        self.addDisks()
+        self.addVirtualSystem()
 
         return self.ovf
 
@@ -151,6 +168,22 @@ class OvfImage(object):
         out.close()
 
         return self.ovfXml
+
+    def createManifest(self):
+        sha1Line = 'SHA1 (%s) = %s'
+        self.manifestFileName = self.imageName + '.' + constants.MF_EXTENSION
+        self.manifestPath = os.path.join(self.workingDir, self.manifestFileName)
+
+        mfFile = open(self.manifestPath, 'w')
+
+        ovfSha1 = sha.new(open(self.ovfPath).read()).hexdigest()
+        diskSha1 = sha.new(open(self.diskFilePath).read()).hexdigest()
+
+        mfFile.write(sha1Line % (self.ovfFileName, ovfSha1))
+        mfFile.write('\n')
+        mfFile.write(sha1Line % (self.diskFileName, diskSha1))
+        
+        mfFile.close()
 
     def createOva(self):
         """
@@ -166,7 +199,10 @@ class OvfImage(object):
         # Add the ovf as the first file to the ova tar.
         logCall('tar -C %s -cv %s -f %s' % \
             (self.workingDir, self.ovfFileName, self.ovaPath))
-        # Add the disk as the 2nd file.
+        # Add the manifest as the 2nd file.
+        logCall('tar -C %s -rv %s -f %s' % \
+            (self.workingDir, self.manifestFileName, self.ovaPath))
+        # Add the disk as the 3rd file.
         logCall('tar -C %s -rv %s -f %s' % \
             (self.outputDir, self.diskFileName, self.ovaPath))
 
