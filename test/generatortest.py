@@ -840,7 +840,11 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
 
         g.jobData['description'] = 'Test Description'
 
-        g.makeHDImage = lambda x: open(x, 'w').write('')
+        def makeHDImage(x):
+            open(x, 'w').write('')
+            return 12345678900
+
+        g.makeHDImage = makeHDImage
         g.adapter = 'ide'
         g.baseFlavor = deps.parseFlavor("xen,domU is: x86")
         tmpDir = tempfile.mkdtemp()
@@ -952,6 +956,7 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
         def createManifest(*args):
             g.ovfImage.manifestFileName = g.basefilename + '.mf'
         ovf_image.XenOvfImage.createManifest = createManifest
+        imagegen.getFileSize = lambda *args: 1234567890
         g.write()
 
         self.resetPopen()

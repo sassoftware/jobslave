@@ -7,6 +7,7 @@
 import os
 
 from jobslave import buildtypes
+from jobslave import imagegen
 from jobslave.generators import constants
 from jobslave.generators import bootable_image, raw_hd_image, ovf_image
 from jobslave.generators import vhd
@@ -71,9 +72,10 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
 
         if self.buildOVF10:
             self.capacity = 10000
+            diskFileSize = imagegen.getFileSize(outputFile)
             self.ovfImage = ovf_image.XenOvfImage(self.basefilename,
                 self.jobData['description'], constants.VHD, outputFile,
-                self.capacity, self.capacity, True, workingDir,
+                diskFileSize, self.capacity, True, workingDir,
                 self.outputDir)
 
             self.ovfObj = self.ovfImage.createOvf()

@@ -4,11 +4,11 @@ VMwareOvfXml = """\
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common">
   <ovf:References>
-    <ovf:File ovf:href="image.vmdk.gz" ovf:id="fileId_1" ovf:size="0" ovf:compression="gzip"/>
+    <ovf:File ovf:href="image.vmdk.gz" ovf:id="fileId_1" ovf:size="1234567890" ovf:compression="gzip"/>
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>
-    <ovf:Disk ovf:diskId="diskId_1" ovf:capacity="0" ovf:fileRef="fileId_1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#sparse"/>
+    <ovf:Disk ovf:diskId="diskId_1" ovf:capacity="12345678900" ovf:fileRef="fileId_1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#sparse"/>
   </ovf:DiskSection>
   <ovf:NetworkSection>
     <ovf:Info>List of logical networks used in the package</ovf:Info>
@@ -74,7 +74,7 @@ amiOvfXml = """\
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common">
   <ovf:References>
-    <ovf:File ovf:href="image-root.ext3" ovf:id="fileId_1" ovf:size="100" ovf:compression="gzip"/>
+    <ovf:File ovf:href="image-root.ext3" ovf:id="fileId_1" ovf:size="1234567890" ovf:compression="gzip"/>
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>
@@ -144,7 +144,7 @@ rawHdOvfXml = """\
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common">
   <ovf:References>
-    <ovf:File ovf:href="image.hdd.gz" ovf:id="fileId_1" ovf:size="2097152" ovf:compression="gzip"/>
+    <ovf:File ovf:href="image.hdd.gz" ovf:id="fileId_1" ovf:size="1234567890" ovf:compression="gzip"/>
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>
@@ -214,7 +214,7 @@ rawFsOvfXml = """\
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common">
   <ovf:References>
-    <ovf:File ovf:href="image-root.ext3.gz" ovf:id="fileId_1" ovf:size="100" ovf:compression="gzip"/>
+    <ovf:File ovf:href="image-root.ext3.gz" ovf:id="fileId_1" ovf:size="1234567890" ovf:compression="gzip"/>
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>
@@ -284,7 +284,7 @@ vpcOvfXml = """\
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:xenovf="http://schemas.citrix.com/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" Version="1.0.0" xenovf:id="image" xenovf:Name="image">
   <ovf:References>
-    <ovf:File ovf:href="image.vpc.tar.gz" ovf:id="fileId_1" ovf:size="10000" ovf:compression="gzip"/>
+    <ovf:File ovf:href="image.vpc.tar.gz" ovf:id="fileId_1" ovf:size="1234567890" ovf:compression="gzip"/>
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>

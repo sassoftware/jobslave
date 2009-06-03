@@ -31,9 +31,16 @@ class GeneratorStub(object):
     def status(self, status, statusMessage = None):
         pass
 
-    def createOvf(self, *args, **kw):
+    def createOvf(self, imageName, imageDescription, diskFormat,
+                  diskFilePath, diskCapacity, diskCompressed,
+                  workingDir, outputDir):
         from jobslave.generators import ovf_image
-        self.ovfImage = ovf_image.OvfImage(*args, **kw)
+        diskFileSize = '1234567890'
+        self.ovfImage = ovf_image.OvfImage(
+            imageName, imageDescription, diskFormat,
+            diskFilePath, diskFileSize, diskCapacity, diskCompressed,
+            workingDir, outputDir)
+
         self.ovfImage.createOvf()
         self.ovfImage.writeOvf()
 

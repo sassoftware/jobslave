@@ -167,7 +167,7 @@ class RawHdImage(bootable_image.BootableImage):
         if self.buildOVF10:
             self.ovaPath = self.createOvf(self.basefilename,
                 self.jobData['description'], constants.RAWHD, finalImage,
-                self.capacity, self.capacity, True, self.workingDir, 
+                self.capacity, True, self.workingDir, 
                 self.outputDir)
             self.outputFileList.append((self.ovaPath,
                 'Raw Hard Disk %s' % constants.OVFIMAGETAG))

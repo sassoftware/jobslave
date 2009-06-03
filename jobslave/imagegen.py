@@ -395,7 +395,7 @@ class ImageGenerator(Generator):
                            'arch': self.arch}
 
         self.basefilename = basefilename
-        self.buildOVF10 = self.getBuildData('buildOVF1_0')
+        self.buildOVF10 = self.getBuildData('buildOVF10')
 
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()
@@ -436,8 +436,17 @@ class ImageGenerator(Generator):
         print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
         conaryrcFile.close()
 
-    def createOvf(self, *args, **kw):
-        self.ovfImage = ovf_image.OvfImage(*args, **kw)
+    def createOvf(self, imageName, imageDescription, diskFormat,
+                  diskFilePath, diskCapacity, diskCompressed,
+                  workingDir, outputDir):
+
+        diskFileSize = getFileSize(diskFilePath)
+
+        self.ovfImage = ovf_image.OvfImage(
+            imageName, imageDescription, diskFormat,
+            diskFilePath, diskFileSize, diskCapacity, diskCompressed,
+            workingDir, outputDir)
+
         ovfObj = self.ovfImage.createOvf()
         ovfXml = self.ovfImage.writeOvf()
         self.ovfImage.createManifest()

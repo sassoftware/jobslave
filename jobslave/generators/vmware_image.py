@@ -127,7 +127,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
                                       self.basefilename + '.vmdk.gz')
         ovfOutputFile = outputFile.replace(self.suffix, '-ovf.tar.gz')
 
-        self.makeHDImage(image)
+        totalSize = self.makeHDImage(image)
         self.status('Creating %s Image' % self.productName)
 
         util.mkdirChain(self.workingDir)
@@ -154,7 +154,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
             self.ovaPath = self.createOvf(self.basefilename,
                 self.jobData['description'], constants.VMDK, vmdkGzOutputFile,
-                self.capacity, self.vmdkSize, True, self.workingDir,
+                totalSize, True, self.workingDir,
                 self.outputDir)
             self.outputFileList.append((self.ovaPath,
                 self.productName + ' %s' % constants.OVFIMAGETAG))
@@ -162,6 +162,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             os.unlink(vmdkGzOutputFile)
 
         # now create OVF in addition, if applicable
+        # For building OVF 0.9
         if self.useOVF:
             util.remove(vmxPath)
             util.remove(vmdkPath)

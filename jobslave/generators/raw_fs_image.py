@@ -85,7 +85,7 @@ class RawFsImage(bootable_image.BootableImage):
                 os.path.join(self.outputDir, self.diskFileName + '.gz'))
             self.ovaPath = self.createOvf(self.basefilename,
                 self.jobData['description'], constants.RAWFS, diskFileGzipPath, 
-                sizes['/'], totalSize, True, self.workingDir, self.outputDir)
+                totalSize, True, self.workingDir, self.outputDir)
             self.outputFileList.append((self.ovaPath, 
                 'Raw Filesystem %s' % constants.OVFIMAGETAG))
 

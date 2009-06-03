@@ -277,7 +277,7 @@ class AMIImage(raw_fs_image.RawFsImage):
         if self.buildOVF10:
             self.ovaPath = self.createOvf(self.basefilename,
                 self.jobData['description'], constants.RAWFS, images['/'],
-                sizes['/'], totalSize, True, self.workingDir,
+                totalSize, True, self.workingDir,
                 self.outputDir)
             self.outputFileList.append((self.ovaPath,
                 '%s %s' % (self.productName, constants.OVFIMAGETAG)))
