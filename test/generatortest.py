@@ -696,7 +696,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.resetPopen()
 
         self.assertEquals(len(g.posted_output), 1)
-        self.assertEquals(g.posted_output[0][1], 'VMware (R) OVF Image')
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) OVF 0.9 Image')
 
     def testVMwareSetModes(self):
         g = vmware_image.VMwareImage({}, [])
