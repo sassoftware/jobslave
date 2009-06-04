@@ -179,7 +179,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             self.setModes(self.workingDir)
             self.gzip(self.workingDir, ovfOutputFile)
             self.outputFileList.append(
-                (ovfOutputFile, self.productName + ' OVF Image'))
+                (ovfOutputFile, self.productName + ' OVF 0.9 Image'))
 
         self.postOutput(self.outputFileList)
 
