@@ -149,3 +149,14 @@ class InstallableIsoStub(ImageGeneratorStub):
 
     def prepareTemplates(self, topdir, templateDir):
         return None
+
+class ApplianceInstallerStub(ImageGeneratorStub):
+    jobId = "test.rpath.local-build-4-3"
+    UUID = "abcd"
+    productDir = 'rPath'
+
+    def retrieveTemplates(self):
+        return None, None
+
+    def prepareTemplates(self, topdir, templateDir):
+        return None

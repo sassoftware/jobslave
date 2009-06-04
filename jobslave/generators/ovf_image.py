@@ -53,6 +53,13 @@ class Network(ovf.Item):
     rasd_InstanceID = '3'
     rasd_Description = 'Network Interface'
 
+class CdRom(ovf.Item):
+    rasd_Caption = 'CD-ROM'
+    rasd_ElementName = 'CD-ROM'
+    rasd_HostResource = 'ovf://file/fileId'
+    rasd_InstanceID = '6'
+    rasd_ResourceType = '15'
+
 class OvfImage(object):
 
     def __init__(self, imageName, imageDescription, diskFormat,
@@ -230,3 +237,28 @@ class XenOvfImage(OvfImage):
             'Version', '1.0.0')
 
         return self.ovf
+
+class ISOOvfImage(OvfImage):        
+
+
+    def __init__(self, *args, **kw):
+        OvfImage.__init__(self, *args, **kw)
+
+    def createOvf(self):
+        # Set network and disk info in ovf.
+        self.ovf.NetworkSection.Info = constants.NETWORKSECTIONINFO
+        self.ovf.DiskSection.Info = constants.DISKSECTIONINFO
+        self.ovf.VirtualSystemCollection.id = self.imageName
+
+        self.addFileReferences()
+        self.addVirtualSystem()
+        c = CdRom()
+        c.HostResource = 'ovf://file/%s' % self.fileRef.id
+        self.ovf.ovf_VirtualSystemCollection.ovf_VirtualSystem[0].ovf_VirtualHardwareSection[0].addItem(c)
+
+        return self.ovf
+
+    def addHardwareDefaults(self, VirtualHardware):
+        VirtualHardware.addItem(Cpu())
+        VirtualHardware.addItem(Memory())
+        VirtualHardware.addItem(Network())

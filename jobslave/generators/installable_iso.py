@@ -19,11 +19,13 @@ import urlparse
 
 from jobslave.generators import constants
 from jobslave import gencslist
+from jobslave import imagegen
 from jobslave import splitdistro
 from jobslave.imagegen import logCall
 from jobslave.splitdistro import call
 from jobslave.generators.anaconda_images import AnacondaImages
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
+from jobslave.generators import ovf_image
 
 from jobslave import flavors
 from jobslave.helperfuncs import getSlaveRuntimeConfig
@@ -297,6 +299,7 @@ class InstallableIso(ImageGenerator):
 
     def buildIsos(self, topdir):
         outputDir = os.path.join(constants.finishedDir, self.UUID)
+        self.outputDir = outputDir
         util.mkdirChain(outputDir)
         # add the group writeable bit
         os.chmod(outputDir, os.stat(outputDir)[0] & 0777 | 0020)
@@ -668,7 +671,25 @@ class InstallableIso(ImageGenerator):
 
         self.status("Building ISOs")
         splitdistro.splitDistro(topdir, self.troveName, self.maxIsoSize)
-        isoList = self.buildIsos(topdir)
+        outputFileList = self.buildIsos(topdir)
+
+        if self.buildOVF10:
+            self.workDir = os.path.join(constants.tmpDir, self.jobId)
+            self.workingDir = os.path.join(self.workDir, self.basefilename)
+            util.mkdirChain(self.workingDir)
+
+            diskFileSize = imagegen.getFileSize(outputFileList[0][0])
+            self.ovfImage = ovf_image.ISOOvfImage(self.basefilename,
+                self.jobData['description'], None, outputFileList[0][0],
+                diskFileSize, self.maxIsoSize, False, self.workingDir,
+                self.outputDir)
+
+            self.ovfObj = self.ovfImage.createOvf()
+            self.ovfXml = self.ovfImage.writeOvf()
+            self.ovfImage.createManifest()
+            self.ovaPath = self.ovfImage.createOva()
+
+            outputFileList.append((self.ovaPath, 'Installable ISO OVF 1.0'))
 
         # notify client that images are ready
-        self.postOutput(isoList)
+        self.postOutput(outputFileList)

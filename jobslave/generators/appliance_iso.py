@@ -10,7 +10,9 @@ import sys
 import time
 
 # jobslave imports
-from jobslave.generators import bootable_image, constants, installable_iso
+from jobslave.generators import bootable_image, constants, \
+    installable_iso, ovf_image
+from jobslave import imagegen
 from jobslave import buildtypes
 from jobslave import splitdistro
 
@@ -71,7 +73,7 @@ class TarSplit(object):
 class ApplianceInstaller(bootable_image.BootableImage, 
                          installable_iso.InstallableIso):
     def __init__(self, *args, **kwargs):
-        bootable_image.BootableImage.__init__(self, *args, **kwargs)
+        self.__class__.__base__.__init__(self, *args, **kwargs)
         self.showMediaCheck = self.getBuildData('showMediaCheck')
         #self.maxIsoSize = int(self.getBuildData('maxIsoSize'))
         self.maxIsoSize = 0
@@ -204,10 +206,24 @@ class ApplianceInstaller(bootable_image.BootableImage,
                         call('cp', '-R', '--no-dereference', os.path.join(srcDir, src),
                              current)
 
-            isoList = self.buildIsos(topDir)
+            outputFileList = self.buildIsos(topDir)
+
+            if self.buildOVF10:
+                diskFileSize = imagegen.getFileSize(outputFileList[0][0])
+                self.ovfImage = ovf_image.ISOOvfImage(self.basefilename,
+                    self.jobData['description'], None, outputFileList[0][0],
+                    diskFileSize, self.maxIsoSize, False, self.workingDir,
+                    self.outputDir)
+
+                self.ovfObj = self.ovfImage.createOvf()
+                self.ovfXml = self.ovfImage.writeOvf()
+                self.ovfImage.createManifest()
+                self.ovaPath = self.ovfImage.createOva()
+
+                outputFileList.append((self.ovaPath, 'Appliance ISO OVF 1.0'))
 
             # notify client that images are ready
-            self.postOutput(isoList)
+            self.postOutput(outputFileList)
         finally:
             util.rmtree(os.path.normpath(os.path.join(topDir, "..")),
                         ignore_errors = True)
