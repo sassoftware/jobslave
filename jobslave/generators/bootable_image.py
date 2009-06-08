@@ -705,16 +705,6 @@ class BootableImage(ImageGenerator):
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
-        # Unlock the root account by blanking its password, unless a valid
-        # password is already set.
-        if (os.path.exists(os.path.join(dest, 'usr/sbin/usermod'))
-                and not hasRootPassword(dest)):
-            log.info("Blanking root password.")
-            logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
-                    ignoreErrors=True)
-        else:
-            log.info("Not changing root password.")
-
         # set up shadow passwords/md5 passwords
         authConfigCmd = ('chroot %s %%s --kickstart --enablemd5 --enableshadow'
                          ' --disablecach' % dest)
@@ -738,6 +728,16 @@ class BootableImage(ImageGenerator):
             lines.append('')
             f = open(fn, 'w')
             f.write('\n'.join(lines))
+
+        # Unlock the root account by blanking its password, unless a valid
+        # password is already set.
+        if (os.path.exists(os.path.join(dest, 'usr/sbin/usermod'))
+                and not hasRootPassword(dest)):
+            log.info("Blanking root password.")
+            logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
+                    ignoreErrors=True)
+        else:
+            log.info("Not changing root password.")
 
         # Finish installation of bootloader
         bootloader_installer.install()
