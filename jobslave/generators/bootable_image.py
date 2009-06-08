@@ -702,10 +702,15 @@ class BootableImage(ImageGenerator):
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
 
-        # remove root password
-        if os.path.exists(os.path.join(dest, 'usr/sbin/usermod')):
-            logCall("chroot %s sh -c \"egrep -q '^root:\*:0:0:' /etc/passwd && usermod -p '' root\"" % dest,
-                ignoreErrors=True)
+        # Unlock the root account by blanking its password, unless a valid
+        # password is already set.
+        if (os.path.exists(os.path.join(dest, 'usr/sbin/usermod'))
+                and not hasRootPassword(dest)):
+            log.info("Blanking root password.")
+            logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
+                    ignoreErrors=True)
+        else:
+            log.info("Not changing root password.")
 
         # set up shadow passwords/md5 passwords
         authConfigCmd = ('chroot %s %%s --kickstart --enablemd5 --enableshadow'
@@ -767,3 +772,25 @@ class BootableImage(ImageGenerator):
                 return mountPoint
 
         return '/'
+
+
+def hasRootPassword(dest):
+    """
+    Return C{True} if the OS at C{dest} has a root password hash other than
+    C{'*'} or C{'x'}. This includes blank passwords and explicitly disabled
+    accounts, but not accounts that simply never had a password set.
+    """
+    for path in ('etc/passwd', 'etc/shadow'):
+        path = os.path.join(dest, path)
+        if not os.path.exists(path):
+            continue
+        for line in open(path):
+            if ':' not in line:
+                continue
+            username, password = line.rstrip().split(':', 2)[:2]
+            if username != 'root':
+                continue
+            if password not in ('*', 'x'):
+                return True
+
+    return False
