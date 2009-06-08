@@ -3,6 +3,7 @@
 #
 # All Rights Reserved
 #
+import os
 import sys
 from conary import versions
 from conary.deps import deps
@@ -30,6 +31,33 @@ class GeneratorStub(object):
     def status(self, status, statusMessage = None):
         pass
 
+    def createOvf(self, imageName, imageDescription, diskFormat,
+                  diskFilePath, diskCapacity, diskCompressed,
+                  workingDir, outputDir):
+        from jobslave.generators import ovf_image
+        diskFileSize = '1234567890'
+        self.ovfImage = ovf_image.OvfImage(
+            imageName, imageDescription, diskFormat,
+            diskFilePath, diskFileSize, diskCapacity, diskCompressed,
+            workingDir, outputDir)
+
+        self.ovfImage.createOvf()
+        self.ovfImage.writeOvf()
+
+        def createManifest(*args):
+            self.ovfImage.manifestFileName = '%s.mf' % self.basefilename
+
+        self.ovfImage.createManifest = createManifest
+        self.ovfImage.createManifest()
+
+        rval = self.ovfImage.createOva()
+
+        self.ovfXml = self.ovfImage.ovfXml
+        self.ovfPath = self.ovfImage.ovfPath
+        self.ovfFileName = self.ovfImage.ovfFileName
+
+        return rval
+
 class ImageGeneratorStub(GeneratorStub):
     arch = 'x86'
     jobId = 'test.rpath.local-build-1-2'
@@ -50,8 +78,11 @@ class BootableImageStub(ImageGeneratorStub):
         self.workDir = '/tmp/workdir'
         self.outputDir = '/tmp/outputdir'
         self.basefilename = 'image'
+        self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.mountDict = {'/': (0, 100, 'ext3'), 'swap': (0, 100, 'swap')}
         self.jobData = jobData
+        self.buildOVF10 = jobData.get('buildOvf', False)
+        self.outputFileList = []
 
         if jobData.has_key('troveVersion'):
             versionStr = self.jobData['troveVersion']
@@ -109,6 +140,17 @@ class BootableImageStub(ImageGeneratorStub):
         return dest
 
 class InstallableIsoStub(ImageGeneratorStub):
+    jobId = "test.rpath.local-build-4-3"
+    UUID = "abcd"
+    productDir = 'rPath'
+
+    def retrieveTemplates(self):
+        return None, None
+
+    def prepareTemplates(self, topdir, templateDir):
+        return None
+
+class ApplianceInstallerStub(ImageGeneratorStub):
     jobId = "test.rpath.local-build-4-3"
     UUID = "abcd"
     productDir = 'rPath'

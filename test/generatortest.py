@@ -24,6 +24,7 @@ import jobslave_helper
 import image_stubs
 import bootableimgtest
 import logging
+from ovfxmlresults import *
 
 from jobslave import buildtypes
 from jobslave import imagegen
@@ -32,6 +33,7 @@ from jobslave import imagegen
 from testutils import mock
 from jobslave.generators import constants
 
+from jobslave.generators import appliance_iso
 from jobslave.generators import raw_fs_image
 from jobslave.generators import raw_hd_image
 from jobslave.generators import xen_ova
@@ -42,6 +44,7 @@ from jobslave.generators import vpc
 from jobslave.generators import vmware_image
 from jobslave.generators import installable_iso
 from jobslave.generators import update_iso
+from jobslave.generators import ovf_image
 
 import simplejson
 
@@ -600,11 +603,14 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.injectPopen("")
         g = vmware_image.VMwareImage({}, [])
 
+        g.jobData['description'] = 'test vmware image description'
+
         g.makeHDImage = lambda x: open(x, 'w').write('')
         g.adapter = 'ide'
         g.baseFlavor = deps.parseFlavor("xen,domU is: x86")
         tmpDir = tempfile.mkdtemp()
         g.workDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
         g.outputDir = tmpDir
         try:
             g.write()
@@ -635,6 +641,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         tmpDir = tempfile.mkdtemp()
         g.workDir = tmpDir
         g.outputDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
         try:
             g.write()
             ref = sorted(['image.vmx'])
@@ -664,6 +671,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         tmpDir = tempfile.mkdtemp()
         g.workDir = tmpDir
         g.outputDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
 
         try:
             g.write()
@@ -689,7 +697,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.resetPopen()
 
         self.assertEquals(len(g.posted_output), 1)
-        self.assertEquals(g.posted_output[0][1], 'VMware (R) OVF Image')
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) OVF 0.9 Image')
 
     def testVMwareSetModes(self):
         g = vmware_image.VMwareImage({}, [])
@@ -763,6 +771,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             g.__class__.__base__.prepareTemplates = prepareTemplates
             util.rmtree(tmpDir)
 
+
 class GeneratorsMetaTest(jobslave_helper.ExecuteLoggerTest):
     def testUpdateIsoApi(self):
         # this test exists to force engineers to pay attention to how api
@@ -791,6 +800,296 @@ class GeneratorsMetaTest(jobslave_helper.ExecuteLoggerTest):
             self.failIf(uvarkw != ivarkw,
                     "%s method in update ISO does not match keyword args" % \
                             funcName)
+
+
+class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
+    bases = {}
+    def setUp(self):
+        self.savedTmpDir = constants.tmpDir
+        constants.tmpDir = tempfile.mkdtemp()
+        jobslave_helper.ExecuteLoggerTest.setUp(self)
+        self.bases['RawFsImage'] = raw_fs_image.RawFsImage.__bases__
+        raw_fs_image.RawFsImage.__bases__ = (image_stubs.BootableImageStub,)
+
+        self.bases['RawHdImage'] = raw_hd_image.RawHdImage.__bases__
+        raw_hd_image.RawHdImage.__bases__ = (image_stubs.BootableImageStub,)
+
+        self.bases['Tarball'] = tarball.Tarball.__bases__
+        tarball.Tarball.__bases__ = (image_stubs.BootableImageStub,)
+
+        self.bases['UpdateISO'] = update_iso.UpdateIso.__bases__
+        update_iso.UpdateIso.__bases__ = (image_stubs.InstallableIsoStub,)
+
+        self.bases['ApplianceISO'] = \
+            appliance_iso.ApplianceInstaller.__bases__
+        appliance_iso.ApplianceInstaller.__bases__ = \
+            (image_stubs.ApplianceInstallerStub,)
+
+        self.bases['InstallableISO'] = \
+            installable_iso.InstallableIso.__bases__
+        installable_iso.InstallableIso.__bases__ = \
+            (image_stubs.InstallableIsoStub,)
+
+        constants.templateDir = os.path.join(os.path.dirname( \
+                os.path.dirname(os.path.abspath(__file__))), 'templates')
+
+        self.rmtree = util.rmtree
+
+    def tearDown(self):
+        raw_fs_image.RawFsImage.__bases__ = self.bases['RawFsImage']
+        raw_hd_image.RawHdImage.__bases__ = self.bases['RawHdImage']
+        tarball.Tarball.__bases__ = self.bases['Tarball']
+        update_iso.UpdateIso.__bases__ = self.bases['UpdateISO']
+        appliance_iso.ApplianceInstaller.__bases__ = \
+            self.bases['ApplianceISO']
+        installable_iso.InstallableIso.__bases__ = \
+            self.bases['InstallableISO']
+
+        util.rmtree(constants.tmpDir, ignore_errors = True)
+        constants.tmpDir = self.savedTmpDir
+        jobslave_helper.ExecuteLoggerTest.tearDown(self)
+        util.rmtree = self.rmtree
+
+    def testVMwareImageOvf1Dot0(self):
+        self.injectPopen("")
+        g = vmware_image.VMwareImage({}, [])
+        g.buildOVF10 = True
+
+        g.jobData['description'] = 'Test Description'
+
+        def makeHDImage(x):
+            open(x, 'w').write('')
+            return 12345678900
+
+        g.makeHDImage = makeHDImage
+        g.adapter = 'ide'
+        g.baseFlavor = deps.parseFlavor("xen,domU is: x86")
+        tmpDir = tempfile.mkdtemp()
+        g.workDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
+        g.outputDir = tmpDir
+        g.useOVF = False
+
+        oldOsUnlink = os.unlink
+        deleted = []
+        def unlink(*args):
+            deleted.append(*args)
+        os.unlink = unlink
+
+        try:
+            g.write()
+            ovfFileContents = open(g.ovfPath).read()
+            self.assertEquals(VMwareOvfXml, ovfFileContents)
+            
+            expectedCall1 = 'tar -C %s -cv %s -f %s'
+            expectedCall2 = 'tar -C %s -rv %s -f %s'
+            self.assertEquals(expectedCall1 % \
+                (g.workingDir, g.ovfFileName, g.ovaPath),
+                self.callLog[1])
+            self.assertEquals(expectedCall2 % \
+                (g.workingDir, 
+                 g.basefilename + '.mf',
+                 g.ovaPath),
+                self.callLog[2])
+            self.assertEquals(expectedCall2 % \
+                (g.outputDir, 
+                 g.basefilename + '.vmdk.gz',
+                 g.ovaPath),
+                self.callLog[3])
+        finally:
+            os.unlink = oldOsUnlink
+            util.rmtree(tmpDir)
+
+        self.resetPopen()
+
+        self.assertEquals(len(g.posted_output), 2)
+        self.assertEquals(g.posted_output[0][1], 'VMware (R) Image')
+        self.assertEquals(g.posted_output[1][1], 'VMware (R) OVF 1.0 Image')
+
+    def testAMIOvf1Dot0(self):
+        g = self.getHandler(buildtypes.AMI)
+        g.buildOVF10 = True
+        g.createAMIBundle = lambda *args, **kwargs: '/fake/path'
+        g.uploadAMIBundle = lambda *args, **kwargs: True
+        g.registerAMI = lambda *args, **kwargs: ('testId', 'testManifest')
+        g.postAMI = lambda amiID, amiManifestName: None
+        g.jobData['description'] = 'Test Description'
+        g.write()
+
+        expectedCall1 = 'tar -C %s -cv %s -f %s'
+        expectedCall2 = 'tar -C %s -rv %s -f %s'
+
+        self.assertEquals(amiOvfXml, g.ovfXml)
+        self.assertEquals(self.callLog[3], 
+            expectedCall1 % (g.workingDir, g.ovfFileName, g.ovaPath))
+        self.assertEquals(self.callLog[4],
+            expectedCall2 % (g.workingDir, g.basefilename + '.mf',
+                             g.ovaPath))
+        self.assertEquals(self.callLog[5],
+            expectedCall2 % (g.outputDir, g.basefilename + '-root.ext3',
+                             g.ovaPath))
+        self.assertEquals(g.posted_output[0][0], g.ovaPath)
+        self.assertEquals(g.posted_output[0][1], 'AMI OVF 1.0 Image')
+
+    def testRawHdImageOvf1Dot0(self):
+        self.injectPopen("")
+
+        g = raw_hd_image.RawHdImage({}, [])
+        g.buildOVF10 = True
+        g.jobData['description'] = 'Test Description'
+
+        g.write()
+        
+        self.resetPopen()
+        self.assertEquals(rawHdOvfXml, g.ovfXml)
+        self.assertEquals(len(g.posted_output), 2)
+        self.assertEquals(g.posted_output[0][1], 'Raw Hard Disk OVF 1.0 Image')
+        self.assertEquals(g.posted_output[1][1], 'Raw Hard Disk Image')
+
+    def testRawFsOvf1Dot0(self):
+        self.injectPopen("")
+
+        g = raw_fs_image.RawFsImage({}, [])
+        g.buildOVF10 = True
+        g.jobData['description'] = 'Test Description'
+
+        g.write()
+
+        self.resetPopen()
+        self.assertEquals(rawFsOvfXml, g.ovfXml)
+        self.assertEquals(len(g.posted_output), 2)
+        self.assertEquals(g.posted_output[0][1], 'Raw Filesystem OVF 1.0 Image')
+        self.assertEquals(g.posted_output[1][1], 'Raw Filesystem Image')
+
+    def testVpcOvf1Dot0(self):
+        self.injectPopen("")
+
+        g = vpc.VirtualPCImage({}, [])
+        g.buildOVF10 = True
+        g.jobData['description'] = 'Test Description'
+        g.makeHDImage = lambda image: 1500000000
+        g.createVHD = lambda *args, **kwargs: None
+
+        def createManifest(*args):
+            g.ovfImage.manifestFileName = g.basefilename + '.mf'
+        ovf_image.XenOvfImage.createManifest = createManifest
+        imagegen.getFileSize = lambda *args: 1234567890
+        g.write()
+
+        self.resetPopen()
+        self.assertEquals(vpcOvfXml, g.ovfXml)
+        self.assertEquals(len(g.posted_output), 2)
+        self.assertEquals(g.posted_output[0][1], 'Virtual Server')
+        self.assertEquals(g.posted_output[1][1], 'Microsoft (R) Hyper-V OVF 1.0 Image')
+      
+    def xtestAppIsoOvf1Dot0(self):
+        self.injectPopen("")
+
+        g = appliance_iso.ApplianceInstaller(
+            {'project':{'hostname':'testproject'},
+             'name':'testname'}, [])
+        g.buildOVF10 = True
+        g.jobData['description'] = 'Test Description'
+
+        tmpDir = tempfile.mkdtemp()
+        g.workDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
+        util.mkdirChain(g.workingDir)
+        g.outputDir = tmpDir
+        util.mkdirChain(g.outputDir)
+
+        def createManifest(*args):
+            g.ovfImage.manifestFileName = g.basefilename + '.mf'
+        ovf_image.ISOOvfImage.createManifest = createManifest
+        imagegen.getFileSize = lambda *args: 1234567890
+
+        g.installFileTree = lambda *args: None
+        class TarSplit(object):
+            def __init__(*args, **kw):
+                pass
+            def splitFile(*args, **kw):
+                pass
+            def writeTbList(*args, **kw):
+                pass
+        appliance_iso.TarSplit = TarSplit
+        g._setupTrove = lambda *args: None
+        util.rmtree = lambda *args, **kw: None
+        g.extractMediaTemplate = lambda *args, **kw: None
+        g.setupKickstart = lambda *args, **kw: None
+        g.writeProductImage = lambda *args, **kw: None
+        class Flavor:
+            def freeze(self):
+                return ''
+        installable_iso.getArchFlavor = lambda *args, **kw: Flavor()
+        from conary.deps import deps
+        g.baseFlavor = deps.Flavor()
+        g.buildIsos = lambda *args, **kw: [('/tmp/file.iso',),]
+
+        g.write()
+
+        self.resetPopen()
+        self.assertEquals(appIsoOvfXml, g.ovfXml)
+
+    def xtestInstIsoOvf1Dot0(self):
+        self.injectPopen("")
+
+        g = installable_iso.InstallableIso(
+            {'project':{'hostname':'testproject'},
+             'name':'testname'}, [])
+        g.buildOVF10 = True
+        g.basefilename = 'testinstiso'
+        g.jobData['description'] = 'Test Description'
+
+        tmpDir = tempfile.mkdtemp()
+        g.workDir = tmpDir
+        g.workingDir = os.path.join(g.workDir, g.basefilename)
+        util.mkdirChain(g.workingDir)
+        g.outputDir = tmpDir
+        util.mkdirChain(g.outputDir)
+
+        def createManifest(*args):
+            g.ovfImage.manifestFileName = g.basefilename + '.mf'
+        ovf_image.ISOOvfImage.createManifest = createManifest
+        imagegen.getFileSize = lambda *args: 1234567890
+
+        g.installFileTree = lambda *args: None
+        class TarSplit(object):
+            def __init__(*args, **kw):
+                pass
+            def splitFile(*args, **kw):
+                pass
+            def writeTbList(*args, **kw):
+                pass
+        appliance_iso.TarSplit = TarSplit
+        g._setupTrove = lambda *args: None
+        util.rmtree = lambda *args, **kw: None
+        g.extractMediaTemplate = lambda *args, **kw: None
+        g.setupKickstart = lambda *args, **kw: None
+        g.writeProductImage = lambda *args, **kw: None
+        class Flavor:
+            def freeze(self):
+                return ''
+        installable_iso.getArchFlavor = lambda *args, **kw: Flavor()
+        from conary.deps import deps
+        g.baseFlavor = deps.Flavor()
+        g.buildIsos = lambda *args, **kw: [('/tmp/file.iso',),]
+        g.retrieveTemplates = lambda *args, **kw: ('','')
+        class Tg:
+            def writeCsList(self, *args):
+                pass
+            def writeGroupCs(self, *args):
+                pass
+        g.extractChangeSets = lambda *args, **kw: Tg()
+        g.extractPublicKeys = lambda *args, **kw: None
+        g.troveName = 'testTrove'
+        from jobslave import splitdistro
+        splitdistro.splitDistro = lambda *args, **kw: None
+
+        g.write()
+
+        self.resetPopen()
+        self.assertEquals(instIsoOvfXml, g.ovfXml)
+
 
 
 if __name__ == "__main__":

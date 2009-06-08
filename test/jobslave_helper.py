@@ -103,6 +103,39 @@ class DummyHandler(logging.Handler):
 
 
 class JobSlaveHelper(TestCase):
+
+    data = {
+        'protocolVersion'   : 1,
+        'type'              : 'build',
+        'project'           : {'name'       : 'Foo',
+                               'hostname'   : 'foo',
+                               'label'      : 'foo.rpath.local@rpl:devel',
+                               'conaryCfg'  : ''},
+        'UUID'              : 'mint.rpath.local-build-25',
+        'troveName'         : 'group-core',
+        'troveVersion'      : '/conary.rpath.com@rpl:1/0:1.0.1-1-1',
+        'troveFlavor'       : '1#x86',
+        'data'              : {'jsversion': '3.0.0'},
+        'outputQueue'       : 'test',
+        'name'              : 'Test Project',
+        'entitlements'      : {'conary.rpath.com': ('class', 'key')},
+        'buildType'         : None,
+        'proxy'             : 
+            {'http'     : 'http://jim:bar@proxy.example.com:888/',
+             'https'    : 'https://jim:bar@proxy.example.com:888/',},
+        }
+
+    amiData = {'amiData': {
+                'ec2S3Bucket'       : 'fake_s3_bucket',
+                'ec2Certificate'    : 'fake_ec2_certificate',
+                'ec2CertificateKey' : 'fake_ec2_cert_key',
+                'ec2AccountId'      : 'fake_ec2_account_id',
+                'ec2PublicKey'      : 'fake_public_key',
+                'ec2PrivateKey'     : 'fake_private_key',
+                'ec2LaunchGroups'   : True,
+                'ec2LaunchUsers'    : True}
+              }
+
     def setUp(self):
         TestCase.setUp(self)
 
@@ -191,35 +224,10 @@ class JobSlaveHelper(TestCase):
         TestCase.tearDown(self)
 
     def getHandler(self, buildType):
-        data = {
-            'protocolVersion': 1,
-            'type' : 'build',
-            'project' : {'name': 'Foo',
-                         'hostname' : 'foo',
-                         'label': 'foo.rpath.local@rpl:devel',
-                         'conaryCfg': ''},
-            'UUID' : 'mint.rpath.local-build-25',
-            'troveName' : 'group-core',
-            'troveVersion' : '/conary.rpath.com@rpl:1/0:1.0.1-1-1',
-            'troveFlavor': '1#x86',
-            'data' : {'jsversion': '3.0.0'},
-            'outputQueue': 'test',
-            'name': 'Test Project',
-            'entitlements': {'conary.rpath.com': ('class', 'key')},
-            'buildType' : buildType,
-            'proxy': {'http': 'http://jim:bar@proxy.example.com:888/',
-                      'https': 'https://jim:bar@proxy.example.com:888/',},
-            }
+        self.data['buildType'] = buildType
         if buildType == buildtypes.AMI:
-            data['amiData'] = {'ec2S3Bucket' : 'fake_s3_bucket',
-                    'ec2Certificate' : 'fake_ec2_certificate',
-                    'ec2CertificateKey' : 'fake_ec2_cert_key',
-                    'ec2AccountId' : 'fake_ec2_account_id',
-                    'ec2PublicKey' : 'fake_public_key',
-                    'ec2PrivateKey' : 'fake_private_key',
-                    'ec2LaunchGroups' : True,
-                    'ec2LaunchUsers' : True}
-        return jobhandler.getHandler(data, self.jobSlave)
+            self.data.update(self.amiData)
+        return jobhandler.getHandler(self.data, self.jobSlave)
 
     def suppressOutput(self, func, *args, **kwargs):
         oldErr = os.dup(sys.stderr.fileno())

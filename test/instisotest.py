@@ -559,6 +559,7 @@ label kscdrom
             g.jobData['name'] = 'test build'
             g.troveName = 'test'
             g.maxIsoSize = 650 * 1024 * 1024
+            g.buildOVF10 = False
             g.write()
         finally:
             splitdistro.splitDistro = splitDistro

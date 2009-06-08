@@ -7,8 +7,9 @@
 import os
 
 from jobslave import buildtypes
+from jobslave import imagegen
 from jobslave.generators import constants
-from jobslave.generators import bootable_image, raw_hd_image
+from jobslave.generators import bootable_image, raw_hd_image, ovf_image
 from jobslave.generators import vhd
 
 from conary.lib import util
@@ -67,7 +68,24 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
 
         self.status('Compressing Microsoft Virtual PC Image')
         self.gzip(workingDir, outputFile)
-        self.postOutput(((outputFile, 'Virtual Server'),))
+        self.outputFileList.append((outputFile, 'Virtual Server'))
+
+        if self.buildOVF10:
+            self.capacity = 10000
+            diskFileSize = imagegen.getFileSize(outputFile)
+            self.ovfImage = ovf_image.XenOvfImage(self.basefilename,
+                self.jobData['description'], constants.VHD, outputFile,
+                diskFileSize, self.capacity, True, workingDir,
+                self.outputDir)
+
+            self.ovfObj = self.ovfImage.createOvf()
+            self.ovfXml = self.ovfImage.writeOvf()
+            self.ovfImage.createManifest()
+            self.ovaPath = self.ovfImage.createOva()
+            self.outputFileList.append((self.ovaPath,
+                '%s %s' % (self.productName, constants.OVFIMAGETAG)))
+
+        self.postOutput(self.outputFileList)
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
