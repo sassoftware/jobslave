@@ -12,6 +12,7 @@ import sys
 import time
 
 from jobslave.generators import constants
+from jobslave.generators.raw_hd_image import divCeil
 
 SEEK_SET = 0
 SEEK_CUR = 1
@@ -128,13 +129,13 @@ class VHDFooter(PackedHeader):
          ("reserved",       "427s", "")
     ]
 
-    cylinderSize = constants.bytesPerCylinder
-    sectors = constants.sectors
-    heads = constants.heads
+    sectors = constants.VHDsectors
+    heads = constants.VHDheads
+    cylinderSize = sectors * heads * constants.sectorSize
 
     def __setattr__(self, name, val):
         if name == 'originalSize':
-            cyl = val / self.cylinderSize
+            cyl = divCeil(val, self.cylinderSize)
             self.diskGeometry = \
                 struct.pack(">Hbb", cyl, self.heads, self.sectors)
         PackedHeader.__setattr__(self, name, val)

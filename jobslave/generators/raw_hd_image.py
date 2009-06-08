@@ -27,9 +27,16 @@ def divCeil(num, div):
 
 
 class HDDContainer:
-    def __init__(self, image, totalSize):
+    def __init__(self, image, totalSize, 
+                 heads=constants.heads, 
+                 sectors=constants.sectors
+                ):
         self.totalSize = totalSize
         self.image = image
+        self.heads = heads
+        self.sectors = sectors
+        # a derived value for convenience
+        self.bytesPerCylinder = heads * sectors * constants.sectorSize
 
         # create the raw file
         # NB: blocksize is unrelated to the one in constants.py, and is
@@ -40,9 +47,9 @@ class HDDContainer:
             image, max(seek, 0), blocksize))
 
     def partition(self, partitions):
-        cylinders = divCeil(self.totalSize, constants.bytesPerCylinder)
+        cylinders = divCeil(self.totalSize, self.bytesPerCylinder)
         cmd = '/sbin/sfdisk -C %d -S %d -H %d %s -uS --force' % \
-            (cylinders, constants.sectors, constants.heads, self.image)
+            (cylinders, self.sectors, self.heads, self.image)
         sfdisk = util.popen(cmd, 'w')
 
         for start, size, fsType, bootable in partitions:
@@ -55,12 +62,16 @@ class HDDContainer:
 
 
 class RawHdImage(bootable_image.BootableImage):
+    heads = constants.heads
+    sectors = constants.sectors
+    bytesPerCylinder = constants.bytesPerCylinder
+
     def makeHDImage(self, image):
         _, realSizes = self.getImageSize()
         lvmContainer = None
 
         def align(size):
-            alignTo = constants.bytesPerCylinder
+            alignTo = self.bytesPerCylinder
             return divCeil(size, alignTo) * alignTo
 
         if os.path.exists(image):
@@ -84,7 +95,7 @@ class RawHdImage(bootable_image.BootableImage):
         lvmSize = align(lvmSize)
 
         totalSize = rootEnd + lvmSize
-        container = HDDContainer(image, totalSize)
+        container = HDDContainer(image, totalSize, self.heads, self.sectors)
 
         # Calculate the offsets and sizes of the root and LVM partitions.
         # Note that the Start/Blocks variables are measured in blocks

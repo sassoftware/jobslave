@@ -15,6 +15,10 @@ from jobslave.generators import vhd
 from conary.lib import util
 
 class VirtualPCImage(raw_hd_image.RawHdImage):
+    heads = constants.VHDheads
+    sectors = constants.VHDsectors
+    bytesPerCylinder = heads * sectors * constants.sectorSize
+
     @bootable_image.timeMe
     def createVHD(self, hdImage, filebase):
         diskType = self.getBuildData('vhdDiskType')

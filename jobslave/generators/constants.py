@@ -13,6 +13,9 @@ sectorSize          = 512 # bytes per block ("sector")
 sectors             = 32  # sectors per disk
 heads               = 64  # heads per disk
 
+VHDsectors          = 63  # sectors per disk for VHD
+VHDheads            = 16  # heads per disk for VHD
+
 bytesPerCylinder    = sectors * sectorSize * heads
 partitionOffset     = 128 * sectorSize # offset of first partition (bytes)
 
