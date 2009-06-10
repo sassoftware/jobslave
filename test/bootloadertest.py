@@ -27,9 +27,11 @@ class BootloaderTest(jobslave_helper.JobSlaveHelper):
         if not handler:
             handler = self.getHandler(buildtypes.RAW_HD_IMAGE)
         if kind == 'grub':
-            return grub_installer.GrubInstaller(handler, tmpdir, **kw)
+            return grub_installer.GrubInstaller(handler, tmpdir,
+                    handler.sectors, handler.heads, **kw)
         elif kind == 'extlinux':
-            return extlinux_installer.ExtLinuxInstaller(handler, tmpdir, **kw)
+            return extlinux_installer.ExtLinuxInstaller(handler, tmpdir,
+                    handler.sectors, handler.heads, **kw)
         else:
             self.fail()
 
@@ -126,7 +128,7 @@ class BootloaderTest(jobslave_helper.JobSlaveHelper):
             self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
             self.touch(os.path.join(tmpDir, 'etc', 'debian_version'))
             installer = jobslave.generators.get_bootloader(
-                            self.getHandler(buildtypes.RAW_HD_IMAGE), tmpDir)
+                    self.getHandler(buildtypes.RAW_HD_IMAGE), tmpDir, 32, 64)
 
             self.calls = []
             self.mock(grub_installer, 'logCall', lambda x: self.calls.append(x))

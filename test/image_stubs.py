@@ -10,6 +10,8 @@ from conary.deps import deps
 from conary.lib import util
 
 from jobslave import bootloader
+from jobslave.generators import constants
+
 
 class GeneratorStub(object):
     UUID = "abcd"
@@ -73,6 +75,9 @@ class ImageGeneratorStub(GeneratorStub):
 
 class BootableImageStub(ImageGeneratorStub):
     jobId = "test.rpath.local-build-2-4"
+    sectors = constants.sectors
+    heads = constants.heads
+
     def __init__(self, jobData, parent, *args, **kwargs):
         self.filesystems = {}
         self.workDir = '/tmp/workdir'
@@ -131,7 +136,7 @@ class BootableImageStub(ImageGeneratorStub):
 
     def installFileTree(self, dest):
         util.mkdirChain(dest)
-        return bootloader.DummyInstaller(self, None)
+        return bootloader.DummyInstaller(self, None, None, None)
 
     def installGrub(self, fakeRoot, image, size):
         pass

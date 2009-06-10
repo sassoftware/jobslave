@@ -62,16 +62,13 @@ class HDDContainer:
 
 
 class RawHdImage(bootable_image.BootableImage):
-    heads = constants.heads
-    sectors = constants.sectors
-    bytesPerCylinder = constants.bytesPerCylinder
 
     def makeHDImage(self, image):
         _, realSizes = self.getImageSize()
         lvmContainer = None
 
         def align(size):
-            alignTo = self.bytesPerCylinder
+            alignTo = self.heads * self.sectors * constants.sectorSize
             return divCeil(size, alignTo) * alignTo
 
         if os.path.exists(image):

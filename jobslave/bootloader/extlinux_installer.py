@@ -9,7 +9,6 @@ import os
 from conary.lib import util
 
 from jobslave import bootloader
-from jobslave.generators import constants
 from jobslave.imagegen import logCall
 
 
@@ -31,7 +30,7 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
             util.mkdirChain(os.path.join(self.image_root, 'boot', 'extlinux'))
             logCall('chroot "%s" /sbin/extlinux --install '
                 '--heads %s --sectors %s /boot/extlinux/' % (self.image_root,
-                constants.heads, constants.sectors))
+                self.heads, self.sectors))
         finally:
             logCall('umount "%s"' % image_dev)
             logCall('umount "%s"' % image_proc)

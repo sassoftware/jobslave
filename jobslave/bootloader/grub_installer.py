@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008 rPath, Inc.
+# Copyright (c) 2008-2009 rPath, Inc.
 #
 # All rights reserved
 #
@@ -98,8 +98,10 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             return 'menu.lst'
         return 'grub.conf'
 
-    def __init__(self, parent, image_root, grub_path = '/sbin/grub'):
-        bootloader.BootloaderInstaller.__init__(self, parent, image_root)
+    def __init__(self, parent, image_root, sectors, heads,
+            grub_path='/sbin/grub'):
+        bootloader.BootloaderInstaller.__init__(self, parent, image_root,
+                sectors, heads)
         self.grub_path = grub_path
 
     def setup(self):
@@ -237,17 +239,17 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
     def install_mbr(self, root_dir, mbr_device, size):
         # Install grub into the MBR
-        #  Assumed: raw hdd image at mbr_device is bind mounted at
-        #  root_dir/disk.img
-        #           The size requested is an integer multiple of
-        #  constants.bytesPerCylinder
-        assert not (size % constants.bytesPerCylinder), "The size passed in here must be cylinder aligned"
-        cylinders = size / constants.bytesPerCylinder
+        #  Assumed:
+        # * raw hdd image at mbr_device is bind mounted at root_dir/disk.img
+        # * The size requested is an integer multiple of the cylinder size
+        bytesPerCylinder = self.sectors * self.heads * constants.sectorSize
+        assert not (size % bytesPerCylinder), "The size passed in here must be cylinder aligned"
+        cylinders = size / bytesPerCylinder
         grubCmds = "device (hd0) /disk.img\n" \
                    "geometry (hd0) %d %d %d\n" \
                    "root (hd0,0)\n" \
                    "setup (hd0)" % (cylinders,
-                        constants.heads, constants.sectors)
+                        self.heads, self.sectors)
 
         logCall('echo -e "%s" | '
                 'chroot %s sh -c "%s --no-floppy --batch"'

@@ -14,7 +14,7 @@ from jobslave.bootloader.extlinux_installer import ExtLinuxInstaller
 from jobslave.bootloader.grub_installer import GrubInstaller
 
 
-def get_bootloader(parent, image_root, override=None):
+def get_bootloader(parent, image_root, sectors, heads, override=None):
     '''
     Choose an appropriate bootloader for the given image and return a
     Bootloader instance used to prepare and install the bootloader.
@@ -24,9 +24,10 @@ def get_bootloader(parent, image_root, override=None):
     if override == 'extlinux' or (not override and \
       os.path.exists(util.joinPaths(image_root, 'sbin/bootman')) and \
       os.path.exists(util.joinPaths(image_root, 'sbin/extlinux'))):
-        return ExtLinuxInstaller(parent, image_root)
+        return ExtLinuxInstaller(parent, image_root, sectors, heads)
     elif override == 'grub' or (not override and grubpath):
-        return GrubInstaller(parent, image_root, grubpath.replace(image_root, ''))
+        return GrubInstaller(parent, image_root, sectors, heads,
+                grubpath.replace(image_root, ''))
     log.warning('Could not find extlinux (with bootman) or grub')
     log.warning('No bootloader will be installed!')
-    return DummyInstaller(parent, image_root)
+    return DummyInstaller(parent, image_root, sectors, heads)

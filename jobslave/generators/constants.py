@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2008 rPath, Inc.
+# Copyright (c) 2004-2009 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -16,7 +16,7 @@ heads               = 64  # heads per disk
 VHDsectors          = 63  # sectors per disk for VHD
 VHDheads            = 16  # heads per disk for VHD
 
-bytesPerCylinder    = sectors * sectorSize * heads
+bytesPerCylinder    = sectors * sectorSize * heads  # DEPRECATED
 partitionOffset     = 128 * sectorSize # offset of first partition (bytes)
 
 

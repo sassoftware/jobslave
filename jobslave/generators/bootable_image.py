@@ -241,6 +241,9 @@ class StubFilesystem:
         pass
 
 class BootableImage(ImageGenerator):
+    heads = constants.heads
+    sectors = constants.sectors
+
     def __init__(self, *args, **kwargs):
         self.filesystems = { '/': StubFilesystem() }
         self.scsiModules = False
@@ -685,7 +688,7 @@ class BootableImage(ImageGenerator):
                 bootloader_override = 'grub'
 
             bootloader_installer = generators.get_bootloader(self, dest,
-                bootloader_override)
+                    self.sectors, self.heads, bootloader_override)
             bootloader_installer.setup()
 
             self.addScsiModules(dest)
