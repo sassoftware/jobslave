@@ -123,7 +123,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
         outputFile = os.path.join(self.outputDir, self.basefilename + self.suffix)
-        vmdkGzOutputFile = os.path.join(self.outputDir, 
+        self.vmdkGzOutputFile = os.path.join(self.outputDir, 
                                       self.basefilename + '.vmdk.gz')
         ovfOutputFile = outputFile.replace(self.suffix, '-ovf.tar.gz')
 
@@ -134,6 +134,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
         vmxPath = os.path.join(self.workingDir, self.basefilename + '.vmx')
         ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
+        self.vmdkPath = vmdkPath
 
         self.capacity = os.stat(image)[stat.ST_SIZE]
         self.createVMDK(image, vmdkPath, self.capacity)
@@ -150,16 +151,17 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 (outputFile, self.productName + ' Image'))
 
         if self.buildOVF10:
-            self.gzip(vmdkPath, vmdkGzOutputFile)
+            self.gzip(self.vmdkPath, self.vmdkGzOutputFile)
 
             self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.VMDK, vmdkGzOutputFile,
+                self.jobData['description'], constants.VMDK, 
+                self.vmdkGzOutputFile,
                 totalSize, True, self.workingDir,
                 self.outputDir)
             self.outputFileList.append((self.ovaPath,
                 self.productName + ' %s' % constants.OVFIMAGETAG))
 
-            os.unlink(vmdkGzOutputFile)
+            os.unlink(self.vmdkGzOutputFile)
 
         # now create OVF in addition, if applicable
         # For building OVF 0.9
@@ -252,7 +254,9 @@ class VMwareESXImage(VMwareImage):
         ofile.close()
 
         # Move the raw HD image into place.
-        os.rename(hdImage, outfile.replace('.vmdk', '-flat.vmdk'))
+        self.vmdkPath = outfile.replace('.vmdk', '-flat.vmdk')
+        self.vmdkGzOutputFile = self.vmdkGzOutputFile.replace('.vmdk', '-flat.vmdk')
+        os.rename(hdImage, self.vmdkPath)
 
     def getGuestOS(self):
         arch64 = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64'))
