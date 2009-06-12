@@ -726,6 +726,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             open(hdImage, 'w').write('')
             outFile = os.path.join(tmpDir, 'outfile.vmdk')
             size = 1024 * 1024
+            g.vmdkGzOutputFile = 'outfile.vmdk.gz'
             g.createVMDK(hdImage, outFile, size)
             self.failIf(sorted(os.listdir(tmpDir)) != \
                     ['outfile-flat.vmdk', 'outfile.vmdk'],
