@@ -8,7 +8,7 @@ VMwareOvfXml = """\
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>
-    <ovf:Disk ovf:diskId="diskId_1" ovf:capacity="12345678900" ovf:fileRef="fileId_1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#sparse"/>
+    <ovf:Disk ovf:diskId="diskId_1" ovf:capacity="12345678900" ovf:fileRef="fileId_1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
   </ovf:DiskSection>
   <ovf:NetworkSection>
     <ovf:Info>List of logical networks used in the package</ovf:Info>

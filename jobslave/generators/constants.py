@@ -60,7 +60,7 @@ DISKFORMATS = {
 sys.modules[__name__].__dict__.update(DISKFORMATS)
 
 DISKFORMATURLS = {
-    VMDK : 'http://www.vmware.com/interfaces/specifications/vmdk.html#sparse',
+    VMDK : 'http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized',
     RAWFS : 'http://wiki.rpath.com/wiki/rBuilder_Online:Raw_Filesystem_Image',
     RAWHD : 'http://wiki.rpath.com/wiki/rBuilder_Online:Raw_Hard_Disk_Image',
     VHD  : 'http://www.microsoft.com/technet/virtualserver/downloads/vhdspec.mspx'
