@@ -8,7 +8,8 @@ import os
 import stat
 
 from jobslave import buildtypes
-from jobslave.generators import bootable_image, raw_hd_image, constants
+from jobslave.generators import bootable_image, raw_hd_image, constants, \
+    ovf_image
 from jobslave.imagegen import logCall
 from conary.lib import util
 from conary.deps import deps
@@ -62,6 +63,8 @@ def substitute(template, variables):
 class VMwareImage(raw_hd_image.RawHdImage):
     useOVF = False
     useVMX = True
+
+    ovfClass = ovf_image.VMwareOVFImage
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):

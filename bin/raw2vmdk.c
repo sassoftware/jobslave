@@ -26,7 +26,7 @@
 
 #define CID_NOPARENT        0x0
 #define SPARSE_MAGICNUMBER  0x564d444b /* 'V' 'M' 'D' 'K' */
-#define VERSION             0x1
+#define VERSION             0x3
 #define FLAGS               0x3        /* flags for monolithicSparse */
 #define SOFLAGS             0x30001    /* flags for streamOptimized */
 #define SELC                '\n'

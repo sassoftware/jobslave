@@ -118,7 +118,9 @@ class OvfImage(object):
     def addHardwareDefaults(self, VirtualHardware):
         VirtualHardware.addItem(Cpu())
         VirtualHardware.addItem(Memory())
-        VirtualHardware.addItem(Network())
+        network = Network()
+        network.Connection = self.ovf.NetworkSection.Network[0].name
+        VirtualHardware.addItem(network)
         hd = Harddisk()
         hd.HostResource = 'ovf://disk/%s' % self.diskId
         VirtualHardware.addItem(hd)
@@ -261,4 +263,35 @@ class ISOOvfImage(OvfImage):
     def addHardwareDefaults(self, VirtualHardware):
         VirtualHardware.addItem(Cpu())
         VirtualHardware.addItem(Memory())
-        VirtualHardware.addItem(Network())
+        network = Network()
+        network.Connection = self.ovf.NetworkSection.Network[0].name
+        VirtualHardware.addItem(network)
+
+class VMwareOVFImage(OvfImage):
+
+    def createOvf(self):
+        # Set network and disk info in ovf.
+        self.ovf.NetworkSection.Info = constants.NETWORKSECTIONINFO
+        self.ovf.DiskSection.Info = constants.DISKSECTIONINFO
+
+        # VMware doesn't seem to support the systems being inside of the
+        # VirtualSystemCollection element.
+        self.ovf.__delattr__('ovf_VirtualSystemCollection')
+
+        self.addFileReferences()
+        self.addDisks()
+        self.addVirtualSystem()
+
+        return self.ovf
+
+    def addVirtualSystem(self):
+        # We need to override this method from the base class to add
+        # VirtualSystem directly as an element of Envelope instead of an
+        # elemetn of Virtual System Collection
+
+        # Add virtual system to ovf with a virutal hardware section.
+        virtSystem = ovf.VirtualSystem(id=self.imageName)
+        virtSystem.Info = self.imageDescription
+        self.addVirtualHardware(virtSystem)
+        self.ovf.ovf_VirtualSystem = virtSystem
+

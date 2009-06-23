@@ -355,6 +355,9 @@ class Generator(threading.Thread):
 
 
 class ImageGenerator(Generator):
+
+    ovfClass = None
+
     def __init__(self, *args, **kwargs):
         Generator.__init__(self, *args, **kwargs)
         #Figure out what group trove to use
@@ -440,9 +443,12 @@ class ImageGenerator(Generator):
                   diskFilePath, diskCapacity, diskCompressed,
                   workingDir, outputDir):
 
+        if self.ovfClass is None:
+            self.ovfClass = ovf_image.OvfImage
+
         diskFileSize = getFileSize(diskFilePath)
 
-        self.ovfImage = ovf_image.OvfImage(
+        self.ovfImage = self.ovfClass(
             imageName, imageDescription, diskFormat,
             diskFilePath, diskFileSize, diskCapacity, diskCompressed,
             workingDir, outputDir)

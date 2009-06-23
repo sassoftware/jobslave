@@ -14,7 +14,8 @@ from jobslave.generators import constants
 
 
 class GeneratorStub(object):
-    UUID = "abcd"
+    UUID = "abcd"  
+    ovfClass = None
     def __init__(self, jobData, parent, *args, **kwargs):
         self.jobData = jobData
 
@@ -38,7 +39,11 @@ class GeneratorStub(object):
                   workingDir, outputDir):
         from jobslave.generators import ovf_image
         diskFileSize = '1234567890'
-        self.ovfImage = ovf_image.OvfImage(
+
+        if self.ovfClass is None:
+            self.ovfClass = ovf_image.OvfImage
+
+        self.ovfImage = self.ovfClass(
             imageName, imageDescription, diskFormat,
             diskFilePath, diskFileSize, diskCapacity, diskCompressed,
             workingDir, outputDir)

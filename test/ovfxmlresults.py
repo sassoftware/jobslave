@@ -16,57 +16,52 @@ VMwareOvfXml = """\
       <ovf:Description>Network Description</ovf:Description>
     </ovf:Network>
   </ovf:NetworkSection>
-  <ovf:ResourceAllocationSection>
-    <ovf:Info>Resource Allocation Section Info</ovf:Info>
-  </ovf:ResourceAllocationSection>
-  <ovf:VirtualSystemCollection ovf:id="image">
-    <ovf:Info>Virtual System Collection Info</ovf:Info>
-    <ovf:VirtualSystem ovf:id="image">
-      <ovf:Info>Test Description</ovf:Info>
-      <ovf:VirtualHardwareSection>
-        <ovf:Info>Describes the set of virtual hardware</ovf:Info>
-        <ovf:Item>
-          <rasd:Caption>Virtual CPU</rasd:Caption>
-          <rasd:Description>Number of virtual CPUs</rasd:Description>
-          <rasd:ElementName>some virt cpu</rasd:ElementName>
-          <rasd:InstanceID>1</rasd:InstanceID>
-          <rasd:ResourceType>3</rasd:ResourceType>
-          <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
-        </ovf:Item>
-        <ovf:Item>
-          <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-          <rasd:Caption>256 MB of memory</rasd:Caption>
-          <rasd:Description>Memory Size</rasd:Description>
-          <rasd:ElementName>some mem size</rasd:ElementName>
-          <rasd:InstanceID>2</rasd:InstanceID>
-          <rasd:ResourceType>4</rasd:ResourceType>
-          <rasd:VirtualQuantity>256</rasd:VirtualQuantity>
-        </ovf:Item>
-        <ovf:Item>
-          <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
-          <rasd:Description>Network Interface</rasd:Description>
-          <rasd:ElementName>Network Interface</rasd:ElementName>
-          <rasd:InstanceID>3</rasd:InstanceID>
-          <rasd:ResourceType>10</rasd:ResourceType>
-        </ovf:Item>
-        <ovf:Item>
-          <rasd:Caption>Harddisk</rasd:Caption>
-          <rasd:ElementName>Hard disk</rasd:ElementName>
-          <rasd:HostResource>ovf://disk/diskId_1</rasd:HostResource>
-          <rasd:InstanceID>5</rasd:InstanceID>
-          <rasd:Parent>4</rasd:Parent>
-          <rasd:ResourceType>17</rasd:ResourceType>
-        </ovf:Item>
-        <ovf:Item>
-          <rasd:Caption>SCSI Controller 0 - LSI Logic</rasd:Caption>
-          <rasd:ElementName>LSILOGIC</rasd:ElementName>
-          <rasd:InstanceID>4</rasd:InstanceID>
-          <rasd:ResourceSubType>LsiLogic</rasd:ResourceSubType>
-          <rasd:ResourceType>6</rasd:ResourceType>
-        </ovf:Item>
-      </ovf:VirtualHardwareSection>
-    </ovf:VirtualSystem>
-  </ovf:VirtualSystemCollection>
+  <ovf:VirtualSystem ovf:id="image">
+    <ovf:Info>Test Description</ovf:Info>
+    <ovf:VirtualHardwareSection>
+      <ovf:Info>Describes the set of virtual hardware</ovf:Info>
+      <ovf:Item>
+        <rasd:Caption>Virtual CPU</rasd:Caption>
+        <rasd:Description>Number of virtual CPUs</rasd:Description>
+        <rasd:ElementName>some virt cpu</rasd:ElementName>
+        <rasd:InstanceID>1</rasd:InstanceID>
+        <rasd:ResourceType>3</rasd:ResourceType>
+        <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+      </ovf:Item>
+      <ovf:Item>
+        <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
+        <rasd:Caption>256 MB of memory</rasd:Caption>
+        <rasd:Description>Memory Size</rasd:Description>
+        <rasd:ElementName>some mem size</rasd:ElementName>
+        <rasd:InstanceID>2</rasd:InstanceID>
+        <rasd:ResourceType>4</rasd:ResourceType>
+        <rasd:VirtualQuantity>256</rasd:VirtualQuantity>
+      </ovf:Item>
+      <ovf:Item>
+        <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
+        <rasd:Connection>Network Name</rasd:Connection>
+        <rasd:Description>Network Interface</rasd:Description>
+        <rasd:ElementName>Network Interface</rasd:ElementName>
+        <rasd:InstanceID>3</rasd:InstanceID>
+        <rasd:ResourceType>10</rasd:ResourceType>
+      </ovf:Item>
+      <ovf:Item>
+        <rasd:Caption>Harddisk</rasd:Caption>
+        <rasd:ElementName>Hard disk</rasd:ElementName>
+        <rasd:HostResource>ovf://disk/diskId_1</rasd:HostResource>
+        <rasd:InstanceID>5</rasd:InstanceID>
+        <rasd:Parent>4</rasd:Parent>
+        <rasd:ResourceType>17</rasd:ResourceType>
+      </ovf:Item>
+      <ovf:Item>
+        <rasd:Caption>SCSI Controller 0 - LSI Logic</rasd:Caption>
+        <rasd:ElementName>LSILOGIC</rasd:ElementName>
+        <rasd:InstanceID>4</rasd:InstanceID>
+        <rasd:ResourceSubType>LsiLogic</rasd:ResourceSubType>
+        <rasd:ResourceType>6</rasd:ResourceType>
+      </ovf:Item>
+    </ovf:VirtualHardwareSection>
+  </ovf:VirtualSystem>
 </ovf:Envelope>
 """
 
@@ -86,11 +81,11 @@ amiOvfXml = """\
       <ovf:Description>Network Description</ovf:Description>
     </ovf:Network>
   </ovf:NetworkSection>
-  <ovf:ResourceAllocationSection>
-    <ovf:Info>Resource Allocation Section Info</ovf:Info>
-  </ovf:ResourceAllocationSection>
   <ovf:VirtualSystemCollection ovf:id="image">
     <ovf:Info>Virtual System Collection Info</ovf:Info>
+    <ovf:ResourceAllocationSection>
+      <ovf:Info>Resource Allocation Section Info</ovf:Info>
+    </ovf:ResourceAllocationSection>
     <ovf:VirtualSystem ovf:id="image">
       <ovf:Info>Test Description</ovf:Info>
       <ovf:VirtualHardwareSection>
@@ -114,6 +109,7 @@ amiOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
+          <rasd:Connection>Network Name</rasd:Connection>
           <rasd:Description>Network Interface</rasd:Description>
           <rasd:ElementName>Network Interface</rasd:ElementName>
           <rasd:InstanceID>3</rasd:InstanceID>
@@ -156,11 +152,11 @@ rawHdOvfXml = """\
       <ovf:Description>Network Description</ovf:Description>
     </ovf:Network>
   </ovf:NetworkSection>
-  <ovf:ResourceAllocationSection>
-    <ovf:Info>Resource Allocation Section Info</ovf:Info>
-  </ovf:ResourceAllocationSection>
   <ovf:VirtualSystemCollection ovf:id="image">
     <ovf:Info>Virtual System Collection Info</ovf:Info>
+    <ovf:ResourceAllocationSection>
+      <ovf:Info>Resource Allocation Section Info</ovf:Info>
+    </ovf:ResourceAllocationSection>
     <ovf:VirtualSystem ovf:id="image">
       <ovf:Info>Test Description</ovf:Info>
       <ovf:VirtualHardwareSection>
@@ -184,6 +180,7 @@ rawHdOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
+          <rasd:Connection>Network Name</rasd:Connection>
           <rasd:Description>Network Interface</rasd:Description>
           <rasd:ElementName>Network Interface</rasd:ElementName>
           <rasd:InstanceID>3</rasd:InstanceID>
@@ -226,11 +223,11 @@ rawFsOvfXml = """\
       <ovf:Description>Network Description</ovf:Description>
     </ovf:Network>
   </ovf:NetworkSection>
-  <ovf:ResourceAllocationSection>
-    <ovf:Info>Resource Allocation Section Info</ovf:Info>
-  </ovf:ResourceAllocationSection>
   <ovf:VirtualSystemCollection ovf:id="image">
     <ovf:Info>Virtual System Collection Info</ovf:Info>
+    <ovf:ResourceAllocationSection>
+      <ovf:Info>Resource Allocation Section Info</ovf:Info>
+    </ovf:ResourceAllocationSection>
     <ovf:VirtualSystem ovf:id="image">
       <ovf:Info>Test Description</ovf:Info>
       <ovf:VirtualHardwareSection>
@@ -254,6 +251,7 @@ rawFsOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
+          <rasd:Connection>Network Name</rasd:Connection>
           <rasd:Description>Network Interface</rasd:Description>
           <rasd:ElementName>Network Interface</rasd:ElementName>
           <rasd:InstanceID>3</rasd:InstanceID>
@@ -296,11 +294,11 @@ vpcOvfXml = """\
       <ovf:Description>Network Description</ovf:Description>
     </ovf:Network>
   </ovf:NetworkSection>
-  <ovf:ResourceAllocationSection>
-    <ovf:Info>Resource Allocation Section Info</ovf:Info>
-  </ovf:ResourceAllocationSection>
   <ovf:VirtualSystemCollection ovf:id="image">
     <ovf:Info>Virtual System Collection Info</ovf:Info>
+    <ovf:ResourceAllocationSection>
+      <ovf:Info>Resource Allocation Section Info</ovf:Info>
+    </ovf:ResourceAllocationSection>
     <ovf:VirtualSystem ovf:id="image">
       <ovf:Info>Test Description</ovf:Info>
       <ovf:VirtualHardwareSection>
@@ -324,6 +322,7 @@ vpcOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
+          <rasd:Connection>Network Name</rasd:Connection>
           <rasd:Description>Network Interface</rasd:Description>
           <rasd:ElementName>Network Interface</rasd:ElementName>
           <rasd:InstanceID>3</rasd:InstanceID>
@@ -365,11 +364,11 @@ appIsoOvfXml = """\
       <ovf:Description>Network Description</ovf:Description>
     </ovf:Network>
   </ovf:NetworkSection>
-  <ovf:ResourceAllocationSection>
-    <ovf:Info>Resource Allocation Section Info</ovf:Info>
-  </ovf:ResourceAllocationSection>
   <ovf:VirtualSystemCollection ovf:id="testproject-1-x86">
     <ovf:Info>Virtual System Collection Info</ovf:Info>
+    <ovf:ResourceAllocationSection>
+      <ovf:Info>Resource Allocation Section Info</ovf:Info>
+    </ovf:ResourceAllocationSection>
     <ovf:VirtualSystem ovf:id="testproject-1-x86">
       <ovf:Info>Test Description</ovf:Info>
       <ovf:VirtualHardwareSection>
@@ -393,6 +392,7 @@ appIsoOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
+          <rasd:Connection>Network Name</rasd:Connection>
           <rasd:Description>Network Interface</rasd:Description>
           <rasd:ElementName>Network Interface</rasd:ElementName>
           <rasd:InstanceID>3</rasd:InstanceID>
@@ -426,11 +426,11 @@ instIsoOvfXml = """\
       <ovf:Description>Network Description</ovf:Description>
     </ovf:Network>
   </ovf:NetworkSection>
-  <ovf:ResourceAllocationSection>
-    <ovf:Info>Resource Allocation Section Info</ovf:Info>
-  </ovf:ResourceAllocationSection>
   <ovf:VirtualSystemCollection ovf:id="testinstiso">
     <ovf:Info>Virtual System Collection Info</ovf:Info>
+    <ovf:ResourceAllocationSection>
+      <ovf:Info>Resource Allocation Section Info</ovf:Info>
+    </ovf:ResourceAllocationSection>
     <ovf:VirtualSystem ovf:id="testinstiso">
       <ovf:Info>Test Description</ovf:Info>
       <ovf:VirtualHardwareSection>
@@ -454,6 +454,7 @@ instIsoOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
+          <rasd:Connection>Network Name</rasd:Connection>
           <rasd:Description>Network Interface</rasd:Description>
           <rasd:ElementName>Network Interface</rasd:ElementName>
           <rasd:InstanceID>3</rasd:InstanceID>
