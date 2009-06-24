@@ -218,6 +218,8 @@ class VMwareESXImage(VMwareImage):
     useOVF = True
     useVMX = True
 
+    ovfClass = ovf_image.VMwareOVFImage
+
     def __init__(self, *args, **kwargs):
         VMwareImage.__init__(self, *args, **kwargs)
         self.adapter = 'lsilogic'
