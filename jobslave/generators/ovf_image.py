@@ -278,6 +278,12 @@ class VMwareOVFImage(OvfImage):
         # VirtualSystemCollection element.
         self.ovf.__delattr__('ovf_VirtualSystemCollection')
 
+        # This can be removed once there is a newer pyovf that only has
+        # ResourceAllocationSection as an element of VirtualSystemCollection
+        # instead of as an element of Envelope
+        if hasattr(self.ovf, 'ovf_ResourceAllocationSection'):
+            self.ovf.__delattr__('ovf_ResourceAllocationSection')
+
         self.addFileReferences()
         self.addDisks()
         self.addVirtualSystem()
