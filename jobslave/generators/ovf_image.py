@@ -179,7 +179,7 @@ class OvfImage(object):
         return self.ovfXml
 
     def createManifest(self):
-        sha1Line = 'SHA1 (%s) = %s'
+        sha1Line = 'SHA1(%s)= %s\n'
         self.manifestFileName = self.imageName + '.' + constants.MF_EXTENSION
         self.manifestPath = os.path.join(self.workingDir, self.manifestFileName)
 
@@ -189,7 +189,6 @@ class OvfImage(object):
         diskSha1 = sha.new(open(self.diskFilePath).read()).hexdigest()
 
         mfFile.write(sha1Line % (self.ovfFileName, ovfSha1))
-        mfFile.write('\n')
         mfFile.write(sha1Line % (self.diskFileName, diskSha1))
         
         mfFile.close()
