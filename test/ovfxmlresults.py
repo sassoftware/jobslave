@@ -48,7 +48,7 @@ VMwareOvfXml = """\
       <ovf:Item>
         <rasd:Caption>Harddisk</rasd:Caption>
         <rasd:ElementName>Hard disk</rasd:ElementName>
-        <rasd:HostResource>ovf://disk/diskId_1</rasd:HostResource>
+        <rasd:HostResource>ovf:/disk/diskId_1</rasd:HostResource>
         <rasd:InstanceID>5</rasd:InstanceID>
         <rasd:Parent>4</rasd:Parent>
         <rasd:ResourceType>17</rasd:ResourceType>
@@ -118,7 +118,7 @@ amiOvfXml = """\
         <ovf:Item>
           <rasd:Caption>Harddisk</rasd:Caption>
           <rasd:ElementName>Hard disk</rasd:ElementName>
-          <rasd:HostResource>ovf://disk/diskId_1</rasd:HostResource>
+          <rasd:HostResource>ovf:/disk/diskId_1</rasd:HostResource>
           <rasd:InstanceID>5</rasd:InstanceID>
           <rasd:Parent>4</rasd:Parent>
           <rasd:ResourceType>17</rasd:ResourceType>
@@ -189,7 +189,7 @@ rawHdOvfXml = """\
         <ovf:Item>
           <rasd:Caption>Harddisk</rasd:Caption>
           <rasd:ElementName>Hard disk</rasd:ElementName>
-          <rasd:HostResource>ovf://disk/diskId_1</rasd:HostResource>
+          <rasd:HostResource>ovf:/disk/diskId_1</rasd:HostResource>
           <rasd:InstanceID>5</rasd:InstanceID>
           <rasd:Parent>4</rasd:Parent>
           <rasd:ResourceType>17</rasd:ResourceType>
@@ -260,7 +260,7 @@ rawFsOvfXml = """\
         <ovf:Item>
           <rasd:Caption>Harddisk</rasd:Caption>
           <rasd:ElementName>Hard disk</rasd:ElementName>
-          <rasd:HostResource>ovf://disk/diskId_1</rasd:HostResource>
+          <rasd:HostResource>ovf:/disk/diskId_1</rasd:HostResource>
           <rasd:InstanceID>5</rasd:InstanceID>
           <rasd:Parent>4</rasd:Parent>
           <rasd:ResourceType>17</rasd:ResourceType>
@@ -331,7 +331,7 @@ vpcOvfXml = """\
         <ovf:Item>
           <rasd:Caption>Harddisk</rasd:Caption>
           <rasd:ElementName>Hard disk</rasd:ElementName>
-          <rasd:HostResource>ovf://disk/diskId_1</rasd:HostResource>
+          <rasd:HostResource>ovf:/disk/diskId_1</rasd:HostResource>
           <rasd:InstanceID>5</rasd:InstanceID>
           <rasd:Parent>4</rasd:Parent>
           <rasd:ResourceType>17</rasd:ResourceType>
@@ -401,7 +401,7 @@ appIsoOvfXml = """\
         <ovf:Item>
           <rasd:Caption>CD-ROM</rasd:Caption>
           <rasd:ElementName>CD-ROM</rasd:ElementName>
-          <rasd:HostResource>ovf://file/fileId_1</rasd:HostResource>
+          <rasd:HostResource>ovf:/file/fileId_1</rasd:HostResource>
           <rasd:InstanceID>6</rasd:InstanceID>
           <rasd:ResourceType>15</rasd:ResourceType>
         </ovf:Item>
@@ -463,7 +463,7 @@ instIsoOvfXml = """\
         <ovf:Item>
           <rasd:Caption>CD-ROM</rasd:Caption>
           <rasd:ElementName>CD-ROM</rasd:ElementName>
-          <rasd:HostResource>ovf://file/fileId_1</rasd:HostResource>
+          <rasd:HostResource>ovf:/file/fileId_1</rasd:HostResource>
           <rasd:InstanceID>6</rasd:InstanceID>
           <rasd:ResourceType>15</rasd:ResourceType>
         </ovf:Item>

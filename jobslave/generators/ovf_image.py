@@ -34,7 +34,7 @@ class Memory(ovf.Item):
 class Harddisk(ovf.Item):
     rasd_Caption = 'Harddisk'
     rasd_ElementName = 'Hard disk'
-    rasd_HostResource = 'ovf://disk/diskId'
+    rasd_HostResource = 'ovf:/disk/diskId'
     rasd_InstanceID = '5'
     rasd_Parent = '4'
     rasd_ResourceType = '17'
@@ -56,7 +56,7 @@ class Network(ovf.Item):
 class CdRom(ovf.Item):
     rasd_Caption = 'CD-ROM'
     rasd_ElementName = 'CD-ROM'
-    rasd_HostResource = 'ovf://file/fileId'
+    rasd_HostResource = 'ovf:/file/fileId'
     rasd_InstanceID = '6'
     rasd_ResourceType = '15'
 
@@ -122,7 +122,7 @@ class OvfImage(object):
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
         hd = Harddisk()
-        hd.HostResource = 'ovf://disk/%s' % self.diskId
+        hd.HostResource = 'ovf:/disk/%s' % self.diskId
         VirtualHardware.addItem(hd)
         VirtualHardware.addItem(ScsiController())
 
@@ -254,7 +254,7 @@ class ISOOvfImage(OvfImage):
         self.addFileReferences()
         self.addVirtualSystem()
         c = CdRom()
-        c.HostResource = 'ovf://file/%s' % self.fileRef.id
+        c.HostResource = 'ovf:/file/%s' % self.fileRef.id
         self.ovf.ovf_VirtualSystemCollection.ovf_VirtualSystem[0].ovf_VirtualHardwareSection[0].addItem(c)
 
         return self.ovf
