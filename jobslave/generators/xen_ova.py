@@ -33,8 +33,8 @@ class XenOVA(raw_hd_image.RawHdImage):
             'Created by rPath rBuilder')
         template = template.replace('@MEMORY@', str(self.getBuildData('vmMemory') * 1024 * 1024))
 
-        if self.baseFlavor.satisfies(deps.parseFlavor('xen')) and \
-           self.baseFlavor.satisfies(deps.parseFlavor('domU')):
+        if self.baseFlavor.satisfies(deps.parseFlavor('!xen')) and \
+           self.baseFlavor.satisfies(deps.parseFlavor('!domU')):
             hvm = True
         else:
             hvm = False

@@ -354,7 +354,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             <label>Foo Bar</label>
             <shortdesc>Created by rPath rBuilder</shortdesc>
             <config mem_set="0" vcpus="1"/>
-            <hacks is_hvm="true" kernel_boot_cmdline="root=/dev/xvda1 ro ">
+            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/xvda1 ro ">
             </hacks>
 <vbd device="xvda" function="root" mode="w" vdi="vdi_xvda" />
         </vm>
@@ -369,7 +369,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         try:
             os.listdir = listdir
             os.unlink = unlink
-            g.baseFlavor = deps.parseFlavor("")
+            g.baseFlavor = deps.parseFlavor("!xen, !domU")
             g.write()
         finally:
             os.listdir = _listDir
@@ -382,7 +382,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             <label>Foo Bar</label>
             <shortdesc>Created by rPath rBuilder</shortdesc>
             <config mem_set="0" vcpus="1"/>
-            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/xvda1 ro ">
+            <hacks is_hvm="true" kernel_boot_cmdline="root=/dev/xvda1 ro ">
             </hacks>
 <vbd device="xvda" function="root" mode="w" vdi="vdi_xvda" />
         </vm>
