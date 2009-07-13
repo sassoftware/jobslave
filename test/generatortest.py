@@ -326,6 +326,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             g = xen_ova.XenOVA({
                 'project': {'name': 'Foo Bar'},
               }, [])
+            g.baseFlavor = deps.parseFlavor("xen,domU is: x86")
             g.makeHDImage = lambda image_path: 1500000000
             g.write()
         finally:
@@ -353,7 +354,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
             <label>Foo Bar</label>
             <shortdesc>Created by rPath rBuilder</shortdesc>
             <config mem_set="0" vcpus="1"/>
-            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/xvda1 ro ">
+            <hacks is_hvm="true" kernel_boot_cmdline="root=/dev/xvda1 ro ">
             </hacks>
 <vbd device="xvda" function="root" mode="w" vdi="vdi_xvda" />
         </vm>
@@ -364,6 +365,32 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
         self.assertEquals(len(g.posted_output), 1)
         self.assertEquals(g.posted_output[0][1], 'Citrix XenServer (TM) Image')
+
+        try:
+            os.listdir = listdir
+            os.unlink = unlink
+            g.baseFlavor = deps.parseFlavor("")
+            g.write()
+        finally:
+            os.listdir = _listDir
+            os.unlink = _unlink
+
+        ova_maybe = open(g.workDir + '/ova_base/ova.xml').read()
+        ova_good = '''<?xml version="1.0" ?>
+    <appliance version="0.1">
+        <vm name="vm">
+            <label>Foo Bar</label>
+            <shortdesc>Created by rPath rBuilder</shortdesc>
+            <config mem_set="0" vcpus="1"/>
+            <hacks is_hvm="false" kernel_boot_cmdline="root=/dev/xvda1 ro ">
+            </hacks>
+<vbd device="xvda" function="root" mode="w" vdi="vdi_xvda" />
+        </vm>
+<vdi name="vdi_xvda" size="1500000000" source="file://xvda" type="dir-gzipped-chunks" variety="system" />
+</appliance>
+'''
+        self.failUnlessEqual(ova_maybe, ova_good)
+
 
     def testTarball(self):
         oldChdir = os.chdir

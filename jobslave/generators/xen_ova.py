@@ -10,6 +10,7 @@ from jobslave.imagegen import logCall
 from jobslave.generators import constants
 from jobslave.generators import raw_hd_image, bootable_image
 
+from conary.deps import deps
 from conary.lib import util
 
 
@@ -31,6 +32,14 @@ class XenOVA(raw_hd_image.RawHdImage):
         template = template.replace('@DESCRIPTION@',
             'Created by rPath rBuilder')
         template = template.replace('@MEMORY@', str(self.getBuildData('vmMemory') * 1024 * 1024))
+
+        if self.baseFlavor.satisfies(deps.parseFlavor('xen')) and \
+           self.baseFlavor.satisfies(deps.parseFlavor('domU')):
+            hvm = True
+        else:
+            hvm = False
+
+        template = template.replace('@HVM@', str(hvm).lower())
 
         vbdLines = '<vbd device="xvda" function="root" mode="w" ' \
             'vdi="vdi_xvda" />'
