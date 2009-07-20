@@ -306,7 +306,10 @@ class Generator(threading.Thread):
 
                     rootLogger = logging.getLogger()
                     rootLogger.handlers = []
-                    rootLogger.setLevel(logging.DEBUG)
+                    # NB: setting DEBUG here creates a recursive loop between
+                    # our logger and stomp.py (which logs every frame it sends
+                    # as DEBUG).
+                    rootLogger.setLevel(logging.INFO)
 
                     # Log to file/MCP
                     self.logger = LogHandler(self.jobId, self.response)
