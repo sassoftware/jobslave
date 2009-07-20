@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2008 rPath, Inc.
+# Copyright (c) 2004-2009 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -24,10 +24,12 @@ from conary import conarycfg
 from conary import conaryclient
 from conary import versions
 from conary.deps import deps
-from conary.lib import util, log
+from conary.lib import util, log as conaryLog
 
 from jobslave.generators import constants, ovf_image
 from mcp import jobstatus, response
+
+log = logging.getLogger(__name__)
 
 MSG_INTERVAL = 5
 
@@ -63,7 +65,7 @@ class LogHandler(logging.FileHandler):
     def emit(self, record):
         logging.FileHandler.emit(self, record)
 
-        self._msgs += record.getMessage() + '\n'
+        self._msgs += self.format(record) + '\n'
         if (len(self._msgs) > 4096) or ((time.time() - self.lastSent) > 4):
             self.sendMessages()
 
@@ -245,6 +247,8 @@ class Generator(threading.Thread):
     def status(self, msg = None, status = jobstatus.RUNNING):
         if msg:
             self._lastStatus = msg, status
+            log.info("Sending new job status %s: %s",
+                    jobstatus.statusNames[status], msg)
         else:
             msg, status = self._lastStatus
 
@@ -258,7 +262,7 @@ class Generator(threading.Thread):
         try:
             resp.jobStatus(self.jobId, status, msg)
         except:
-            print >> sys.stderr, "Error logging status to MCP:", msg
+            log.traceback("Error logging status to MCP:")
 
     def postOutput(self, fileList):
         # this function runs in the child process to actually post the output
@@ -300,13 +304,26 @@ class Generator(threading.Thread):
                     self.response = response.MCPResponse(self.parent().cfg.nodeName,
                             self.parent().cfg)
 
-                    rootLogger = logging.getLogger('')
-                    for handler in rootLogger.handlers[:]:
-                        rootLogger.removeHandler(handler)
-                    log.setVerbosity(logging.DEBUG)
+                    rootLogger = logging.getLogger()
+                    rootLogger.handlers = []
+                    rootLogger.setLevel(logging.DEBUG)
 
+                    # Log to file/MCP
                     self.logger = LogHandler(self.jobId, self.response)
+                    self.logger.setFormatter(logging.Formatter(
+                        '%(asctime)s %(levelname)s %(name)s : %(message)s'))
                     rootLogger.addHandler(self.logger)
+
+                    # Log to stderr
+                    streamHandler = logging.StreamHandler()
+                    streamHandler.setFormatter(logging.Formatter(
+                        '%(asctime)s %(levelname)s %(name)s : %(message)s'))
+                    rootLogger.addHandler(streamHandler)
+
+                    # Override conary.lib.log so users of that module do the
+                    # same thing. New code should get a proper logger.
+                    conaryLog.setVerbosity(logging.DEBUG)
+                    conaryLog.handlers = []
 
                     self.status('Starting job')
                     self.write()
