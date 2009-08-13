@@ -33,6 +33,8 @@ from jobslave import flavors
 from jobslave import splitdistro
 from jobslave import gencslist
 
+from testrunner import pathManager
+
 class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
     def testGetArchFlavor(self):
         f = deps.parseFlavor("use: blah is: x86")
@@ -95,7 +97,7 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
     def testAnacondaImages(self):
         tmpDir = tempfile.mkdtemp()
         ai = anaconda_images.AnacondaImages("Mint Test Suite",
-            "../pixmaps/", tmpDir,
+            os.path.join(pathManager.getPath("JOB_SLAVE_PATH"),"pixmaps"), tmpDir,
             "/usr/share/fonts/bitstream-vera/Vera.ttf")
         ai.processImages()
 
@@ -147,7 +149,7 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
 
         util.mkdirChain(os.path.join(d1, 'isolinux'))
         util.mkdirChain(os.path.join(d2, 'pixmaps'))
-        util.copyfile(os.path.join(self.testDir, 'archive', 'syslinux-splash.png'),
+        util.copyfile(os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'), 'syslinux-splash.png'),
                       os.path.join(d2, 'pixmaps', 'syslinux-splash.png'))
         self.suppressOutput(ii.convertSplash, d1, d2)
 

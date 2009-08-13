@@ -29,6 +29,8 @@ from jobslave.generators import bootable_image
 from jobslave.generators import ami
 import jobslave.loophelpers
 
+from testrunner import pathManager
+
 class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
     def testCopyFile(self):
         tmpDir = tempfile.mkdtemp()
@@ -228,7 +230,8 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
     def setUp(self):
         jobslave_helper.JobSlaveHelper.setUp(self)
 
-        data = simplejson.loads(open('archive/jobdata.txt').read())
+        fp = os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'),'jobdata.txt')
+        data = simplejson.loads( open(fp).read())
         self.mockJobSlave = MockJobSlave()
         from jobslave.generators import constants
         constants.finishedDir = "/tmp"

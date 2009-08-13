@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/python
 # -*- mode: python -*-
 #
 # Copyright (c) 2004-2006 rPath, Inc.
@@ -19,7 +19,7 @@ import types
 import unittest
 import __builtin__
 
-testPath = None
+from testrunner import pathManager
 
 #from pychecker import checker
 
@@ -50,38 +50,29 @@ def filteredCall(self, *args, **kwargs):
     else:
         self.handleError(result)
 
-conaryDir = None
 _setupPath = None
+
 def setup():
     global _setupPath
     if _setupPath:
         return _setupPath
-    global testPath
 
-    if not os.environ.has_key('CONARY_PATH'):
-        print "please set CONARY_PATH"
+    mcpPath = pathManager.addExecPath('MCP_PATH')
+    pyofvPath = pathManager.addExecPath('PYOVF_PATH')
+    conaryPath = pathManager.addExecPath('XOBJ_PATH')
+    conaryPath = pathManager.addExecPath('CONARY_PATH')
+    conaryTestPath = pathManager.addExecPath('CONARY_TEST_PATH')
+    conaryPolicyPath = pathManager.addExecPath('CONARY_POLICY_PATH')
+    jobslavePath = pathManager.addExecPath('JOB_SLAVE_PATH')
+    jsTestPath = pathManager.addExecPath('JOB_SLAVE_TEST_PATH')
+    pathManager.addResourcePath('TEST_PATH',path=jsTestPath)
+    stompPath = pathManager.addExecPath('STOMP_PATH')
+    crestPath = pathManager.addExecPath('CREST_PATH')
+    botoPath = pathManager.addExecPath('BOTO_PATH')
+    restlibPath = pathManager.addExecPath('RESTLIB_PATH')
 
-    conaryPath      = os.getenv('CONARY_PATH')
-    conaryTestPath  = os.getenv('CONARY_TEST_PATH',     os.path.join(conaryPath, '..', 'conary-test'))
-    mcpPath         = os.getenv('MCP_PATH',             '../../mcp')
-    pyovfPath       = os.getenv('PYOVF_PATH',           '../../pyovf')
-    jobslavePath    = os.getenv('JOB_SLAVE_PATH',       os.path.join(os.getcwd(), '..'))
-    jsTestPath      = os.getenv('JOB_SLAVE_TEST_PATH',  os.getcwd())
-    testUtilsPath   = os.getenv('TESTUTILS_PATH', os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    xobjPath        = os.getenv('XOBJ_PATH', '../../xobj/py')
-
-    sys.path = [os.path.realpath(x) for x in (jobslavePath, jsTestPath, mcpPath,
-        conaryPath, conaryTestPath, testUtilsPath, pyovfPath, xobjPath)] + sys.path
-    os.environ.update(dict(CONARY_PATH=conaryPath, CONARY_TEST_PATH=conaryTestPath,
-        MCP_PATH=mcpPath, JOB_SLAVE_PATH=jobslavePath, JOB_SLAVE_TEST_PATH=jsTestPath,
-        PYTHONPATH=(':'.join(sys.path))))
-
-    from testrunner import testhelp
-    testPath = testhelp.getTestPath()
-
-    global conaryDir
-    conaryDir = os.environ['CONARY_PATH']
-
+    jsArchivePath = pathManager.addResourcePath('JOB_SLAVE_ARCHIVE_PATH',path=os.path.join(jsTestPath, "archive") )
+    conaryArchivePath = pathManager.addResourcePath('CONARY_ARCHIVE_PATH',path=os.path.join(conaryTestPath, "archive") )
     from conary.lib import util
     sys.excepthook = util.genExcepthook(True)
 
@@ -106,14 +97,19 @@ def setup():
             lambda *args, **kwargs: None
     #end MCP specific tweaks
 
-    from testrunner.runner import setup as runnerSetup
-    runnerSetup()
+    if isIndividual():
+        serverDir = '/tmp/conary-server'
+        if os.path.exists(serverDir) and not os.path.access(serverDir, os.W_OK):
+            serverDir = serverDir + '-' + pwd.getpwuid(os.getuid())[0]
+        pathManager.addResourcePath('SERVER_FILE_PATH', path=serverDir, existenceOptional=True)
 
-    _setupPath = testPath
-    return testPath
+    from conary.lib import util
+    sys.excepthook = util.genExcepthook(True, catchSIGUSR1=False)
+
+    _setupPath = pathManager.getPath('JOB_SLAVE_TEST_PATH')
+    return _setupPath
 
 _individual = False
-
 def isIndividual():
     global _individual
     return _individual
@@ -122,13 +118,13 @@ def isIndividual():
 EXCLUDED_PATHS = ['dist/', '/build/', 'test', 'setup.py', 'trovebucket.py', 'gencslist.py']
 
 def main(argv=None, individual=True):
-    from testrunner import testhelp
+    from testrunner import testhelp, pathManager
     testhelp.isIndividual = isIndividual
     class rBuilderTestSuiteHandler(testhelp.TestSuiteHandler):
         suiteClass = testhelp.ConaryTestSuite
 
         def getCoverageDirs(self, environ):
-            return os.environ['JOB_SLAVE_PATH']
+            return pathManager.getPath('JOB_SLAVE_PATH')
 
         def getCoverageExclusions(self, environ):
             return EXCLUDED_PATHS
@@ -138,15 +134,11 @@ def main(argv=None, individual=True):
     _individual = individual
     if argv is None:
         argv = list(sys.argv)
-    topdir = testhelp.getTestPath()
-    cwd = os.getcwd()
-    if topdir not in sys.path:
-        sys.path.insert(0, topdir)
-    if cwd != topdir and cwd not in sys.path:
-        sys.path.insert(0, cwd)
 
-    handler = rBuilderTestSuiteHandler(individual=individual, topdir=topdir,
-                                       testPath=testPath, conaryDir=conaryDir)
+    handler = rBuilderTestSuiteHandler(individual=individual, 
+                                       topdir=pathManager.getPath('JOB_SLAVE_TEST_PATH'), 
+                                       testPath=pathManager.getPath('JOB_SLAVE_TEST_PATH'), 
+                                       conaryDir=pathManager.getPath('CONARY_PATH'))
     _handler = handler
     results = handler.main(argv)
     return (not results.wasSuccessful())

@@ -24,6 +24,7 @@ from mcp import mcp_log
 from jobslave import jobhandler, slave, constants, generators
 from jobslave import buildtypes
 
+from testrunner import pathManager
 
 log = logging.getLogger('')
 
@@ -145,7 +146,7 @@ class JobSlaveHelper(TestCase):
         self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
         self.slaveCfg.configLine('debugMode True')
 
-        f = open ('archive/jobdata.txt')
+        f = open ( os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'),'jobdata.txt'))
         _signal = signal.signal
         try:
             signal.signal = lambda x, y: None

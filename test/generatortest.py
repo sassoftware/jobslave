@@ -46,11 +46,13 @@ from jobslave.generators import installable_iso
 from jobslave.generators import update_iso
 from jobslave.generators import ovf_image
 
+from testrunner import pathManager
+
 import simplejson
 
 class GeneratorThreadTest(jobslave_helper.ExecuteLoggerTest):
     def setUp(self):
-        f = open ('archive/jobdata.txt')
+        f = open (os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'),'jobdata.txt'))
         try:
             self.jobData = simplejson.loads(f.read())
         finally:
