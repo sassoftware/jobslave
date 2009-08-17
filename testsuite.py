@@ -73,7 +73,7 @@ def main(argv=None):
 
     _handler = rBuilderTestSuiteHandler(individual=False)
     results = _handler.main(argv)
-    return (not results.wasSuccessful())
+    return results.getExitCode()
 
 
 _individual = False
