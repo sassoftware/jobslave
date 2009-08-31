@@ -1,10 +1,11 @@
 #
-# Copyright (c) 2004-2008 rPath, Inc.
+# Copyright (c) 2004-2009 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 # python standard library imports
+import logging
 from math import ceil
 import os
 import sys
@@ -31,8 +32,10 @@ from conary import versions
 from conary.callbacks import UpdateCallback
 from conary.conaryclient.cmdline import parseTroveSpec
 from conary.deps import deps
-from conary.lib import log, util
+from conary.lib import util
 from conary.repository import errors
+
+log = logging.getLogger(__name__)
 
 
 def timeMe(func):
@@ -665,14 +668,7 @@ class BootableImage(ImageGenerator):
                 else:
                     log.info('Kernel detected, skipping.')
             finally:
-                # clean up some bits Conary leaves around
-                # revisit this after conary-2 makes it into the jobslave,
-                # since most of it is obsoleted by cclient.close()
-                cclient.db.close()
-                cclient.db.commitLock(False) # fixed in conary 1.1.92
-                if log.syslog.f:
-                    log.syslog.f.close()
-                log.syslog.f = None
+                cclient.close()
                 if callback:
                     callback.closeCB()
                 cclient = callback = None
@@ -695,15 +691,18 @@ class BootableImage(ImageGenerator):
             self.writeDeviceMaps(dest)
             self.runTagScripts(dest)
             self.fileSystemOddsNEndsFinal(dest)
-        finally:
+
+            self.killChrootProcesses(dest)
+            self.umountChrootMounts(dest)
+        except:
+            log.exception("Error building image:")
+            e_type, e_value, e_tb = sys.exc_info()
             try:
                 self.killChrootProcesses(dest)
                 self.umountChrootMounts(dest)
-            except Exception, e:
-                # Log it and move on
-                log.error('Error during cleanup; continuing')
-                exc, e, bt = sys.exc_info()
-                log.info(traceback.format_exc(bt))
+            except:
+                log.exception("Error during cleanup:")
+            raise e_type, e_value, e_tb
 
         logCall('rm -rf %s' % os.path.join( \
                 dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))

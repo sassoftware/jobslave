@@ -108,10 +108,10 @@ def logCall(cmd, ignoreErrors = False, logCmd = True, **kw):
     while p.poll() is None:
         rList, junk, junk = select.select([p.stdout, p.stderr], [], [])
         for rdPipe in rList:
-            action = (rdPipe is p.stdout) and log.info or log.debug
-            msg = rdPipe.readline().strip()
-            if msg:
-                action("++ " + msg)
+            which = (rdPipe is p.stdout) and 'stdout' or 'stderr'
+            line = rdPipe.readline().rstrip()
+            if line:
+                log.info("++ (%s) %s", which, line)
 
     # pylint: disable-msg=E1103
     stdout, stderr = p.communicate()
