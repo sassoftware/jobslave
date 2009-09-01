@@ -580,17 +580,35 @@ class BootableImage(ImageGenerator):
         if is_SUSE(dest, version=11):
             logCall("umount %s/dev" % dest)
 
+    @classmethod
+    def linkStartsWith(cls, dest, fname):
+        if not (os.path.islink(fname) and os.access(fname, os.R_OK)):
+            return False
+        linkname = os.readlink(fname)
+        return linkname.startswith(dest)
+
+    @classmethod
+    def pidHasOpenFiles(cls, dest, pid):
+        exepath = os.path.join(os.path.sep, 'proc', pid, 'exe')
+        if cls.linkStartsWith(dest, exepath):
+            return True
+        # More expensive checks
+        fdDir = os.path.join(os.path.dirname(exepath), 'fd')
+        if not os.path.isdir(fdDir):
+            return False
+        for fd in os.listdir(fdDir):
+            fdpath = os.path.join(fdDir, fd)
+            if cls.linkStartsWith(dest, fdpath):
+                return True
+        return False
 
     @timeMe
     def killChrootProcesses(self, dest):
         # kill any lingering processes that were started in the chroot
         pids = set()
         for pid in os.listdir('/proc'):
-            exepath = os.path.join(os.path.sep, 'proc', pid, 'exe')
-            if os.path.islink(exepath) and os.access(exepath, os.R_OK):
-                exe = os.readlink(exepath)
-                if exe.startswith(dest):
-                    pids.add(pid)
+            if self.pidHasOpenFiles(dest, pid):
+                pids.add(pid)
 
         sig = signal.SIGTERM
         loops = 0
