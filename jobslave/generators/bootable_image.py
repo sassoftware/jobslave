@@ -594,7 +594,7 @@ class BootableImage(ImageGenerator):
             return True
         # More expensive checks
         fdDir = os.path.join(os.path.dirname(exepath), 'fd')
-        if not os.path.isdir(fdDir):
+        if not os.access(fdDir, os.R_OK):
             return False
         for fd in os.listdir(fdDir):
             fdpath = os.path.join(fdDir, fd)
