@@ -602,18 +602,19 @@ class BootableImage(ImageGenerator):
         for fd in os.listdir(fdDir):
             fdLink = os.path.join(fdDir, fd)
             fdpath = cls.dereferenceLink(fdLink)
-            if fdLink.startswith(dest):
-                log.info('Process %d (%s) has open file %s', pid, exepath,
+            if fdpath.startswith(dest):
+                log.info('Process %s (%s) has open file %s', pid, exepath,
                     fdpath)
                 #ret = True
         return ret
 
+    @classmethod
     @timeMe
-    def killChrootProcesses(self, dest):
+    def killChrootProcesses(cls, dest):
         # kill any lingering processes that were started in the chroot
         pids = set()
         for pid in os.listdir('/proc'):
-            if self.pidHasOpenFiles(dest, pid):
+            if cls.pidHasOpenFiles(dest, pid):
                 pids.add(pid)
 
         sig = signal.SIGTERM
