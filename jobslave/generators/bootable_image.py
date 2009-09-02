@@ -581,26 +581,32 @@ class BootableImage(ImageGenerator):
             logCall("umount %s/dev" % dest)
 
     @classmethod
-    def linkStartsWith(cls, dest, fname):
+    def dereferenceLink(cls, fname):
         if not (os.path.islink(fname) and os.access(fname, os.R_OK)):
-            return False
+            return ''
         linkname = os.readlink(fname)
-        return linkname.startswith(dest)
+        return linkname
 
     @classmethod
     def pidHasOpenFiles(cls, dest, pid):
-        exepath = os.path.join(os.path.sep, 'proc', pid, 'exe')
-        if cls.linkStartsWith(dest, exepath):
+        exeLink = os.path.join(os.path.sep, 'proc', pid, 'exe')
+        exepath = cls.dereferenceLink(exeLink)
+        if exepath.startswith(dest):
+            log.info('Chrooted process %d (%s)', pid, exepath)
             return True
         # More expensive checks
-        fdDir = os.path.join(os.path.dirname(exepath), 'fd')
+        fdDir = os.path.join(os.path.dirname(exeLink), 'fd')
         if not os.access(fdDir, os.R_OK):
             return False
+        ret = False
         for fd in os.listdir(fdDir):
-            fdpath = os.path.join(fdDir, fd)
-            if cls.linkStartsWith(dest, fdpath):
-                return True
-        return False
+            fdLink = os.path.join(fdDir, fd)
+            fdpath = cls.dereferenceLink(fdLink)
+            if fdLink.startswith(dest):
+                log.info('Process %d (%s) has open file %s', pid, exepath,
+                    fdpath)
+                #ret = True
+        return ret
 
     @timeMe
     def killChrootProcesses(self, dest):
