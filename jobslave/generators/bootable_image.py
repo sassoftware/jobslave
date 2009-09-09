@@ -580,17 +580,42 @@ class BootableImage(ImageGenerator):
         if is_SUSE(dest, version=11):
             logCall("umount %s/dev" % dest)
 
+    @classmethod
+    def dereferenceLink(cls, fname):
+        if not (os.path.islink(fname) and os.access(fname, os.R_OK)):
+            return ''
+        linkname = os.readlink(fname)
+        return linkname
 
+    @classmethod
+    def pidHasOpenFiles(cls, dest, pid):
+        exeLink = os.path.join(os.path.sep, 'proc', pid, 'exe')
+        exepath = cls.dereferenceLink(exeLink)
+        if exepath.startswith(dest):
+            log.info('Chrooted process %d (%s)', pid, exepath)
+            return True
+        # More expensive checks
+        fdDir = os.path.join(os.path.dirname(exeLink), 'fd')
+        if not os.access(fdDir, os.R_OK):
+            return False
+        ret = False
+        for fd in os.listdir(fdDir):
+            fdLink = os.path.join(fdDir, fd)
+            fdpath = cls.dereferenceLink(fdLink)
+            if fdpath.startswith(dest):
+                log.info('Process %s (%s) has open file %s', pid, exepath,
+                    fdpath)
+                #ret = True
+        return ret
+
+    @classmethod
     @timeMe
-    def killChrootProcesses(self, dest):
+    def killChrootProcesses(cls, dest):
         # kill any lingering processes that were started in the chroot
         pids = set()
         for pid in os.listdir('/proc'):
-            exepath = os.path.join(os.path.sep, 'proc', pid, 'exe')
-            if os.path.islink(exepath) and os.access(exepath, os.R_OK):
-                exe = os.readlink(exepath)
-                if exe.startswith(dest):
-                    pids.add(pid)
+            if cls.pidHasOpenFiles(dest, pid):
+                pids.add(pid)
 
         sig = signal.SIGTERM
         loops = 0
