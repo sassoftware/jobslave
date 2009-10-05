@@ -724,6 +724,9 @@ class BootableImage(ImageGenerator):
             e_type, e_value, e_tb = sys.exc_info()
             try:
                 self.killChrootProcesses(dest)
+            except:
+                log.exception("Error during cleanup:")
+            try:
                 self.umountChrootMounts(dest)
             except:
                 log.exception("Error during cleanup:")
