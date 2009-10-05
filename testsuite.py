@@ -6,6 +6,7 @@
 
 import sys
 import unittest
+from jobslave_test import bootstrap
 from testrunner import pathManager
 
 EXCLUDED_PATHS = ['dist/', '/build/', 'test', 'setup.py', 'trovebucket.py', 'gencslist.py']

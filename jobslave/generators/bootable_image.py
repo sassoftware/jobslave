@@ -592,7 +592,7 @@ class BootableImage(ImageGenerator):
         exeLink = os.path.join(os.path.sep, 'proc', pid, 'exe')
         exepath = cls.dereferenceLink(exeLink)
         if exepath.startswith(dest):
-            log.info('Chrooted process %d (%s)', pid, exepath)
+            log.info('Chrooted process %s (%s)', pid, exepath)
             return True
         # More expensive checks
         fdDir = os.path.join(os.path.dirname(exeLink), 'fd')
