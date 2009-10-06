@@ -10,8 +10,6 @@ Communicate status and artifacts back to the parent rBuilder.
 
 import logging
 import restlib.client
-import sys
-import threading
 import time
 try:
     from xml.etree import ElementTree as ET
@@ -32,21 +30,18 @@ class ResponseProxy(object):
         self.log = logging.getLogger(__name__ + '.proxy')
         self.log.__class__ = NonSendingLogger
 
-    def _post(self, method, path, headers=None, body=None):
-        finalHeaders = {
-                'Content-Type': 'application/xml',
+    def _post(self, method, path, contentType='application/xml', body=None):
+        headers = {
+                'Content-Type': contentType,
                 'X-rBuilder-OutputToken': self.outputToken,
                 }
-        if headers:
-            finalHeaders.update(headers)
         url = self.imageBase + '/' + path
 
-        client = restlib.client.Client(url, finalHeaders)
+        client = restlib.client.Client(url, headers)
         client.connect()
-        response = client.request(method, body)
+        return client.request(method, body)
 
     def sendStatus(self, code, message):
-        self.log.debug("Sending status: %d %s", code, message)
         root = ET.Element('imageStatus')
         ET.SubElement(root, "code").text = str(code)
         ET.SubElement(root, "message").text = message
@@ -56,7 +51,11 @@ class ResponseProxy(object):
             self.log.exception("Failed to send status upstream")
 
     def sendLog(self, data):
-        self.log.info("Would send %d bytes of log data", len(data))
+        try:
+            self._post('POST', 'buildLog', contentType='text/plain', body=data)
+        except restlib.client.ResponseError, err:
+            if err.status != 204: # No Content
+                raise
 
     def postOutput(self, fileList):
         print 'would send %d files' % len(fileList)
@@ -90,13 +89,13 @@ class LogHandler(logging.Handler):
 
     def flush(self):
         self.acquire()
-        buffer, self.buffer = self.buffer, ''
+        buf, self.buffer = self.buffer, ''
         self.lastSent = time.time()
         self.release()
 
-        if buffer:
+        if buf:
             try:
-                self.response.sendLog(buffer)
+                self.response.sendLog(buf)
             except:
                 self.response.log.exception("Error sending build log:")
 

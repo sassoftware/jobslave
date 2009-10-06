@@ -86,11 +86,10 @@ class Generator(object):
 
     def run(self):
         try:
-            log.info("Starting job %s", self.UUID)
-
             # Route log data to the rBuilder's build log.
             self.logger = LogHandler(self.response)
             rootLogger = logging.getLogger()
+            self.logger.setFormatter(rootLogger.handlers[0].formatter)
             rootLogger.addHandler(self.logger)
 
             # Override conary.lib.log so users of that module do the same
@@ -99,6 +98,7 @@ class Generator(object):
             conaryLog.setVerbosity(logging.NOTSET)
             conaryLog.handlers = []
 
+            log.info("Starting job %s", self.UUID)
             self.status('Starting job')
             self.write()
 
