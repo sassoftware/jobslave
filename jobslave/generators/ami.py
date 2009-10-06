@@ -10,8 +10,6 @@ import tempfile
 import urlparse
 import urllib
 
-import boto
-
 from conary.lib import util, log as conary_log
 from conary.deps import deps
 from conary import conaryclient
