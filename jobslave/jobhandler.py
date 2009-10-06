@@ -4,7 +4,6 @@ from jobslave.generators.raw_hd_image import RawHdImage
 from jobslave.generators.vmware_image import VMwareImage, VMwareESXImage, VMwareOVFImage
 from jobslave.generators.stub_image import StubImage
 from jobslave.generators.netboot_image import NetbootImage
-from jobslave.generators.group_trove import GroupTroveCook
 from jobslave.generators.raw_fs_image import RawFsImage
 from jobslave.generators.tarball import Tarball
 from jobslave.generators.vpc import VirtualPCImage
@@ -48,12 +47,10 @@ class InvalidBuildType(Exception):
         return "Invalid build type: %d" % self._buildType
 
 
-def getHandler(jobData, parent):
+def getHandler(cfg, jobData):
     if jobData['type'] == 'build':
         handlerClass = jobHandlers.get(jobData['buildType'])
         if handlerClass:
-            return handlerClass(jobData, parent)
-    elif jobData['type'] == 'cook':
-        return GroupTroveCook(jobData, parent)
+            return handlerClass(cfg, jobData)
 
     raise InvalidBuildType(jobData['buildType'])

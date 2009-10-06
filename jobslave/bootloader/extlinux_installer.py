@@ -9,7 +9,7 @@ import os
 from conary.lib import util
 
 from jobslave import bootloader
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 
 class ExtLinuxInstaller(bootloader.BootloaderInstaller):
@@ -21,9 +21,9 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
         # Mount /proc (this is called after /proc is unmounted the first time)
         # and bind-mount /dev (so extlinux can write to the boot sector)
         image_proc = os.path.join(self.image_root, 'proc')
-        logCall('mount -t proc proc "%s"' % image_proc)
+        logCall('mount -n -t proc proc "%s"' % image_proc)
         image_dev = os.path.join(self.image_root, 'dev')
-        logCall('mount --bind /dev "%s"' % image_dev)
+        logCall('mount -n --bind /dev "%s"' % image_dev)
 
         # Install extlinux
         try:
@@ -32,8 +32,8 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
                 '--heads %s --sectors %s /boot/extlinux/' % (self.image_root,
                 self.heads, self.sectors))
         finally:
-            logCall('umount "%s"' % image_dev)
-            logCall('umount "%s"' % image_proc)
+            logCall('umount -n "%s"' % image_dev)
+            logCall('umount -n "%s"' % image_proc)
 
     def install_mbr(self, root_dir, mbr_device, size):
         # Install MBR

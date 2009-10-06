@@ -23,8 +23,9 @@ from jobslave import helperfuncs
 from jobslave import loophelpers
 from jobslave.distro_detect import *
 from jobslave.filesystems import sortMountPoints
-from jobslave.imagegen import ImageGenerator, MSG_INTERVAL, logCall
+from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
 from jobslave.generators import constants
+from jobslave.util import logCall
 
 # conary imports
 from conary import conaryclient
@@ -166,7 +167,7 @@ class Filesystem:
             return
 
         self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
-        logCall("mount %s %s" % (self.loopDev, mountPoint))
+        logCall("mount -n %s %s" % (self.loopDev, mountPoint))
         self.mounted = True
         self.mountPoint = mountPoint
 
@@ -178,7 +179,7 @@ class Filesystem:
             return
 
         try:
-            logCall("umount %s" % self.loopDev)
+            logCall("umount -n %s" % self.mountPoint)
         except RuntimeError:
             log.warning('Unmount of %s from %s failed - trying again',
                 self.loopDev, self.mountPoint)
@@ -188,7 +189,7 @@ class Filesystem:
                 logCall("sync")
                 time.sleep(1)
                 try:
-                    logCall("umount %s" % self.loopDev)
+                    logCall("umount -n %s" % self.mountPoint)
                 except RuntimeError:
                     pass
                 else:
@@ -247,15 +248,14 @@ class BootableImage(ImageGenerator):
     heads = constants.heads
     sectors = constants.sectors
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, cfg, jobData):
         self.filesystems = { '/': StubFilesystem() }
         self.scsiModules = False
 
-        ImageGenerator.__init__(self, *args, **kwargs)
+        ImageGenerator.__init__(self, cfg, jobData)
         log.info('building trove: (%s, %s, %s)' % \
                  (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
 
-        self.workDir = os.path.join(constants.tmpDir, self.jobId)
         self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(self.outputDir)
@@ -552,7 +552,7 @@ class BootableImage(ImageGenerator):
             # SLES 11 won't start udev since the socket already exists, must
             # bind mount dev instead.
             open('%s/etc/sysconfig/mkinitrd' % dest, 'w').write('OPTIONS="-A"\n')
-            logCall("mount -o bind /dev %s/dev" % dest)
+            logCall("mount -n -o bind /dev %s/dev" % dest)
 
         for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
             tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
@@ -578,7 +578,7 @@ class BootableImage(ImageGenerator):
                 raise exc, e, bt
 
         if is_SUSE(dest, version=11):
-            logCall("umount %s/dev" % dest)
+            logCall("umount -n %s/dev" % dest)
 
     @classmethod
     def dereferenceLink(cls, fname):
@@ -651,16 +651,13 @@ class BootableImage(ImageGenerator):
                 mntlist.add(mntpoint)
         # unmount in reverse sorted order to get /foo/bar before /foo
         for mntpoint in reversed(sorted(mntlist)):
-            logCall('umount %s' % mntpoint)
+            logCall('umount -n %s' % mntpoint)
 
     @timeMe
     def installFileTree(self, dest, bootloader_override=None):
         self.status('Installing image contents')
         self.createTemporaryRoot(dest)
         try:
-            logCall('mount -t proc none %s' % os.path.join(dest, 'proc'))
-            logCall('mount -t sysfs none %s' % os.path.join(dest, 'sys'))
-
             if os.access(constants.tmpDir, os.W_OK):
                 util.settempdir(constants.tmpDir)
                 log.info("Using %s as tmpDir" % constants.tmpDir)
@@ -700,6 +697,8 @@ class BootableImage(ImageGenerator):
 
             self.status('Finalizing install')
 
+            logCall('mount -n -t proc none %s' % os.path.join(dest, 'proc'))
+            logCall('mount -n -t sysfs none %s' % os.path.join(dest, 'sys'))
             self.fileSystemOddsNEnds(dest)
 
             # Get a bootloader installer and pre-configure before running

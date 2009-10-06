@@ -4,15 +4,18 @@
 # All Rights Reserved
 #
 
+import logging
 import os
 import tempfile
 
 from jobslave import buildtypes
 from jobslave import lvm
-from jobslave.imagegen import logCall, log
+from jobslave.util import logCall
 from jobslave.generators import bootable_image, constants
 
 from conary.lib import util
+
+log = logging.getLogger(__name__)
 
 FSTYPE_LINUX = "L"
 FSTYPE_LINUX_LVM = "8e"
@@ -142,14 +145,14 @@ class RawHdImage(bootable_image.BootableImage):
         diskpath = os.path.join(root_dir, 'disk.img')
         f = open(diskpath, 'w')
         f.close()
-        logCall('mount -obind %s %s' %(image, diskpath))
+        logCall('mount -n -obind %s %s' %(image, diskpath))
         try:
             bootloader_installer.install_mbr(root_dir, image, totalSize)
         finally:
             blkidtab = os.path.join(root_dir, "etc", "blkid.tab")
             if os.path.exists(blkidtab):
                 os.unlink(blkidtab)
-            logCall('umount %s' % diskpath)
+            logCall('umount -n %s' % diskpath)
             os.unlink(diskpath)
 
         # Unmount and destroy LVM

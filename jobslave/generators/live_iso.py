@@ -13,7 +13,7 @@ import tempfile
 # mint imports
 from jobslave import buildtypes
 from jobslave.generators import bootable_image, constants
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 # conary imports
 from conary import conaryclient
@@ -228,7 +228,7 @@ class LiveIso(bootable_image.BootableImage):
                 (size > 734003200) and 'DVD' or 'CD')
 
     def write(self):
-        topDir = os.path.join(constants.tmpDir, self.jobId)
+        topDir = os.path.join(constants.tmpDir, self.UUID)
         fileTree = os.path.join(topDir, self.basefilename + '_base')
         zFileTree = os.path.join(topDir, self.basefilename + '_zbase')
         liveDir = os.path.join(topDir, self.basefilename + '_live')

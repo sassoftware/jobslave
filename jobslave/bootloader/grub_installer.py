@@ -15,7 +15,7 @@ from jobslave import bootloader
 from jobslave import buildtypes
 from jobslave.distro_detect import *
 from jobslave.generators import constants
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
                 includeTemplate=True):

@@ -10,7 +10,7 @@ import tempfile
 from jobslave.bootloader import grub_installer
 from jobslave.generators import bootable_image, constants
 from jobslave.filesystems import sortMountPoints
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 from conary.lib import util, log
 

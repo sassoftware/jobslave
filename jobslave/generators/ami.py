@@ -17,7 +17,7 @@ from conary.deps import deps
 from conary import conaryclient
 
 from jobslave import buildtypes
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 from jobslave.generators import constants
 from jobslave.generators import raw_fs_image

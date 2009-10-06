@@ -21,11 +21,11 @@ from jobslave.generators import constants
 from jobslave import gencslist
 from jobslave import imagegen
 from jobslave import splitdistro
-from jobslave.imagegen import logCall
 from jobslave.splitdistro import call
 from jobslave.generators.anaconda_images import AnacondaImages
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
 from jobslave.generators import ovf_image
+from jobslave.util import logCall
 
 from jobslave import flavors
 from jobslave.helperfuncs import getSlaveRuntimeConfig
@@ -622,7 +622,7 @@ class InstallableIso(ImageGenerator):
         self.callback = Callback(self.status)
 
         # set up the topdir
-        topdir = os.path.join(constants.tmpDir, self.jobId, "unified")
+        topdir = os.path.join(self.workDir, "unified")
         util.mkdirChain(topdir)
 
         self._setupTrove()
@@ -674,7 +674,6 @@ class InstallableIso(ImageGenerator):
         outputFileList = self.buildIsos(topdir)
 
         if self.buildOVF10:
-            self.workDir = os.path.join(constants.tmpDir, self.jobId)
             self.workingDir = os.path.join(self.workDir, self.basefilename)
             util.mkdirChain(self.workingDir)
 

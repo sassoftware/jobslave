@@ -12,7 +12,6 @@ class StubImage(ImageGenerator):
     def write(self):
         f = os.path.join(constants.tmpDir, "stub.iso")
 
-        buildId = self.jobId
         stubContent = self.getBuildData('stringArg')
 
         stub = file(f, "w")

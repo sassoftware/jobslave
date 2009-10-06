@@ -6,9 +6,9 @@
 
 import os
 
-from jobslave.imagegen import logCall
 from jobslave.generators import constants
 from jobslave.generators import raw_hd_image, bootable_image
+from jobslave.util import logCall
 
 from conary.deps import deps
 from conary.lib import util

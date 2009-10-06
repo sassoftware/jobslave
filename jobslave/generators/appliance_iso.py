@@ -109,20 +109,19 @@ class ApplianceInstaller(bootable_image.BootableImage,
         bsFile.close()
 
     def write(self):
-        topDir = os.path.join(constants.tmpDir, self.jobId, 'unified')
+        topDir = os.path.join(self.workDir, 'unified')
         tbdir = os.path.join(topDir, self.productDir, 'tarballs')
         baseDir = os.path.join(topDir, self.productDir, 'base')
         util.mkdirChain(tbdir)
         util.mkdirChain(baseDir)
 
-        basePath = os.path.join(constants.tmpDir, self.jobId, self.basefilename)
+        basePath = os.path.join(self.workDir, self.basefilename)
         if os.path.exists(basePath):
             util.rmtree(basePath)
         util.mkdirChain(basePath)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
-        tarball = os.path.join(constants.tmpDir, self.jobId,
-                               self.basefilename + '.tar.gz')
+        tarball = os.path.join(self.workDir, self.basefilename + '.tar.gz')
         cwd = os.getcwd()
         try:
             self.installFileTree(basePath)
@@ -185,7 +184,7 @@ class ApplianceInstaller(bootable_image.BootableImage,
             self.status("Building ISOs")
 
             # Mostly copied from splitdistro
-            current = os.path.join(constants.tmpDir, self.jobId, 'disc1')
+            current = os.path.join(self.workDir, 'disc1')
             discnum = 1
             if os.path.isdir(current):
                 print >> sys.stderr, 'removing stale', current

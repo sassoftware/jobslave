@@ -9,15 +9,14 @@ import os
 
 # jobslave imports
 from jobslave.generators import bootable_image, constants
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 # conary imports
 from conary.lib import util
 
 class NetbootImage(bootable_image.BootableImage):
     def write(self):
-        topDir = os.path.join(constants.tmpDir, self.jobId)
-        basePath = os.path.join(topDir, self.basefilename)
+        basePath = os.path.join(self.workDir, self.basefilename)
         if os.path.exists(basePath):
             util.rmtree(basePath)
         util.mkdirChain(basePath)
@@ -38,7 +37,7 @@ class NetbootImage(bootable_image.BootableImage):
             self.postOutput(((cpioImage, 'initrd'),
                              (outputKernel, 'kernel')))
         finally:
-            util.rmtree(topDir, ignore_errors = True)
+            util.rmtree(basePath, ignore_errors = True)
             try:
                 os.chdir(cwd)
             except:
