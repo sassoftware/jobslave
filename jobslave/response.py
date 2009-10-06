@@ -9,7 +9,9 @@ Communicate status and artifacts back to the parent rBuilder.
 """
 
 import logging
+import Queue
 import restlib.client
+import threading
 import time
 try:
     from xml.etree import ElementTree as ET
@@ -61,43 +63,67 @@ class ResponseProxy(object):
         print 'would send %d files' % len(fileList)
 
 
-class LogHandler(logging.Handler):
+class LogHandler(threading.Thread, logging.Handler):
     """
     Log handler that periodically sends records upstream to the parent
-    rBuilder.
+    rBuilder. All sending is done from a separate thread to avoid blocking the
+    caller.
     """
     maxSize = 4096
     maxWait = 4
 
     def __init__(self, response):
+        threading.Thread.__init__(self)
         logging.Handler.__init__(self)
         self.response = response
-        self.buffer = ''
-        self.lastSent = 0
+        self.buffer = Queue.Queue()
+        self.started = self.stopped = False
 
     def close(self):
+        self.acquire()
+        started = self.started
+        self.stopped = True
+        self.release()
+
+        if started:
+            self.join()
+
         logging.Handler.close(self)
-        self.flush()
 
     def emit(self, record):
         if getattr(record, 'dontSend', False):
             return
-        self.buffer += self.format(record) + '\n'
-        if (len(self.buffer) > self.maxSize
-                or time.time() - self.lastSent > self.maxWait):
-            self.flush()
+        self.buffer.put(self.format(record) + '\n')
 
-    def flush(self):
+    def run(self):
         self.acquire()
-        buf, self.buffer = self.buffer, ''
-        self.lastSent = time.time()
+        self.started = True
         self.release()
 
-        if buf:
+        while True:
+            # Check if we're stopped first, but exit only after emptying the
+            # queue.
+            self.acquire()
+            stopped = self.stopped
+            self.release()
+
+            # Collect as many items as possible in 1 second.
+            start = time.time()
+            items = []
+            while time.time() - start < 1.0:
+                try:
+                    items.append(self.buffer.get(True, 0.1))
+                except Queue.Empty:
+                    continue
+
+            # Send all collected items upstream
             try:
-                self.response.sendLog(buf)
+                self.response.sendLog(''.join(items))
             except:
                 self.response.log.exception("Error sending build log:")
+
+            if stopped:
+                return
 
 
 class NonSendingLogger(logging.Logger):

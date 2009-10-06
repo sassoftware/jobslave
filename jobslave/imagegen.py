@@ -88,6 +88,7 @@ class Generator(object):
         try:
             # Route log data to the rBuilder's build log.
             self.logger = LogHandler(self.response)
+            self.logger.start()
             rootLogger = logging.getLogger()
             self.logger.setFormatter(rootLogger.handlers[0].formatter)
             rootLogger.addHandler(self.logger)
