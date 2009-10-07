@@ -119,6 +119,7 @@ class Generator(object):
             self.logger.flush()
 
     def status(self, message, status=jobstatus.RUNNING):
+        log.info("Sending job status: %d %s", status, message)
         self.response.sendStatus(status, message)
 
     def postOutput(self, fileList):
