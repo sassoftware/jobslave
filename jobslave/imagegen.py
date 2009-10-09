@@ -42,7 +42,7 @@ class Generator(object):
         self.cfg = cfg
         self.jobData = jobData
 
-        self.response = response.ResponseProxy(self.jobData)
+        self.response = response.ResponseProxy(cfg.masterUrl, self.jobData)
         self.UUID = self.jobData['UUID'].encode('ascii')
         self.workDir = os.path.join(constants.tmpDir, self.UUID)
 
@@ -67,8 +67,6 @@ class Generator(object):
         proxy = None
         if self.cfg.conaryProxy:
             proxy = self.cfg.conaryProxy
-        elif self.cfg.masterAddress:
-            proxy = self.cfg.masterAddress
         if proxy:
             ccfg.configLine('conaryProxy http ' + proxy)
             ccfg.configLine('conaryProxy https ' + proxy)

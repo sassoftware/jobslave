@@ -16,7 +16,7 @@ from jobslave.util import setupLogging
 
 class SlaveConfig(ConfigFile):
     debugMode = (CfgBool, False)
-    masterAddress = (CfgString, None)
+    masterUrl = (CfgString, None)
     conaryProxy = (CfgString, None)
     jobDataPath = (CfgPath, '/tmp/jobData')
 

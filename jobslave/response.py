@@ -25,12 +25,10 @@ log = logging.getLogger(__name__)
 
 
 class ResponseProxy(object):
-    def __init__(self, jobData):
-        self.rbuilderUrl = jobData['rbuilderUrl']
-        self.imageBase = '%sapi/products/%s/images/%d/' % (self.rbuilderUrl,
+    def __init__(self, masterUrl, jobData):
+        self.imageBase = '%sapi/products/%s/images/%d/' % (masterUrl,
                 jobData['project']['hostname'], jobData['buildId'])
-        self.uploadBase = '%suploadBuild/%d/' % (self.rbuilderUrl,
-                jobData['buildId'])
+        self.uploadBase = '%suploadBuild/%d/' % (masterUrl, jobData['buildId'])
         self.outputToken = jobData['outputToken']
 
         # Create a logger for things that are inside the log sending path, so
@@ -53,7 +51,6 @@ class ResponseProxy(object):
         headers = {
                 'Content-Type': 'application/octet-stream',
                 'X-rBuilder-OutputToken': self.outputToken,
-                'Transfer-Encoding': 'chunked',
                 }
         url = self.uploadBase + targetName
 
@@ -173,24 +170,13 @@ class FilePutter(restlib.client.Client):
         fObj = open(filePath, 'rb')
         fileSize = os.fstat(fObj.fileno()).st_size
 
+        headers = self.headers.copy()
+        headers['Content-Length'] = str(fileSize)
+
         conn = self._connection
-        conn.request(method, self.path, headers=self.headers)
-        while fileSize:
-            # send in 256KiB chunks
-            chunk = min(256 * 1024, fileSize)
-            # first send the hex-encoded size
-            conn.send('%x\r\n' % (chunk,))
-            # then the chunk of data
-            util.copyfileobj(fObj, conn, bufSize=chunk, sizeLimit=chunk,
-                    digest=digest)
-            # send \r\n after the chunked data
-            conn.send('\r\n')
-            fileSize -= chunk
+        conn.request(method, self.path, headers=headers)
+        util.copyfileobj(fObj, conn, sizeLimit=fileSize, digest=digest)
 
-        # send chunk of 0 to signal EOF
-        conn.send('0\r\n\r\n')
-
-        # get response
         resp = conn.getresponse()
         if resp.status != 200:
             raise restlib.client.ResponseError(resp.status, resp.reason,
