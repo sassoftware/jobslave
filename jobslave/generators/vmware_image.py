@@ -68,17 +68,17 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
-        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
+        cylinders = raw_hd_image.divCeil(size, self.bytesPerCylinder)
         logCall('raw2vmdk -C %d -H %d -S %d -A %s %s %s' % (
-            cylinders, constants.heads, constants.sectors,
+            cylinders, self.heads, self.sectors,
             self.adapter, hdImage, outfile))
 
 
     @bootable_image.timeMe
     def createOvfVMDK(self, hdImage, outfile, size):
-        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
+        cylinders = raw_hd_image.divCeil(size, self.bytesPerCylinder)
         logCall('raw2vmdk -C %d -H %d -S %d -s %s %s' % (
-            cylinders, constants.heads, constants.sectors,
+            cylinders, self.heads, self.sectors,
             hdImage, outfile))
 
     @bootable_image.timeMe
@@ -232,7 +232,7 @@ class VMwareESXImage(VMwareImage):
 
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
-        cylinders = raw_hd_image.divCeil(size, constants.bytesPerCylinder)
+        cylinders = raw_hd_image.divCeil(size, self.bytesPerCylinder)
         extents = raw_hd_image.divCeil(size, 512)
 
         # Generate the VMDK from template.
@@ -247,8 +247,8 @@ class VMwareESXImage(VMwareImage):
             'EXTENTS': extents,
 
             'CYLINDERS': cylinders,
-            'HEADS': constants.heads,
-            'SECTORS': constants.sectors,
+            'HEADS': self.heads,
+            'SECTORS': self.sectors,
 
             'EXT_TYPE': self.createType == 'vmfs' and 'VMFS' or 'FLAT',
           })

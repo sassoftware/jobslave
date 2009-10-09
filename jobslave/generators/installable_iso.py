@@ -28,7 +28,6 @@ from jobslave.generators import ovf_image
 from jobslave.util import logCall
 
 from jobslave import flavors
-from jobslave.helperfuncs import getSlaveRuntimeConfig
 
 from conary import callbacks
 from conary import conaryclient
@@ -145,7 +144,7 @@ class InstallableIso(ImageGenerator):
             return (trvName, trvVersion, trvFlavor)
     
     def _getMasterIPAddress(self):
-        return getSlaveRuntimeConfig().get('MASTER_IP', '')
+        raise NotImplementedError
 
     def getConaryClient(self, tmpRoot, arch):
         arch = deps.ThawFlavor(arch)
