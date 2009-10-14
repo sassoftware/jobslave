@@ -10,6 +10,7 @@ import select
 import stat
 import subprocess
 import sys
+import tempfile
 
 
 def _getLogger(levels=2):
@@ -76,6 +77,11 @@ def call(cmd, ignoreErrors=False, logCmd=False, logLevel=logging.DEBUG,
     kw.setdefault('shell', isinstance(cmd, basestring))
     if 'stdin' not in kw:
         kw['stdin'] = open('/dev/null')
+    elif isinstance(kw['stdin'], basestring):
+        stdinFile = tempfile.TemporaryFile()
+        stdinFile.write(kw.pop('stdin'))
+        stdinFile.seek(0)
+        kw['stdin'] = stdinFile
 
     pipe = captureOutput and subprocess.PIPE or None
     kw.setdefault('stdout', pipe)

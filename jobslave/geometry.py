@@ -9,6 +9,10 @@ import struct
 
 BLOCK = 512
 
+FSTYPE_LINUX_SWAP   = 0x82
+FSTYPE_LINUX        = 0x83
+FSTYPE_LINUX_LVM    = 0x8e
+
 
 class Geometry(object):
     def __init__(self, heads, sectors):

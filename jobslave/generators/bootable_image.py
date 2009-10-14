@@ -44,7 +44,8 @@ def timeMe(func):
         clock = time.clock()
         actual = time.time()
         returner = func(self, *args, **kwargs)
-        log.info("%s: %.5f %.5f" % (func.__name__, time.clock() - clock, time.time() - actual))
+        log.debug("%s: %.5f %.5f" % (func.__name__, time.clock() - clock,
+            time.time() - actual))
         return returner
     return wrapper
 

@@ -50,18 +50,15 @@ class HDDContainer:
             image, max(seek, 0), blocksize))
 
     def partition(self, partitions):
-        cylinders = divCeil(self.totalSize, self.bytesPerCylinder)
-        cmd = '/sbin/sfdisk -C %d -S %d -H %d %s -uS --force' % \
-            (cylinders, self.sectors, self.heads, self.image)
-        sfdisk = util.popen(cmd, 'w')
-
+        stdin = ''
         for start, size, fsType, bootable in partitions:
-            sfdisk.write("%d %d %s" % (start, size, fsType))
-            if bootable:
-                sfdisk.write(" *")
-            sfdisk.write("\n")
+            stdin += "%d %d %s%s\n" % (start, size, fsType,
+                    (bootable and " *" or ""))
 
-        sfdisk.close()
+        cylinders = divCeil(self.totalSize, self.bytesPerCylinder)
+        logCall('/sbin/sfdisk -C %d -S %d -H %d %s -uS --force'
+                % (cylinders, self.sectors, self.heads, self.image),
+                stdin=stdin)
 
 
 class RawHdImage(bootable_image.BootableImage):
