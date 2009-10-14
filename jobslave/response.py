@@ -149,7 +149,8 @@ class LogHandler(threading.Thread, logging.Handler):
                     continue
 
             # Send all collected items upstream
-            self.response.sendLog(''.join(items))
+            if items:
+                self.response.sendLog(''.join(items))
 
             if stopped:
                 return
