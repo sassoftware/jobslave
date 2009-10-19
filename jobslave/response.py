@@ -78,9 +78,11 @@ class ResponseProxy(object):
             self.log.exception("Error sending build log:")
 
     def postOutput(self, fileList):
-        filenames = []
+        root = ET.Element('files')
         for n, (filePath, description) in enumerate(fileList):
-            fileName = os.path.basename(filePath)
+            # unicodify file names, dropping any invalid bytes
+            fileName = os.path.basename(filePath).decode('utf8', 'ignore')
+
             fileSize = os.stat(filePath).st_size
             log.info("Uploading %d of %d: %s (%d bytes)",
                     n + 1, len(fileList), fileName, fileSize)
@@ -90,9 +92,14 @@ class ResponseProxy(object):
             digest = digest.hexdigest()
 
             log.info(" %s uploaded, SHA-1 digest is %s", fileName, digest)
-            filenames.append((fileName, description, fileSize, digest))
 
-        # TODO: rpc bits
+            file = ET.SubElement(root, 'file')
+            ET.SubElement(file, 'title').text = description
+            ET.SubElement(file, 'size').text = str(fileSize)
+            ET.SubElement(file, 'sha1').text = digest
+            ET.SubElement(file, 'baseFileName').text = fileName
+
+        self._post('PUT', 'files', body=ET.tostring(root))
 
 
 class LogHandler(threading.Thread, logging.Handler):
