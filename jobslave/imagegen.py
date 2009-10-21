@@ -6,6 +6,7 @@
 
 import logging
 import os
+import re
 import signal
 import stat
 import StringIO
@@ -108,9 +109,6 @@ class Generator(object):
             self.status(message, status=jobstatus.FAILED)
             self.logger.flush()
 
-            if self.cfg.debugMode:
-                raise
-
         else:
             log.info('Finished job: %s', self.UUID)
             self.status('Job Finished', status=jobstatus.FINISHED)
@@ -131,9 +129,10 @@ class ImageGenerator(Generator):
         Generator.__init__(self, *args, **kwargs)
 
         #Figure out what group trove to use
-        self.baseTrove = self.jobData['troveName']
-        versionStr = self.jobData['troveVersion']
-        flavorStr = self.jobData['troveFlavor']
+        self.baseTrove = self.jobData['troveName'].encode('utf8')
+        self.baseVersion = versions.ThawVersion(self.jobData['troveVersion'].encode('utf8'))
+        self.baseFlavor = deps.ThawFlavor(self.jobData['troveFlavor'].encode('utf8'))
+        self.baseTup = self.baseTrove, self.baseVersion, self.baseFlavor
 
         if 'filesystems' not in self.jobData:
             # support for legacy requests
@@ -145,13 +144,6 @@ class ImageGenerator(Generator):
 
         self.mountDict = dict([(x[0], tuple(x[1:])) for x in self.jobData['filesystems'] if x[0]])
 
-        #Thaw the version string
-        ver = versions.ThawVersion(versionStr)
-        self.baseVersion = ver.asString()
-
-        #Thaw the flavor string
-        self.baseFlavor = deps.ThawFlavor(str(flavorStr))
-
         try:
             self.arch = \
                 self.baseFlavor.members[deps.DEP_CLASS_IS].members.keys()[0]
@@ -159,13 +151,11 @@ class ImageGenerator(Generator):
             self.arch = ""
 
         basefilename = self.getBuildData('baseFileName') or ''
-        basefilename = ''.join([(x.isalnum() or x in ('-', '.')) and x or '_' \
-                                for x in basefilename])
-        basefilename = basefilename or \
-                       "%(name)s-%(version)s-%(arch)s" % {
-                           'name': self.jobData['project']['hostname'],
-                           'version': ver.trailingRevision().asString().split('-')[0],
-                           'arch': self.arch}
+        if basefilename:
+            basefilename = re.sub('[^a-zA-Z0-9.-]', '_', basefilename)
+        else:
+            basefilename = '-'.join((self.jobData['project']['hostname'],
+                self.baseVersion.trailingRevision().version, self.arch))
 
         self.basefilename = basefilename.encode('utf8')
         self.buildOVF10 = self.getBuildData('buildOVF10')
@@ -181,10 +171,7 @@ class ImageGenerator(Generator):
         conaryrcFile = open(tmpPath, "w")
         ilp = self.getBuildData("installLabelPath")
         if not ilp: # allow a BuildData ILP to override the group label path
-            ilp = self._getLabelPath( \
-                cclient, (self.jobData['troveName'],
-                          versions.VersionFromString(self.baseVersion),
-                          self.baseFlavor))
+            ilp = self._getLabelPath(cclient, self.baseTup)
         if not ilp: # fall back to a reasonable default if group trove was
                     # cooked before conary0.90 and builddata is blank
             ilp = self.jobData['projectLabel'] + " conary.rpath.com@rpl:1"

@@ -29,7 +29,6 @@ from jobslave.util import logCall
 
 # conary imports
 from conary import conaryclient
-from conary import versions
 from conary.callbacks import UpdateCallback
 from conary.conaryclient.cmdline import parseTroveSpec
 from conary.deps import deps
@@ -37,6 +36,10 @@ from conary.lib import util
 from conary.repository import errors
 
 log = logging.getLogger(__name__)
+
+
+RPM_ALTERNATES = '/opt'
+RPM_DOTS = re.compile('^(.*)[._]')
 
 
 def timeMe(func):
@@ -254,8 +257,7 @@ class BootableImage(ImageGenerator):
         self.scsiModules = False
 
         ImageGenerator.__init__(self, cfg, jobData)
-        log.info('building trove: (%s, %s, %s)' % \
-                 (self.baseTrove, self.baseVersion, str(self.baseFlavor)))
+        log.info('building trove: %s=%s[%s]' % self.baseTup)
 
         self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
@@ -409,7 +411,8 @@ class BootableImage(ImageGenerator):
     @timeMe
     def getTroveSize(self, mounts):
         log.info("getting changeset for partition sizing")
-        job = (self.baseTrove, (None, None), (versions.VersionFromString(self.baseVersion), self.baseFlavor), True)
+        job = (self.baseTrove, (None, None),
+                (self.baseVersion, self.baseFlavor), True)
         cs = self.nc.createChangeSet([job], withFiles = True, withFileContents = False)
         sizes, totalSize = filesystems.calculatePartitionSizes(cs, mounts)
 
@@ -657,6 +660,7 @@ class BootableImage(ImageGenerator):
     @timeMe
     def installFileTree(self, dest, bootloader_override=None):
         self.status('Installing image contents')
+        self.loadRPM()
         self.createTemporaryRoot(dest)
         try:
             if os.access(constants.tmpDir, os.W_OK):
@@ -666,7 +670,7 @@ class BootableImage(ImageGenerator):
                 log.warning("Using system temporary directory")
 
             self.conarycfg.root = dest
-            self.conarycfg.installLabelPath = [versions.VersionFromString(self.baseVersion).branch().label()]
+            self.conarycfg.installLabelPath = [self.baseVersion.trailingLabel()]
 
             callback = None
             cclient = conaryclient.ConaryClient(self.conarycfg)
@@ -770,6 +774,48 @@ class BootableImage(ImageGenerator):
         bootloader_installer.install()
 
         return bootloader_installer
+
+    def loadRPM(self):
+        """
+        Locate the correct version of RPM to install the image, and prepend it
+        to C{sys.path}.
+        """
+        imageTrove = self.nc.getTrove(withFiles=False, *self.baseTup)
+        rpmTroves = sorted(x for x in imageTrove.iterTroveList(True, True)
+                if x[0] in ('rpm:runtime', 'rpm:rpm'))
+
+        rpmPath = None
+        if rpmTroves:
+            rpmVersion = rpmTroves[-1][1].trailingRevision().version
+            while True:
+                tryPath = os.path.join(RPM_ALTERNATES, 'rpm-' + rpmVersion)
+                if os.path.isdir(tryPath):
+                    rpmPath = tryPath
+                    break
+
+                match = RPM_DOTS.match(rpmVersion)
+                if not match:
+                    break
+                rpmVersion = match.group(1)
+
+        if not rpmPath:
+            rpmVersions = sorted(x for x in os.path.listdir(RPM_ALTERNATES)
+                    if x.startswith('rpm-'))
+            if not rpmVersions:
+                log.warning("No RPM paths are available.")
+                return
+            rpmPath = os.path.join(RPM_ALTERNATES, rpmVersions[-1])
+
+        sitePackages = os.path.join(rpmPath,
+                'lib64/python%s.%s/site-packages' % sys.version_info[:2])
+        if not os.path.isdir(sitePackages):
+            log.warning("RPM import path %s does not exist.", sitePackages)
+            return
+
+        log.info("Using RPM from %s", sitePackages)
+        if sitePackages in sys.path:
+            sys.path.remove(sitePackages)
+        sys.path.insert(0, sitePackages)
 
     @timeMe
     def gzip(self, source, dest = None):
