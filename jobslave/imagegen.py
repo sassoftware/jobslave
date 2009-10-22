@@ -102,17 +102,19 @@ class Generator(object):
             self.status('Starting job')
             self.write()
 
-        except Exception, err:
-            log.exception("Job failed:")
-
-            message = 'Job failed (%s)' % str(err).replace('\n', ' ')
-            self.status(message, status=jobstatus.FAILED)
-            self.logger.flush()
-
-        else:
             log.info('Finished job: %s', self.UUID)
             self.status('Job Finished', status=jobstatus.FINISHED)
             self.logger.flush()
+
+        except Exception, err:
+            log.exception("Unhandled exception in generator:")
+
+            message = 'Job failed (%s: %s)' % (
+                    err.__class__.__name__,
+                    str(err).replace('\n', ' '))
+            self.status(message, status=jobstatus.FAILED)
+            if self.logger:
+                self.logger.flush()
 
     def status(self, message, status=jobstatus.RUNNING):
         log.info("Sending job status: %d %s", status, message)
