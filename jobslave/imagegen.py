@@ -96,7 +96,7 @@ class Generator(object):
             # thing. New code must use the builtin logging, not the conary
             # logger.
             conaryLog.setVerbosity(logging.NOTSET)
-            conaryLog.handlers = []
+            conaryLog.logger.handlers = []
 
             log.info("Starting job %s", self.UUID)
             self.status('Starting job')
