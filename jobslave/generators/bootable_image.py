@@ -261,6 +261,7 @@ class BootableImage(ImageGenerator):
 
         self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
+        self.root = os.path.join(self.workDir, 'root')
         util.mkdirChain(self.outputDir)
         util.mkdirChain(self.workingDir)
         self.swapSize = self.getBuildData("swapSize") * 1048576
@@ -291,15 +292,62 @@ class BootableImage(ImageGenerator):
                 return path
         return None
 
-    @timeMe
-    def createTemporaryRoot(self, fakeRoot):
-        for d in ('etc', 'etc/sysconfig', 'etc/sysconfig/network-scripts',
-                  'boot/grub', 'tmp', 'proc', 'sys', 'root', 'var'):
-            util.mkdirChain(os.path.join(fakeRoot, d))
+
+    ## Script helpers
+    def filePath(self, path):
+        while path.startswith('/'):
+            path = path[1:]
+        return os.path.join(self.root, path)
+
+    def fileExists(self, path):
+        return os.path.exists(self.filePath(path))
+
+    def createDirectory(self, path, mode=0755):
+        path = self.filePath(path)
+        if not os.path.isdir(path):
+            os.makedirs(path)
+            os.chmod(path, mode)
+
+    def createFile(self, path, contents='', mode=0644):
+        self.createDirectory(os.path.dirname(path))
+        path = self.filePath(path)
+        if not os.path.isfile(path):
+            open(path, 'wb').write(contents)
+            os.chmod(path, mode)
+
+    def appendFile(self, path, contents):
+        self.createDirectory(os.path.dirname(path))
+        open(self.filePath(path), 'ab').write(contents)
 
 
+    ## Pre/post scripts
     @timeMe
-    def fileSystemOddsNEnds(self, fakeRoot):
+    def preInstallScripts(self):
+        # /proc and /sys are already created and mounted
+        self.createDirectory('root')
+        self.createDirectory('tmp')
+        self.createDirectory('var')
+        self.createDirectory('var')
+        self.createDirectory('boot/grub')
+        self.createDirectory('etc/sysconfig/network-scripts')
+
+        # Create fstab early for RPM scripts to use.
+        fstab = ""
+        for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
+            reqSize, freeSpace, fsType = self.mountDict[mountPoint]
+            fs = self.filesystems[mountPoint]
+
+            if fsType == "ext3":
+                fstab += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % (
+                    (fs.fsLabel, mountPoint, (mountPoint == '/') and 1 or 2))
+            elif fsType == "swap":
+                fstab += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
+
+            self.createFile('etc/fstab', fstab)
+
+    @timeMe
+    def preTagScripts(self, bootloader_installer):
+        fakeRoot = self.root
         #create a swap file
         if self.swapSize:
             swapFile = util.joinPaths(fakeRoot, self.swapPath)
@@ -358,35 +406,6 @@ class BootableImage(ImageGenerator):
             copyfile(os.path.join(fakeRoot, 'usr', 'share', 'zoneinfo', 'UTC'),
                      os.path.join(fakeRoot, 'etc', 'localtime'))
 
-        # extend fstab based on the list of filesystems we have added
-        util.mkdirChain(os.path.join(fakeRoot, 'etc'))
-        fstab = os.path.join(fakeRoot, 'etc', 'fstab')
-        if os.path.exists(fstab):
-            f = open(fstab)
-            oldFstab = f.read()
-            f.close()
-        else:
-            oldFstab = ""
-
-        if not self.swapSize:
-            oldFstab = '\n'.join([x for x in oldFstab.splitlines() \
-                    if 'swap' not in x])
-
-        fstabExtra = ""
-        for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
-            reqSize, freeSpace, fsType = self.mountDict[mountPoint]
-            fs = self.filesystems[mountPoint]
-
-            if fsType == "ext3":
-                fstabExtra += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % \
-                    (fs.fsLabel, mountPoint, (mountPoint == '/') and 1 or 2)
-            elif fsType == "swap":
-                fstabExtra += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
-        fstab = open(os.path.join(fakeRoot, 'etc', 'fstab'), 'w')
-        fstab.write(fstabExtra)
-        fstab.write(oldFstab)
-        fstab.close()
-
         # Write the /etc/sysconfig/appliance-name for distro-release initscript.
         # Only overwrite if the file is non existent or empty. (RBL-3104)
         appliancePath = os.path.join(fakeRoot, 'etc', 'sysconfig')
@@ -399,14 +418,63 @@ class BootableImage(ImageGenerator):
             f.write('%s\n' % self.jobData['project']['name'])
             f.close()
 
+        # Configure the bootloader (but don't install it yet).
+        if self.baseFlavor.stronglySatisfies(deps.parseFlavor('domU')):
+            # pygrub requires that grub-install be run
+            bootloader_override = 'grub'
+        bootloader_installer.setup()
+
+        self.addScsiModules()
+        self.writeDeviceMaps()
+
     @timeMe
-    def fileSystemOddsNEndsFinal(self, fakeRoot):
+    def postTagScripts(self, bootloader_installer):
         # misc. stuff that needs to run after tag handlers have finished
-        dhcp = os.path.join(fakeRoot, 'etc', 'sysconfig', 'network', 'dhcp')
+        dhcp = self.filePath('etc/sysconfig/network/dhcp')
         if os.path.isfile(dhcp):
             # tell SUSE to set the hostname via DHCP
             cmd = r"""/bin/sed -e 's/DHCLIENT_SET_HOSTNAME=.*/DHCLIENT_SET_HOSTNAME="yes"/g' -i %s""" % dhcp
             logCall(cmd)
+
+        logCall('rm -rf %s/var/lib/conarydb/rollbacks/*' % self.root)
+
+        # set up shadow passwords/md5 passwords
+        authConfigCmd = ('chroot %s %%s --kickstart --enablemd5 --enableshadow'
+                         ' --disablecache' % self.root)
+        if self.fileExists('/usr/sbin/authconfig'):
+            logCall(authConfigCmd % '/usr/sbin/authconfig')
+        elif self.fileExists('/usr/bin/authconfig'):
+            logCall(authConfigCmd % '/usr/bin/authconfig')
+        elif self.fileExists('/usr/sbin/pwconv'):
+            logCall("chroot %s /usr/sbin/pwconv" % self.root)
+
+        # allow empty password to log in for virtual appliance
+        fn = self.filePath('etc/pam.d/common-auth')
+        if os.path.exists(fn):
+            f = open(fn)
+            lines = []
+            for line in f:
+                line = line.strip()
+                if 'pam_unix2.so' in line and 'nullok' not in line:
+                    line += ' nullok'
+                lines.append(line)
+            lines.append('')
+            f = open(fn, 'w')
+            f.write('\n'.join(lines))
+
+        # Unlock the root account by blanking its password, unless a valid
+        # password is already set.
+        if (self.fileExists('usr/sbin/usermod') and not
+                hasRootPassword(self.root)):
+            log.info("Blanking root password.")
+            logCall("chroot %s /usr/sbin/usermod -p '' root" % self.root,
+                    ignoreErrors=True)
+        else:
+            log.info("Not changing root password.")
+
+        # Finish installation of bootloader
+        bootloader_installer.install()
+
 
     @timeMe
     def getTroveSize(self, mounts):
@@ -460,10 +528,10 @@ class BootableImage(ImageGenerator):
         return flavor
 
     @timeMe
-    def addScsiModules(self, dest):
+    def addScsiModules(self):
         if not self.scsiModules:
             return
-        filePath = os.path.join(dest, 'etc', 'modprobe.conf')
+        filePath = self.filePath('etc/modprobe.conf')
         if not os.path.exists(filePath):
             log.warning('modprobe.conf not found while adding scsi modules')
 
@@ -477,9 +545,9 @@ class BootableImage(ImageGenerator):
         f.close()
 
     @timeMe
-    def writeDeviceMaps(self, dest):
+    def writeDeviceMaps(self):
         # first write a grub device map
-        filePath = os.path.join(dest, 'boot', 'grub', 'device.map')
+        filePath = self.filePath('boot/grub/device.map')
         util.mkdirChain(os.path.dirname(filePath))
         f = open(filePath, 'w')
         if self.scsiModules:
@@ -493,7 +561,7 @@ class BootableImage(ImageGenerator):
         f.close()
 
         # next write a blkid cache file
-        filePath = os.path.join(dest, 'etc', 'blkid.tab')
+        filePath = self.filePath('etc/blkid.tab')
         util.mkdirChain(os.path.dirname(filePath))
         f = open(filePath, 'w')
         if self.scsiModules:
@@ -533,7 +601,9 @@ class BootableImage(ImageGenerator):
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script-kernel'))
 
     @timeMe
-    def runTagScripts(self, dest):
+    def runTagScripts(self):
+        dest = self.root
+
         outScript = os.path.join(dest, 'root', 'conary-tag-script')
         inScript = outScript + '.in'
         outs = open(outScript, 'wt')
@@ -658,19 +728,26 @@ class BootableImage(ImageGenerator):
             logCall('umount -n %s' % mntpoint)
 
     @timeMe
-    def installFileTree(self, dest, bootloader_override=None):
+    def installFileTree(self, dest=None, bootloader_override=None):
+        self.root = dest = dest or self.root
         self.status('Installing image contents')
         self.loadRPM()
-        self.createTemporaryRoot(dest)
-        try:
-            if os.access(constants.tmpDir, os.W_OK):
-                util.settempdir(constants.tmpDir)
-                log.info("Using %s as tmpDir" % constants.tmpDir)
-            else:
-                log.warning("Using system temporary directory")
 
-            self.conarycfg.root = dest
-            self.conarycfg.installLabelPath = [self.baseVersion.trailingLabel()]
+        if os.access(constants.tmpDir, os.W_OK):
+            util.settempdir(constants.tmpDir)
+            log.info("Using %s as tmpDir" % constants.tmpDir)
+        else:
+            log.warning("Using system temporary directory")
+
+        self.conarycfg.root = dest
+        self.conarycfg.installLabelPath = [self.baseVersion.trailingLabel()]
+        try:
+            self.createDirectory('proc')
+            self.createDirectory('sys')
+            logCall('mount -n -t proc none %s' % os.path.join(dest, 'proc'))
+            logCall('mount -n -t sysfs none %s' % os.path.join(dest, 'sys'))
+
+            self.preInstallScripts()
 
             callback = None
             cclient = conaryclient.ConaryClient(self.conarycfg)
@@ -702,78 +779,21 @@ class BootableImage(ImageGenerator):
 
             self.status('Finalizing install')
 
-            logCall('mount -n -t proc none %s' % os.path.join(dest, 'proc'))
-            logCall('mount -n -t sysfs none %s' % os.path.join(dest, 'sys'))
-            self.fileSystemOddsNEnds(dest)
-
-            # Get a bootloader installer and pre-configure before running
-            # tag scripts
-            if self.baseFlavor.stronglySatisfies(deps.parseFlavor('domU')):
-                # pygrub requires that grub-install be run
-                bootloader_override = 'grub'
-
             bootloader_installer = generators.get_bootloader(self, dest,
                     self.sectors, self.heads, bootloader_override)
-            bootloader_installer.setup()
 
-            self.addScsiModules(dest)
-            self.writeDeviceMaps(dest)
-            self.runTagScripts(dest)
-            self.fileSystemOddsNEndsFinal(dest)
+            self.preTagScripts(bootloader_installer)
+            self.runTagScripts()
+            self.postTagScripts(bootloader_installer)
 
-            self.killChrootProcesses(dest)
-            self.umountChrootMounts(dest)
-        except:
-            log.exception("Error building image:")
-            e_type, e_value, e_tb = sys.exc_info()
+            return bootloader_installer
+
+        finally:
             try:
                 self.killChrootProcesses(dest)
                 self.umountChrootMounts(dest)
             except:
                 log.exception("Error during cleanup:")
-            raise e_type, e_value, e_tb
-
-        logCall('rm -rf %s' % os.path.join( \
-                dest, 'var', 'lib', 'conarydb', 'rollbacks', '*'))
-
-        # set up shadow passwords/md5 passwords
-        authConfigCmd = ('chroot %s %%s --kickstart --enablemd5 --enableshadow'
-                         ' --disablecach' % dest)
-        if os.path.exists(os.path.join(dest, 'usr/sbin/authconfig')):
-            logCall(authConfigCmd % '/usr/sbin/authconfig')
-        elif os.path.exists(os.path.join(dest, 'usr/bin/authconfig')):
-            logCall(authConfigCmd % '/usr/bin/authconfig')
-        elif os.path.exists(os.path.join(dest, 'usr/sbin/pwconv')):
-            logCall("chroot %s /usr/sbin/pwconv" % dest)
-
-        # allow empty password to log in for virtual appliance
-        fn = os.path.join(dest, 'etc/pam.d/common-auth')
-        if os.path.exists(fn):
-            f = open(fn)
-            lines = []
-            for line in f:
-                line = line.strip()
-                if 'pam_unix2.so' in line and 'nullok' not in line:
-                    line += ' nullok'
-                lines.append(line)
-            lines.append('')
-            f = open(fn, 'w')
-            f.write('\n'.join(lines))
-
-        # Unlock the root account by blanking its password, unless a valid
-        # password is already set.
-        if (os.path.exists(os.path.join(dest, 'usr/sbin/usermod'))
-                and not hasRootPassword(dest)):
-            log.info("Blanking root password.")
-            logCall("chroot %s /usr/sbin/usermod -p '' root" % dest,
-                    ignoreErrors=True)
-        else:
-            log.info("Not changing root password.")
-
-        # Finish installation of bootloader
-        bootloader_installer.install()
-
-        return bootloader_installer
 
     def loadRPM(self):
         """
