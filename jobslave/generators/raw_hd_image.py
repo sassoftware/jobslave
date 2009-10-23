@@ -67,8 +67,9 @@ class RawHdImage(bootable_image.BootableImage):
         # Align root partition to nearest cylinder, but add in the
         # partition offset so that the *end* of the root will be on a
         # cylinder boundary.
-        rootEnd = align(constants.partitionOffset + realSizes[rootPart])
-        rootSize = rootEnd - constants.partitionOffset
+        rootStart = self.geometry.FIRST_PART_OFFSET
+        rootEnd = align(rootStart + realSizes[rootPart])
+        rootSize = rootEnd - rootStart
 
         # Collect sizes of all non-boot partitions, pad 10% for LVM
         # overhead, and realign to the nearest cylinder.
@@ -80,25 +81,24 @@ class RawHdImage(bootable_image.BootableImage):
         container = HDDContainer(image, totalSize, self.geometry)
 
         # Calculate the offsets and sizes of the root and LVM partitions.
-        # Note that the Start/Blocks variables are measured in blocks
-        # of 512 bytes (constants.sectorSize)
+        # Note that the Start/Blocks variables are measured in blocks.
         # NB: both of these sizes are already block-aligned.
-        rootStart = constants.partitionOffset / constants.sectorSize
-        rootBlocks = rootSize / constants.sectorSize
+        rootStartBlock = rootStart / self.geometry.BLOCK
+        rootBlocks = rootSize / self.geometry.BLOCK
         partitions = [(rootStart, rootBlocks, FSTYPE_LINUX, True)]
 
         if len(realSizes) > 1:
             lvmStart = rootStart + rootBlocks
-            lvmBlocks = divCeil(lvmSize, constants.sectorSize)
+            lvmBlocks = divCeil(lvmSize, self.geometry.BLOCK)
             partitions.append((lvmStart, lvmBlocks, FSTYPE_LINUX_LVM, False))
 
             lvmContainer = lvm.LVMContainer(lvmSize, image,
-                lvmStart * constants.sectorSize)
+                lvmStart * self.geometry.BLOCK)
 
         container.partition(partitions)
 
         rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
-            rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
+            rootSize, offset=rootStart, fsLabel = rootPart)
         rootFs.format()
         self.addFilesystem(rootPart, rootFs)
 

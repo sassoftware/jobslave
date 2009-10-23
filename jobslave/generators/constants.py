@@ -8,9 +8,6 @@ import sys
 
 from conary.lib import util
 
-## Disk geometry
-partitionOffset     = 128 * sectorSize # offset of first partition (bytes)
-
 
 ## Paths
 dataDir             = '/usr/share/jobslave'

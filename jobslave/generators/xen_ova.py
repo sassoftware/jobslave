@@ -64,7 +64,7 @@ class XenOVA(raw_hd_image.RawHdImage):
         deliverable = os.path.join(outputDir, self.basefilename + self.suffix)
 
         # Build the filesystem images
-        #totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
+        #totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         image_path = os.path.join(self.workDir, 'hdimage')
         size = self.makeHDImage(image_path)
 

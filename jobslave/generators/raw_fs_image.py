@@ -64,7 +64,7 @@ class RawFsImage(bootable_image.BootableImage):
         return imgFiles
 
     def write(self):
-        totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
+        totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         finalImage = os.path.join(self.outputDir, self.basefilename + '.fs.tar.gz')
 
         images = self.makeFSImage(sizes)

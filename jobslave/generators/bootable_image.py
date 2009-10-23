@@ -488,7 +488,9 @@ class BootableImage(ImageGenerator):
 
         return sizes, totalSize
 
-    def getImageSize(self, realign = constants.sectorSize, partitionOffset = constants.partitionOffset):
+    def getImageSize(self, realign=512, offset=None):
+        if offset is None:
+            offset = self.geometry.FIRST_PART_OFFSET
         mounts = [x[0] for x in self.jobData['filesystems'] if x[0]]
         self.status("Calculating filesystem sizes...")
         sizes, totalSize = self.getTroveSize(mounts)
@@ -518,7 +520,7 @@ class BootableImage(ImageGenerator):
             totalSize += requestedSize
             realSizes[x] = requestedSize
 
-        totalSize += constants.partitionOffset
+        totalSize += offset
 
         return totalSize, realSizes
 

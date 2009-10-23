@@ -194,7 +194,7 @@ class AMIImage(raw_fs_image.RawFsImage):
         self._findKernelMetadata()
 
     def write(self):
-        totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
+        totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         images = self.makeFSImage(sizes)
 
         if self.buildOVF10:

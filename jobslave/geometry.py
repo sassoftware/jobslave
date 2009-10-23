@@ -8,14 +8,15 @@ import struct
 from jobslave.util import divCeil
 
 
-BLOCK = 512
-
 FSTYPE_LINUX_SWAP   = 0x82
 FSTYPE_LINUX        = 0x83
 FSTYPE_LINUX_LVM    = 0x8e
 
 
 class Geometry(tuple):
+    BLOCK = 512
+    FIRST_PART_OFFSET = 128 * BLOCK
+
     def __new__(cls, heads, sectors):
         return tuple.__new__(cls, (heads, sectors))
 
@@ -26,14 +27,11 @@ class Geometry(tuple):
     @property
     def sectors(self):
         return self[1]
-    @property
-    def sectorSize(self):
-        return BLOCK
 
     # Derived constants
     @property
     def bytesPerCylinder(self):
-        return self.sectors * self.heads * BLOCK
+        return self.sectors * self.heads * self.BLOCK
 
     # Arithmetic methods
     def cylindersRequired(self, minBytes):
@@ -56,7 +54,7 @@ class Geometry(tuple):
 
         return cylinder, head, sector
 
-    def makePart(self, start, length, bootable=False, fsType=0x83):
+    def makePart(self, start, length, bootable=False, fsType=FSTYPE_LINUX):
         """
         Return an IBM-compatible partition entry (16 bytes) for a partition
         starting at C{start} blocks and with a length of C{length} blocks,
