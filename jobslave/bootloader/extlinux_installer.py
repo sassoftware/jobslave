@@ -18,10 +18,7 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
         bootloader.writeBootmanConfigs(self)
         logCall('chroot "%s" /sbin/bootman' % self.image_root)
 
-        # Mount /proc (this is called after /proc is unmounted the first time)
-        # and bind-mount /dev (so extlinux can write to the boot sector)
-        image_proc = os.path.join(self.image_root, 'proc')
-        logCall('mount -n -t proc proc "%s"' % image_proc)
+        # Bind-mount /dev so extlinux can write to the boot sector
         image_dev = os.path.join(self.image_root, 'dev')
         logCall('mount -n --bind /dev "%s"' % image_dev)
 
@@ -33,7 +30,6 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
                     self.geometry.heads, self.geometry.sectors))
         finally:
             logCall('umount -n "%s"' % image_dev)
-            logCall('umount -n "%s"' % image_proc)
 
     def install_mbr(self, root_dir, mbr_device, size):
         # Install MBR
