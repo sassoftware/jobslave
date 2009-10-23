@@ -15,7 +15,6 @@ FSTYPE_LINUX_LVM    = 0x8e
 
 class Geometry(tuple):
     BLOCK = 512
-    FIRST_PART_OFFSET = 128 * BLOCK
 
     def __new__(cls, heads, sectors):
         return tuple.__new__(cls, (heads, sectors))
@@ -27,6 +26,12 @@ class Geometry(tuple):
     @property
     def sectors(self):
         return self[1]
+    @property
+    def offsetBlocks(self):
+        return 128
+    @property
+    def offsetBytes(self):
+        return self.offsetBlocks * self.BLOCK
 
     # Derived constants
     @property

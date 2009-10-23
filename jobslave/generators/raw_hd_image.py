@@ -37,14 +37,29 @@ class HDDContainer:
         # Extended partitions are not supported since we're either using a
         # single partition for non-LVM or two for LVM (/boot + one PV)
         assert len(partitions) <= 4
-
         fObj = open(self.image, 'r+b')
+
         fObj.seek(440)
         fObj.write(os.urandom(4)) # disk signature
         fObj.write('\0\0')
+
+        numParts = 0
         for start, size, fsType, bootable in partitions:
+            numParts += 1
+            log.info("Partition %d: start %d  size %d  flags %02x  type %02x",
+                    numParts, start, size, bootable, fsType)
             fObj.write(self.geometry.makePart(start, size, bootable, fsType))
+
+        assert numParts <= 4
+        while numParts < 4:
+            fObj.write('\0' * 16)
+            numParts += 1
+
+        fObj.write('\x55\xAA') # MBR signature
+
+        assert fObj.tell() == 512
         fObj.close()
+
 
 class RawHdImage(bootable_image.BootableImage):
 
@@ -52,6 +67,7 @@ class RawHdImage(bootable_image.BootableImage):
         _, realSizes = self.getImageSize()
         lvmContainer = None
 
+        # Align to the next cylinder
         def align(size):
             alignTo = self.geometry.bytesPerCylinder
             return divCeil(size, alignTo) * alignTo
@@ -67,7 +83,7 @@ class RawHdImage(bootable_image.BootableImage):
         # Align root partition to nearest cylinder, but add in the
         # partition offset so that the *end* of the root will be on a
         # cylinder boundary.
-        rootStart = self.geometry.FIRST_PART_OFFSET
+        rootStart = self.geometry.offsetBytes
         rootEnd = align(rootStart + realSizes[rootPart])
         rootSize = rootEnd - rootStart
 
@@ -84,21 +100,22 @@ class RawHdImage(bootable_image.BootableImage):
         # Note that the Start/Blocks variables are measured in blocks.
         # NB: both of these sizes are already block-aligned.
         rootStartBlock = rootStart / self.geometry.BLOCK
-        rootBlocks = rootSize / self.geometry.BLOCK
-        partitions = [(rootStart, rootBlocks, FSTYPE_LINUX, True)]
+        rootSizeBlock = rootSize / self.geometry.BLOCK
+        partitions = [(rootStartBlock, rootSizeBlock, FSTYPE_LINUX, True)]
 
         if len(realSizes) > 1:
-            lvmStart = rootStart + rootBlocks
-            lvmBlocks = divCeil(lvmSize, self.geometry.BLOCK)
-            partitions.append((lvmStart, lvmBlocks, FSTYPE_LINUX_LVM, False))
+            lvmStartBlock = rootStartBlock + rootSizeBlock
+            lvmSizeBlock = lvmSize / self.geometry.BLOCK
+            partitions.append((lvmStartBlock, lvmSizeBlock,
+                FSTYPE_LINUX_LVM, False))
 
             lvmContainer = lvm.LVMContainer(lvmSize, image,
-                lvmStart * self.geometry.BLOCK)
+                    lvmStartBlock * self.geometry.BLOCK)
 
         container.partition(partitions)
 
         rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
-            rootSize, offset=rootStart, fsLabel = rootPart)
+                rootSize, offset=rootStart, fsLabel = rootPart)
         rootFs.format()
         self.addFilesystem(rootPart, rootFs)
 

@@ -56,6 +56,8 @@ def substitute(template, variables):
             l.append(line)
     template = '\n'.join(l)
     for name, value in variables.items():
+        if isinstance(value, unicode):
+            value = value.encode('utf8')
         template = template.replace('@%s@' % name, str(value))
     return template
 
@@ -66,19 +68,27 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     ovfClass = ovf_image.VMwareOVFImage
 
+    def _createVMDK(self, hdImage, outfile, size, streaming=False):
+        args = [
+                os.path.join(self.cfg.binPath, 'raw2vmdk'),
+                '-C', str(self.geometry.cylindersRequired(size)),
+                '-H', str(self.geometry.heads),
+                '-S', str(self.geometry.sectors),
+                '-A', self.adapter,
+                ]
+        if streaming:
+            args += ['-s']
+        args += [hdImage, outfile]
+
+        logCall(args)
+
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
-        logCall('raw2vmdk -C %d -H %d -S %d -A %s %s %s' % (
-            self.geometry.cylindersRequired(size),
-            self.geometry.heads, self.geometry.sectors,
-            self.adapter, hdImage, outfile))
-
+        self._createVMDK(hdImage, outfile, size, False)
 
     @bootable_image.timeMe
     def createOvfVMDK(self, hdImage, outfile, size):
-        logCall('raw2vmdk -C %d -H %d -S %d -s %s %s' % (
-            self.geometry.cylindersRequired(size),
-            self.geometry.heads, self.geometry.sectors, hdImage, outfile))
+        self._createVMDK(hdImage, outfile, size, True)
 
     @bootable_image.timeMe
     def createVMX(self, outfile, type='vmx'):

@@ -19,6 +19,7 @@ class SlaveConfig(ConfigFile):
     masterUrl = (CfgString, None)
     conaryProxy = (CfgString, None)
     jobDataPath = (CfgPath, '/tmp/jobData')
+    binPath = (CfgPath, '/usr/bin')
 
 
 def main(args):
