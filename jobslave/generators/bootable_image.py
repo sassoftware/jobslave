@@ -21,6 +21,7 @@ from jobslave import filesystems
 from jobslave import generators
 from jobslave import helperfuncs
 from jobslave import loophelpers
+from jobslave.bootloader.grub_installer import GrubInstaller
 from jobslave.distro_detect import *
 from jobslave.filesystems import sortMountPoints
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
@@ -259,6 +260,7 @@ class BootableImage(ImageGenerator):
         ImageGenerator.__init__(self, cfg, jobData)
         log.info('building trove: %s=%s[%s]' % self.baseTup)
 
+        # Settings
         self.workingDir = os.path.join(self.workDir, self.basefilename)
         self.outputDir = os.path.join(constants.finishedDir, self.UUID)
         self.root = os.path.join(self.workDir, 'root')
@@ -266,6 +268,9 @@ class BootableImage(ImageGenerator):
         util.mkdirChain(self.workingDir)
         self.swapSize = self.getBuildData("swapSize") * 1048576
         self.swapPath = '/var/swap'
+
+        # Runtime variables
+        self.bootloader = None
         self.outputFileList = []
 
     def addFilesystem(self, mountPoint, fs):
@@ -346,7 +351,7 @@ class BootableImage(ImageGenerator):
             self.createFile('etc/fstab', fstab)
 
     @timeMe
-    def preTagScripts(self, bootloader_installer):
+    def preTagScripts(self):
         fakeRoot = self.root
         #create a swap file
         if self.swapSize:
@@ -419,16 +424,13 @@ class BootableImage(ImageGenerator):
             f.close()
 
         # Configure the bootloader (but don't install it yet).
-        if self.baseFlavor.stronglySatisfies(deps.parseFlavor('domU')):
-            # pygrub requires that grub-install be run
-            bootloader_override = 'grub'
-        bootloader_installer.setup()
+        self.bootloader.setup()
 
         self.addScsiModules()
         self.writeDeviceMaps()
 
     @timeMe
-    def postTagScripts(self, bootloader_installer):
+    def postTagScripts(self):
         # misc. stuff that needs to run after tag handlers have finished
         dhcp = self.filePath('etc/sysconfig/network/dhcp')
         if os.path.isfile(dhcp):
@@ -473,7 +475,7 @@ class BootableImage(ImageGenerator):
             log.info("Not changing root password.")
 
         # Finish installation of bootloader
-        bootloader_installer.install()
+        self.bootloader.install()
 
 
     @timeMe
@@ -731,7 +733,7 @@ class BootableImage(ImageGenerator):
     def installFileTree(self, dest=None, bootloader_override=None):
         self.root = dest = dest or self.root
         self.status('Installing image contents')
-        self.loadRPM()
+        self.inspectGroup()
 
         if os.access(constants.tmpDir, os.W_OK):
             util.settempdir(constants.tmpDir)
@@ -779,14 +781,18 @@ class BootableImage(ImageGenerator):
 
             self.status('Finalizing install')
 
-            bootloader_installer = generators.get_bootloader(self, dest,
-                    self.sectors, self.heads, bootloader_override)
+            if not self.bootloader:
+                if self.baseFlavor.stronglySatisfies(deps.parseFlavor('domU')):
+                    # pygrub requires that grub-install be run
+                    bootloader_override = 'grub'
+                self.bootloader = generators.get_bootloader(self, dest,
+                        self.sectors, self.heads, bootloader_override)
 
-            self.preTagScripts(bootloader_installer)
+            self.preTagScripts()
             self.runTagScripts()
-            self.postTagScripts(bootloader_installer)
+            self.postTagScripts()
 
-            return bootloader_installer
+            return self.bootloader
 
         finally:
             try:
@@ -795,18 +801,22 @@ class BootableImage(ImageGenerator):
             except:
                 log.exception("Error during cleanup:")
 
-    def loadRPM(self):
+    def inspectGroup(self):
         """
-        Locate the correct version of RPM to install the image, and prepend it
-        to C{sys.path}.
+        Inspect the image group to:
+         * Determine which RPM is needed to install the group.
+         * Determine whether the platform requires certain preinstall actions
         """
         imageTrove = self.nc.getTrove(withFiles=False, *self.baseTup)
-        rpmTroves = sorted(x for x in imageTrove.iterTroveList(True, True)
-                if x[0] in ('rpm:runtime', 'rpm:rpm'))
+
+        rpmVersions = set()
+        for name, version, flavor in imageTrove.iterTroveList(True, True):
+            if name in ('rpm:runtime', 'rpm:rpm'):
+                rpmVersions.add(version.trailingRevision().version)
 
         rpmPath = None
-        if rpmTroves:
-            rpmVersion = rpmTroves[-1][1].trailingRevision().version
+        if rpmVersions:
+            rpmVersion = sorted(rpmVersions)[-1]
             while True:
                 tryPath = os.path.join(RPM_ALTERNATES, 'rpm-' + rpmVersion)
                 if os.path.isdir(tryPath):
@@ -819,7 +829,7 @@ class BootableImage(ImageGenerator):
                 rpmVersion = match.group(1)
 
         if not rpmPath:
-            rpmVersions = sorted(x for x in os.path.listdir(RPM_ALTERNATES)
+            rpmVersions = sorted(x for x in os.listdir(RPM_ALTERNATES)
                     if x.startswith('rpm-'))
             if not rpmVersions:
                 log.warning("No RPM paths are available.")
