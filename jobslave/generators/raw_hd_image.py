@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2006 rPath, Inc.
+# Copyright (c) 2004-2009 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -10,36 +10,20 @@ import tempfile
 
 from jobslave import buildtypes
 from jobslave import lvm
-from jobslave.util import logCall
 from jobslave.generators import bootable_image, constants
+from jobslave.geometry import FSTYPE_LINUX, FSTYPE_LINUX_LVM
+from jobslave.util import logCall, divCeil
 
 from conary.lib import util
 
 log = logging.getLogger(__name__)
 
-FSTYPE_LINUX = "L"
-FSTYPE_LINUX_LVM = "8e"
-
-
-def divCeil(num, div):
-    """
-    Divide C{num} by C{div} and round up.
-    """
-    div = long(div)
-    return (long(num) + (div - 1)) / div
-
 
 class HDDContainer:
-    def __init__(self, image, totalSize, 
-                 heads=constants.heads, 
-                 sectors=constants.sectors
-                ):
+    def __init__(self, image, totalSize, geometry):
         self.totalSize = totalSize
         self.image = image
-        self.heads = heads
-        self.sectors = sectors
-        # a derived value for convenience
-        self.bytesPerCylinder = heads * sectors * constants.sectorSize
+        self.geometry = geometry
 
         # create the raw file
         # NB: blocksize is unrelated to the one in constants.py, and is
@@ -50,16 +34,17 @@ class HDDContainer:
             image, max(seek, 0), blocksize))
 
     def partition(self, partitions):
-        stdin = ''
+        # Extended partitions are not supported since we're either using a
+        # single partition for non-LVM or two for LVM (/boot + one PV)
+        assert len(partitions) <= 4
+
+        fObj = open(self.image, 'r+b')
+        fObj.seek(440)
+        fObj.write(os.urandom(4)) # disk signature
+        fObj.write('\0\0')
         for start, size, fsType, bootable in partitions:
-            stdin += "%d %d %s%s\n" % (start, size, fsType,
-                    (bootable and " *" or ""))
-
-        cylinders = divCeil(self.totalSize, self.bytesPerCylinder)
-        logCall('/sbin/sfdisk -C %d -S %d -H %d %s -uS --force'
-                % (cylinders, self.sectors, self.heads, self.image),
-                stdin=stdin)
-
+            fObj.write(self.geometry.makePart(start, size, bootable, fsType))
+        fObj.close()
 
 class RawHdImage(bootable_image.BootableImage):
 
@@ -68,7 +53,7 @@ class RawHdImage(bootable_image.BootableImage):
         lvmContainer = None
 
         def align(size):
-            alignTo = self.heads * self.sectors * constants.sectorSize
+            alignTo = self.geometry.bytesPerCylinder
             return divCeil(size, alignTo) * alignTo
 
         if os.path.exists(image):
@@ -92,7 +77,7 @@ class RawHdImage(bootable_image.BootableImage):
         lvmSize = align(lvmSize)
 
         totalSize = rootEnd + lvmSize
-        container = HDDContainer(image, totalSize, self.heads, self.sectors)
+        container = HDDContainer(image, totalSize, self.geometry)
 
         # Calculate the offsets and sizes of the root and LVM partitions.
         # Note that the Start/Blocks variables are measured in blocks

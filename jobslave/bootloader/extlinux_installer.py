@@ -30,7 +30,7 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
             util.mkdirChain(os.path.join(self.image_root, 'boot', 'extlinux'))
             logCall('chroot "%s" /sbin/extlinux --install '
                 '--heads %s --sectors %s /boot/extlinux/' % (self.image_root,
-                self.heads, self.sectors))
+                    self.geometry.heads, self.geometry.sectors))
         finally:
             logCall('umount -n "%s"' % image_dev)
             logCall('umount -n "%s"' % image_proc)

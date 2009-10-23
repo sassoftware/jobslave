@@ -101,10 +101,9 @@ def copytree(source, dest, exceptions=None):
                 os.chmod(this_dir, dStat[stat.ST_MODE])
 
 class GrubInstaller(bootloader.BootloaderInstaller):
-    def __init__(self, parent, image_root, sectors, heads,
-            grub_path='/sbin/grub'):
+    def __init__(self, parent, image_root, geometry, grub_path='/sbin/grub'):
         bootloader.BootloaderInstaller.__init__(self, parent, image_root,
-                sectors, heads)
+                geometry)
         self.grub_path = grub_path
         self.name = None
 
@@ -269,14 +268,14 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         #  Assumed:
         # * raw hdd image at mbr_device is bind mounted at root_dir/disk.img
         # * The size requested is an integer multiple of the cylinder size
-        bytesPerCylinder = self.sectors * self.heads * constants.sectorSize
+        bytesPerCylinder = self.geometry.bytesPerCylinder
         assert not (size % bytesPerCylinder), "The size passed in here must be cylinder aligned"
         cylinders = size / bytesPerCylinder
         grubCmds = "device (hd0) /disk.img\n" \
                    "geometry (hd0) %d %d %d\n" \
                    "root (hd0,0)\n" \
                    "setup (hd0)" % (cylinders,
-                        self.heads, self.sectors)
+                        self.geometry.heads, self.geometry.sectors)
 
         logCall('echo -e "%s" | '
                 'chroot %s sh -c "%s --no-floppy --batch"'

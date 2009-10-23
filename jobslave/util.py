@@ -36,6 +36,14 @@ class CommandError(RuntimeError):
                 self.cmd, self.rv)
 
 
+def divCeil(num, div):
+    """
+    Divide C{num} by C{div} and round up.
+    """
+    div = long(div)
+    return (long(num) + (div - 1)) / div
+
+
 def null():
     return open('/dev/null', 'w+')
 

@@ -24,6 +24,7 @@ from jobslave import loophelpers
 from jobslave.bootloader.grub_installer import GrubInstaller
 from jobslave.distro_detect import *
 from jobslave.filesystems import sortMountPoints
+from jobslave.geometry import GEOMETRY_REGULAR
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
 from jobslave.generators import constants
 from jobslave.util import logCall
@@ -250,8 +251,7 @@ class StubFilesystem:
         pass
 
 class BootableImage(ImageGenerator):
-    heads = constants.heads
-    sectors = constants.sectors
+    geometry = GEOMETRY_REGULAR
 
     def __init__(self, cfg, jobData):
         self.filesystems = { '/': StubFilesystem() }
@@ -786,7 +786,7 @@ class BootableImage(ImageGenerator):
                     # pygrub requires that grub-install be run
                     bootloader_override = 'grub'
                 self.bootloader = generators.get_bootloader(self, dest,
-                        self.sectors, self.heads, bootloader_override)
+                        self.geometry, bootloader_override)
 
             self.preTagScripts()
             self.runTagScripts()

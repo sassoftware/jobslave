@@ -8,12 +8,11 @@ import os
 
 
 class BootloaderInstaller(object):
-    def __init__(self, parent, image_root, sectors, heads):
+    def __init__(self, parent, image_root, geometry):
         self.jobData = parent.jobData
         self.arch = parent.arch
         self.image_root = image_root
-        self.sectors = sectors
-        self.heads = heads
+        self.geometry = geometry
 
     def setup(self):
         '''
