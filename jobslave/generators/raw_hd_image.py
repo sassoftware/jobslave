@@ -1,42 +1,29 @@
 #
-# Copyright (c) 2004-2006 rPath, Inc.
+# Copyright (c) 2004-2009 rPath, Inc.
 #
 # All Rights Reserved
 #
 
+import logging
 import os
 import tempfile
 
 from jobslave import buildtypes
 from jobslave import lvm
-from jobslave.imagegen import logCall, log
 from jobslave.generators import bootable_image, constants
+from jobslave.geometry import FSTYPE_LINUX, FSTYPE_LINUX_LVM
+from jobslave.util import logCall, divCeil
 
 from conary.lib import util
 
-FSTYPE_LINUX = "L"
-FSTYPE_LINUX_LVM = "8e"
-
-
-def divCeil(num, div):
-    """
-    Divide C{num} by C{div} and round up.
-    """
-    div = long(div)
-    return (long(num) + (div - 1)) / div
+log = logging.getLogger(__name__)
 
 
 class HDDContainer:
-    def __init__(self, image, totalSize, 
-                 heads=constants.heads, 
-                 sectors=constants.sectors
-                ):
+    def __init__(self, image, totalSize, geometry):
         self.totalSize = totalSize
         self.image = image
-        self.heads = heads
-        self.sectors = sectors
-        # a derived value for convenience
-        self.bytesPerCylinder = heads * sectors * constants.sectorSize
+        self.geometry = geometry
 
         # create the raw file
         # NB: blocksize is unrelated to the one in constants.py, and is
@@ -47,18 +34,31 @@ class HDDContainer:
             image, max(seek, 0), blocksize))
 
     def partition(self, partitions):
-        cylinders = divCeil(self.totalSize, self.bytesPerCylinder)
-        cmd = '/sbin/sfdisk -C %d -S %d -H %d %s -uS --force' % \
-            (cylinders, self.sectors, self.heads, self.image)
-        sfdisk = util.popen(cmd, 'w')
+        # Extended partitions are not supported since we're either using a
+        # single partition for non-LVM or two for LVM (/boot + one PV)
+        assert len(partitions) <= 4
+        fObj = open(self.image, 'r+b')
 
+        fObj.seek(440)
+        fObj.write(os.urandom(4)) # disk signature
+        fObj.write('\0\0')
+
+        numParts = 0
         for start, size, fsType, bootable in partitions:
-            sfdisk.write("%d %d %s" % (start, size, fsType))
-            if bootable:
-                sfdisk.write(" *")
-            sfdisk.write("\n")
+            numParts += 1
+            log.info("Partition %d: start %d  size %d  flags %02x  type %02x",
+                    numParts, start, size, bootable, fsType)
+            fObj.write(self.geometry.makePart(start, size, bootable, fsType))
 
-        sfdisk.close()
+        assert numParts <= 4
+        while numParts < 4:
+            fObj.write('\0' * 16)
+            numParts += 1
+
+        fObj.write('\x55\xAA') # MBR signature
+
+        assert fObj.tell() == 512
+        fObj.close()
 
 
 class RawHdImage(bootable_image.BootableImage):
@@ -67,8 +67,9 @@ class RawHdImage(bootable_image.BootableImage):
         _, realSizes = self.getImageSize()
         lvmContainer = None
 
+        # Align to the next cylinder
         def align(size):
-            alignTo = self.heads * self.sectors * constants.sectorSize
+            alignTo = self.geometry.bytesPerCylinder
             return divCeil(size, alignTo) * alignTo
 
         if os.path.exists(image):
@@ -82,8 +83,9 @@ class RawHdImage(bootable_image.BootableImage):
         # Align root partition to nearest cylinder, but add in the
         # partition offset so that the *end* of the root will be on a
         # cylinder boundary.
-        rootEnd = align(constants.partitionOffset + realSizes[rootPart])
-        rootSize = rootEnd - constants.partitionOffset
+        rootStart = self.geometry.offsetBytes
+        rootEnd = align(rootStart + realSizes[rootPart])
+        rootSize = rootEnd - rootStart
 
         # Collect sizes of all non-boot partitions, pad 10% for LVM
         # overhead, and realign to the nearest cylinder.
@@ -92,28 +94,28 @@ class RawHdImage(bootable_image.BootableImage):
         lvmSize = align(lvmSize)
 
         totalSize = rootEnd + lvmSize
-        container = HDDContainer(image, totalSize, self.heads, self.sectors)
+        container = HDDContainer(image, totalSize, self.geometry)
 
         # Calculate the offsets and sizes of the root and LVM partitions.
-        # Note that the Start/Blocks variables are measured in blocks
-        # of 512 bytes (constants.sectorSize)
+        # Note that the Start/Blocks variables are measured in blocks.
         # NB: both of these sizes are already block-aligned.
-        rootStart = constants.partitionOffset / constants.sectorSize
-        rootBlocks = rootSize / constants.sectorSize
-        partitions = [(rootStart, rootBlocks, FSTYPE_LINUX, True)]
+        rootStartBlock = rootStart / self.geometry.BLOCK
+        rootSizeBlock = rootSize / self.geometry.BLOCK
+        partitions = [(rootStartBlock, rootSizeBlock, FSTYPE_LINUX, True)]
 
         if len(realSizes) > 1:
-            lvmStart = rootStart + rootBlocks
-            lvmBlocks = divCeil(lvmSize, constants.sectorSize)
-            partitions.append((lvmStart, lvmBlocks, FSTYPE_LINUX_LVM, False))
+            lvmStartBlock = rootStartBlock + rootSizeBlock
+            lvmSizeBlock = lvmSize / self.geometry.BLOCK
+            partitions.append((lvmStartBlock, lvmSizeBlock,
+                FSTYPE_LINUX_LVM, False))
 
             lvmContainer = lvm.LVMContainer(lvmSize, image,
-                lvmStart * constants.sectorSize)
+                    lvmStartBlock * self.geometry.BLOCK)
 
         container.partition(partitions)
 
         rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
-            rootSize, offset = constants.partitionOffset, fsLabel = rootPart)
+                rootSize, offset=rootStart, fsLabel = rootPart)
         rootFs.format()
         self.addFilesystem(rootPart, rootFs)
 
@@ -142,14 +144,14 @@ class RawHdImage(bootable_image.BootableImage):
         diskpath = os.path.join(root_dir, 'disk.img')
         f = open(diskpath, 'w')
         f.close()
-        logCall('mount -obind %s %s' %(image, diskpath))
+        logCall('mount -n -obind %s %s' %(image, diskpath))
         try:
             bootloader_installer.install_mbr(root_dir, image, totalSize)
         finally:
             blkidtab = os.path.join(root_dir, "etc", "blkid.tab")
             if os.path.exists(blkidtab):
                 os.unlink(blkidtab)
-            logCall('umount %s' % diskpath)
+            logCall('umount -n %s' % diskpath)
             os.unlink(diskpath)
 
         # Unmount and destroy LVM

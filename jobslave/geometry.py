@@ -5,31 +5,45 @@
 #
 
 import struct
+from jobslave.util import divCeil
 
 
-BLOCK = 512
+FSTYPE_LINUX_SWAP   = 0x82
+FSTYPE_LINUX        = 0x83
+FSTYPE_LINUX_LVM    = 0x8e
 
 
-class Geometry(object):
-    def __init__(self, heads, sectors):
-        self._heads = heads
-        self._sectors = sectors
+class Geometry(tuple):
+    BLOCK = 512
+
+    def __new__(cls, heads, sectors):
+        return tuple.__new__(cls, (heads, sectors))
 
     # Constants / inputs
     @property
     def heads(self):
-        return self._heads
+        return self[0]
     @property
     def sectors(self):
-        return self._sectors
+        return self[1]
     @property
-    def sectorSize(self):
-        return BLOCK
+    def offsetBlocks(self):
+        return 128
+    @property
+    def offsetBytes(self):
+        return self.offsetBlocks * self.BLOCK
 
     # Derived constants
     @property
     def bytesPerCylinder(self):
-        return self.sectors * self.heads * BLOCK
+        return self.sectors * self.heads * self.BLOCK
+
+    # Arithmetic methods
+    def cylindersRequired(self, minBytes):
+        return divCeil(minBytes, self.bytesPerCylinder)
+
+    def roundToCylinder(self, minBytes):
+        return divCeil(minBytes, self.bytesPerCylinder) * self.bytesPerCylinder
 
     # Conversion methods
     def toCHS(self, offset):
@@ -45,7 +59,7 @@ class Geometry(object):
 
         return cylinder, head, sector
 
-    def makePart(self, start, length, bootable=False, fsType=0x83):
+    def makePart(self, start, length, bootable=False, fsType=FSTYPE_LINUX):
         """
         Return an IBM-compatible partition entry (16 bytes) for a partition
         starting at C{start} blocks and with a length of C{length} blocks,
@@ -70,3 +84,7 @@ def packCHS((cylinder, head, sector)):
     byte_2 = pack_sector | ((pack_cylinder & 0x300) >> 2)
     byte_3 = pack_cylinder & 0xFF
     return struct.pack('<3B', pack_head, byte_2, byte_3)
+
+
+GEOMETRY_REGULAR    = Geometry(64, 32)
+GEOMETRY_VHD        = Geometry(16, 63)

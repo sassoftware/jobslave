@@ -4,14 +4,14 @@
 # All rights reserved.
 #
 
-SUBDIRS = bin jobslave dist
+SUBDIRS = bin jobslave
 
 
 all: default-all
 
 install: default-install
-	mkdir -p $(DESTDIR)$(jsdir)
-	cp -r templates skel pixmaps $(DESTDIR)$(jsdir)/
+	mkdir -p $(DESTDIR)$(jsdata)
+	cp -r templates skel pixmaps $(DESTDIR)$(jsdata)/
 
 clean: default-clean
 
