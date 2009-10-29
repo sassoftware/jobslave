@@ -10,4 +10,6 @@ export bindir = $(prefix)/bin
 export libdir = $(prefix)/$(lib)
 export sitedir = $(libdir)/python$(PYVER)/site-packages
 export initdir = /etc/init.d
+
 export jsdata = /usr/share/jobslave
+export templatemount = /mnt/anaconda-templates
