@@ -132,19 +132,22 @@ class ImageGenerator(Generator):
 
         #Figure out what group trove to use
         self.baseTrove = self.jobData['troveName'].encode('utf8')
-        self.baseVersion = versions.ThawVersion(self.jobData['troveVersion'].encode('utf8'))
-        self.baseFlavor = deps.ThawFlavor(self.jobData['troveFlavor'].encode('utf8'))
+        self.baseVersion = versions.ThawVersion(
+                self.jobData['troveVersion'].encode('utf8'))
+        self.baseFlavor = deps.ThawFlavor(
+                self.jobData['troveFlavor'].encode('utf8'))
         self.baseTup = self.baseTrove, self.baseVersion, self.baseFlavor
 
         if 'filesystems' not in self.jobData:
             # support for legacy requests
-            freeSpace = self.getBuildData("freespace") * 1048576
+            freeSpace = (self.getBuildData("freespace") or 0) * 1048576
 
             self.jobData['filesystems'] = [
                 ('/', 0, freeSpace, 'ext3'),
             ]
 
-        self.mountDict = dict([(x[0], tuple(x[1:])) for x in self.jobData['filesystems'] if x[0]])
+        self.mountDict = dict([(x[0], tuple(x[1:]))
+            for x in self.jobData['filesystems'] if x[0]])
 
         try:
             self.arch = \

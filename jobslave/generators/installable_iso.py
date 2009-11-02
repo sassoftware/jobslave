@@ -1,9 +1,10 @@
 #
-# Copyright (c) 2004-2006 rPath, Inc.
+# Copyright (c) 2004-2009 rPath, Inc.
 #
-# All Rights Reserved
+# All rights reserved.
 #
-import httplib
+
+import cPickle
 import logging
 import os
 import pwd
@@ -15,6 +16,7 @@ import sys
 import tempfile
 import time
 import urllib
+import urllib2
 import urlparse
 
 from jobslave.generators import constants
@@ -115,7 +117,7 @@ class InstallableIso(ImageGenerator):
     productDir = 'rPath'
 
     def __init__(self, *args, **kwargs):
-        self.__class__.__base__.__init__(self, *args, **kwargs)
+        ImageGenerator.__init__(self, *args, **kwargs)
         self.showMediaCheck = self.getBuildData('showMediaCheck')
         self.maxIsoSize = int(self.getBuildData('maxIsoSize'))
 
@@ -123,7 +125,7 @@ class InstallableIso(ImageGenerator):
         self.callback.setChangeSet(troveName)
         trvSpec = self.getBuildData(troveName)
         if trvSpec and trvSpec.upper() != 'NONE':
-            n, v, f = parseTroveSpec(trvSpec)
+            n, v, f = parseTroveSpec(trvSpec.encode('utf8'))
             try:
                 v = versions.ThawVersion(v)
             except:
@@ -140,20 +142,15 @@ class InstallableIso(ImageGenerator):
     def _getNVF(self, uJob):
         """returns the n, v, f of an update job, assuming only one job"""
         for job in uJob.getPrimaryJobs():
-            trvName, trvVersion, trvFlavor = job[0], str(job[2][0]), str(job[2][1])
-            return (trvName, trvVersion, trvFlavor)
+            return job[0], job[2][0], job[2][1]
     
-    def _getMasterIPAddress(self):
-        raise NotImplementedError
-
     def getConaryClient(self, tmpRoot, arch):
         arch = deps.ThawFlavor(arch)
         cfg = self.conarycfg
-        self.readConaryRc(cfg)
 
         cfg.root = tmpRoot
         cfg.dbPath = tmpRoot + "/var/lib/conarydb"
-        cfg.installLabelPath = [self.troveVersion.branch().label()]
+        cfg.installLabelPath = [self.baseVersion.branch().label()]
         cfg.buildFlavor = flavors.getStockFlavor(arch)
         cfg.flavor = flavors.getStockFlavorPath(arch)
         cfg.initializeFlavors()
@@ -179,8 +176,6 @@ class InstallableIso(ImageGenerator):
             # FIXME: regenerate boot.iso here
 
     def writeBuildStamp(self, tmpPath):
-        ver = versions.ThawVersion(self.jobData['troveVersion'])
-
         isDep = deps.InstructionSetDependency
         archFlv = getArchFlavor(self.baseFlavor)
 
@@ -195,12 +190,11 @@ class InstallableIso(ImageGenerator):
         bsFile = open(os.path.join(tmpPath, ".buildstamp"), "w")
         print >> bsFile, stamp
         print >> bsFile, self.jobData['name']
-        print >> bsFile, upstream(ver)
+        print >> bsFile, upstream(self.baseVersion)
         print >> bsFile, self.productDir
         print >> bsFile, self.getBuildData("bugsUrl")
         print >> bsFile, "%s %s %s" % (self.baseTrove,
-                                       self.jobData['troveVersion'],
-                                       self.baseFlavor.freeze())
+                self.baseVersion.freeze(), self.baseFlavor.freeze())
         bsFile.close()
 
     def writeProductImage(self, topdir, arch):
@@ -310,7 +304,7 @@ class InstallableIso(ImageGenerator):
         else:
             isoNameTemplate = "%s-%s-%s-" % \
                 (self.jobData['project']['hostname'],
-                 upstream(self.troveVersion),
+                 upstream(self.baseVersion),
                  self.arch)
         sourceDir = os.path.normpath(topdir + "/../")
 
@@ -400,94 +394,47 @@ class InstallableIso(ImageGenerator):
         self.status("Retrieving ISO template")
         log.info("requesting anaconda-templates for " + self.arch)
 
-        masterIPAddress = self._getMasterIPAddress()
-        if not masterIPAddress:
-            raise RuntimeError, "Failed to get jobmaster's IP address, aborting"
-
         tmpDir = tempfile.mkdtemp(dir=constants.tmpDir)
         cclient = self.getConaryClient( \
             tmpDir, getArchFlavor(self.baseFlavor).freeze())
 
-        # TODO what about custom templates?
-        cclient.cfg.installLabelPath.append(versions.Label(constants.templatesLabel))
+        cclient.cfg.installLabelPath.append(
+                versions.Label(constants.templatesLabel))
         uJob = self._getUpdateJob(cclient, 'anaconda-templates')
         if not uJob:
             raise RuntimeError, "Failed to find anaconda-templates"
 
+        name, version, flavor = self._getNVF(uJob)
+        url = '%stemplates/getTemplate?%s' % (self.cfg.masterUrl,
+                urllib.urlencode(dict(n=name, v=version.freeze(),
+                    f=flavor.freeze())))
+        noStart = False
+        path = None
+        while True:
+            conn = urllib2.urlopen(url)
+            response = conn.read()
+            conn.close()
 
-        _, v, f = self._getNVF(uJob)
+            status, path = response.split()[:2]
+            if status == 'DONE':
+                break
+            elif status == 'NOT_FOUND':
+                raise RuntimeError("Failed to request templates. "
+                        "Check the jobmaster logfile.")
 
-        try:
-            try:
-                # XXX fix hardcoded port!
-                httpconn = httplib.HTTPConnection('%s:%d' % \
-                        (masterIPAddress, 8000))
-                httpconn.connect()
+            if not noStart:
+                noStart = True
+                url += '&nostart=1'
+            time.sleep(5)
 
-                # request new template
-                params = urllib.urlencode({'v': v, 'f': f})
-                headers = {"Content-type": "application/x-www-form-urlencoded",
-                           "Content-length": len(params)}
-                httpconn.request('POST', '/makeTemplate', params, headers)
-                httpresp = httpconn.getresponse()
+        templatePath = os.path.join(self.cfg.templateCache, path)
+        templateDir = tempfile.mkdtemp('templates-')
+        logCall(['/bin/tar', '-xf', templatePath, '-C', templateDir])
 
-                # At this point the serve may do one of three things:
-                # - Return 202, with trove hash. This indicates that the
-                #   template build has been started by this process.
-                # - Return 303. This could mean that either
-                #   - the build is still in progress (if the URI in location
-                #     contains "status" in its path) OR
-                #   - the build is complete, and the URI in the location field
-                #     is the URL to fetch the finished template via GET
-                #
-                # Anything else represents a failure mode.
-                currentStatus = ''
-                nexthop = ''
-                while True:
-                    log.info(currentStatus)
-                    contentType = httpresp.getheader('Content-Type')
-                    if httpresp.status in (202, 303):
-                        nexthop = httpresp.getheader('Location')
-                    elif httpresp.status == 200:
-                        if contentType == 'text/plain':
-                            currentStatus = httpresp.read()
-                        elif contentType == 'application/x-tar':
-                            break
-                        else:
-                            raise RuntimeError, "Got an unexpected Content-Type '%s' from the template webservice, aborting" % contentType
-                    else:
-                        raise RuntimeError, "Failed to request a new template: anaconda-templates=%s[%s]" % (v, f)
+        metadata = cPickle.load(open(templatePath + '.metadata', 'rb'))
+        ncpv = metadata['netclient_protocol_version']
 
-                    # Sleep 5 seconds, and ask again
-                    # XXX should we bail after a certain number of retries?
-                    #     if so, after how many?
-                    time.sleep(5)
-                    uripath, query = urlparse.urlsplit(nexthop)[2:4]
-                    if query:
-                        uripath += '?%s' % query
-                    httpconn.request('GET', uripath)
-                    httpresp = httpconn.getresponse()
-
-                ncpv = httpresp.getheader('x-netclient-protocol-version')
-                if ncpv:
-                    ncpv = int(ncpv)
-                else:
-                    log.warning("Missing netclient protocol version, " \
-                                "falling back to a safe version (38)")
-                    ncpv = 38
-
-                anacondaTemplateDir = tempfile.mkdtemp(dir=constants.tmpDir)
-
-                pTar = subprocess.Popen(['tar', '-xf', '-'],
-                    stdin=httpresp.fp, cwd=anacondaTemplateDir)
-                rc = pTar.wait()
-                if rc != 0:
-                    raise RuntimeError, "Failed to expand anaconda-templates (rc=%d)" % rc
-            except (IOError, socket.error), e:
-                raise "Error occurred when requesting anaconda-templates: %s" % str(e)
-        finally:
-            httpconn.close()
-        return os.path.join(anacondaTemplateDir, 'unified'), ncpv
+        return os.path.join(templateDir, 'unified'), ncpv
 
     def prepareTemplates(self, topdir, templateDir):
         self.status("Preparing ISO template")
@@ -604,7 +551,7 @@ class InstallableIso(ImageGenerator):
         client = self.getConaryClient(tmpRoot,
                                       getArchFlavor(self.baseFlavor).freeze())
         tg = gencslist.TreeGenerator(client.cfg, client,
-            (self.troveName, self.troveVersion, self.troveFlavor),
+            (self.baseTrove, self.baseVersion, self.baseFlavor),
             cacheDir=constants.cachePath, clientVersion=clientVersion)
         tg.parsePackageData()
         tg.extractChangeSets(csdir, callback=self.callback)
@@ -612,19 +559,12 @@ class InstallableIso(ImageGenerator):
         log.info("done extracting changesets")
         return tg
 
-    def _setupTrove(self):
-        self.troveName = self.baseTrove
-        self.troveVersion = versions.ThawVersion(self.jobData['troveVersion'])
-        self.troveFlavor = self.baseFlavor
-
     def write(self):
         self.callback = Callback(self.status)
 
         # set up the topdir
         topdir = os.path.join(self.workDir, "unified")
         util.mkdirChain(topdir)
-
-        self._setupTrove()
 
         log.info("Building ISOs of size: %d Mb" % (self.maxIsoSize / 1048576))
 
@@ -669,7 +609,7 @@ class InstallableIso(ImageGenerator):
         self.writeProductImage(topdir, getArchFlavor(self.baseFlavor).freeze())
 
         self.status("Building ISOs")
-        splitdistro.splitDistro(topdir, self.troveName, self.maxIsoSize)
+        splitdistro.splitDistro(topdir, self.baseTrove, self.maxIsoSize)
         outputFileList = self.buildIsos(topdir)
 
         if self.buildOVF10:

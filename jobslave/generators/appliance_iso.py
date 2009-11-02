@@ -73,7 +73,7 @@ class TarSplit(object):
 class ApplianceInstaller(bootable_image.BootableImage, 
                          installable_iso.InstallableIso):
     def __init__(self, *args, **kwargs):
-        self.__class__.__base__.__init__(self, *args, **kwargs)
+        bootable_image.BootableImage.__init__(self, *args, **kwargs)
         self.showMediaCheck = self.getBuildData('showMediaCheck')
         #self.maxIsoSize = int(self.getBuildData('maxIsoSize'))
         self.maxIsoSize = 0
@@ -88,19 +88,8 @@ class ApplianceInstaller(bootable_image.BootableImage,
                 ('swap', 0, swapSize, 'swap'),
             ]
 
-        self.mountDict = dict([(x[0], tuple(x[1:])) for x in self.jobData['filesystems'] if x[0]])
-
-        basefilename = self.getBuildData('baseFileName') or ''
-        basefilename = ''.join([(x.isalnum() or x in ('-', '.')) and x or '_' \
-                                for x in basefilename])
-        ver = versions.ThawVersion(self.jobData['troveVersion'])
-        basefilename = basefilename or \
-                       "%(name)s-%(version)s-%(arch)s" % {
-                           'name': self.jobData['project']['hostname'],
-                           'version': ver.trailingRevision().asString().split('-')[0],
-                           'arch': self.arch}
-
-        self.basefilename = basefilename
+        self.mountDict = dict([(x[0], tuple(x[1:]))
+            for x in self.jobData['filesystems'] if x[0]])
 
     def writeBuildStamp(self, tmpPath):
         installable_iso.InstallableIso.writeBuildStamp(self, tmpPath)
@@ -142,7 +131,6 @@ class ApplianceInstaller(bootable_image.BootableImage,
                 # block all errors so that real ones can get through
                 pass
 
-            self._setupTrove()
             self.callback = installable_iso.Callback(self.status)
 
             print >> sys.stderr, "Building ISOs of size: %d Mb" % \

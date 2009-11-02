@@ -266,7 +266,7 @@ class BootableImage(ImageGenerator):
         self.root = os.path.join(self.workDir, 'root')
         util.mkdirChain(self.outputDir)
         util.mkdirChain(self.workingDir)
-        self.swapSize = self.getBuildData("swapSize") * 1048576
+        self.swapSize = (self.getBuildData("swapSize") or 0) * 1048576
         self.swapPath = '/var/swap'
 
         # Runtime variables
@@ -607,6 +607,7 @@ class BootableImage(ImageGenerator):
     @timeMe
     def runTagScripts(self):
         dest = self.root
+        self.status("Running tag scripts")
 
         outScript = os.path.join(dest, 'root', 'conary-tag-script')
         inScript = outScript + '.in'

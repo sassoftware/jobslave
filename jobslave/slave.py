@@ -19,6 +19,7 @@ class SlaveConfig(ConfigFile):
     masterUrl = (CfgString, None)
     conaryProxy = (CfgString, None)
     jobDataPath = (CfgPath, '/tmp/jobData')
+    templateCache = (CfgPath, '/mnt/anaconda-templates')
     binPath = (CfgPath, '/usr/bin')
 
 
