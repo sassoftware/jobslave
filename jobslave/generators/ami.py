@@ -94,9 +94,7 @@ class AMIImage(raw_fs_image.RawFsImage):
             + ' -d "%s"' % bundlePath
             + ' -p "%s"' % ec2ImagePrefix
             + ' -r "%s"' % self.amiArch
-            + extraArgs,
-            logCmd=False
-            )
+            + extraArgs)
         bundles = [x for x in os.listdir(bundlePath) if x.endswith('.xml')]
         return bundles and bundles[0] or None
 
