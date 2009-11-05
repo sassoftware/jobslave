@@ -733,7 +733,8 @@ class BootableImage(ImageGenerator):
             logCall('umount -n %s' % mntpoint)
 
     @timeMe
-    def installFileTree(self, dest=None, bootloader_override=None):
+    def installFileTree(self, dest=None, bootloader_override=None,
+            no_mbr=False):
         self.root = dest = dest or self.root
         self.status('Installing image contents')
         self.inspectGroup()
@@ -790,6 +791,9 @@ class BootableImage(ImageGenerator):
                     bootloader_override = 'grub'
                 self.bootloader = generators.get_bootloader(self, dest,
                         self.geometry, bootloader_override)
+
+            if no_mbr:
+                bootloader.do_install = False
 
             self.preTagScripts()
             self.runTagScripts()

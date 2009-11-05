@@ -113,7 +113,7 @@ class ApplianceInstaller(bootable_image.BootableImage,
         tarball = os.path.join(self.workDir, self.basefilename + '.tar.gz')
         cwd = os.getcwd()
         try:
-            self.installFileTree(basePath)
+            self.installFileTree(basePath, no_mbr=True)
 
             self.status('Preparing to build ISOs')
 

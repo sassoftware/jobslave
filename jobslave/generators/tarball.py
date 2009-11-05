@@ -27,7 +27,7 @@ class Tarball(bootable_image.BootableImage):
         tarball = os.path.join(outputDir, self.basefilename + '.tar.gz')
         cwd = os.getcwd()
         try:
-            self.installFileTree(basePath)
+            self.installFileTree(basePath, no_mbr=True)
             os.chdir(basePath)
             self.status('Creating tarball')
             logCall('tar -C %s -cpPs --to-stdout ./ | gzip > %s' % \

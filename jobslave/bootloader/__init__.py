@@ -13,6 +13,7 @@ class BootloaderInstaller(object):
         self.arch = parent.arch
         self.image_root = image_root
         self.geometry = geometry
+        self.do_install = True
 
     def setup(self):
         '''
@@ -42,6 +43,7 @@ class BootloaderInstaller(object):
             in bytes.
         '''
         pass
+
 
 class DummyInstaller(BootloaderInstaller):
     '''

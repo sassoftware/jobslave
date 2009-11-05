@@ -18,6 +18,9 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
         bootloader.writeBootmanConfigs(self)
         logCall('chroot "%s" /sbin/bootman' % self.image_root)
 
+        if not self.do_install:
+            return
+
         # Bind-mount /dev so extlinux can write to the boot sector
         image_dev = os.path.join(self.image_root, 'dev')
         logCall('mount -n --bind /dev "%s"' % image_dev)
