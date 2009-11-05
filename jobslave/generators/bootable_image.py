@@ -793,7 +793,7 @@ class BootableImage(ImageGenerator):
                         self.geometry, bootloader_override)
 
             if no_mbr:
-                bootloader.do_install = False
+                self.bootloader.do_install = False
 
             self.preTagScripts()
             self.runTagScripts()
