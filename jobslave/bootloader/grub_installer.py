@@ -289,6 +289,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             self.writeConf(kernels)
             for kver in kernels:
                 logCall(['/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
-                    '-f', '/boot/initrd-%s.img' % kver, kver])
+                    '-f', '--allow-missing',
+                    '/boot/initrd-%s.img' % kver, kver])
         else:
             log.error("No kernels found; this image will not be bootable.")
