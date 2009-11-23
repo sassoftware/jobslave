@@ -293,7 +293,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                     # make sure that whatever variant of the megaraid driver is
                     # present is included in the initrd, since it is required
                     # for vmware and doesn't hurt anything else
-                    '--with=megaraid', '--with-mptscsih', '--allow-missing',
+                    '--with=megaraid', '--with=mptscsih', '--allow-missing',
                     '/boot/initrd-%s.img' % kver, kver])
         else:
             log.error("No kernels found; this image will not be bootable.")
