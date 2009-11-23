@@ -6,7 +6,7 @@
 
 import os
 from conary.lib import util
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 def loopAttach(image, offset = 0):
     p = os.popen('losetup -f')

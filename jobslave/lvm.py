@@ -3,12 +3,16 @@
 # All Rights Reserved
 #
 
+import logging
 import sys
 
 from conary.lib import util
 from jobslave import loophelpers
-from jobslave.imagegen import logCall, log
+from jobslave.util import logCall
 from jobslave.generators import bootable_image
+
+log = logging.getLogger(__name__)
+
 
 class LVMFilesystem(bootable_image.Filesystem):
     def mount(self, mountPoint):
@@ -16,7 +20,7 @@ class LVMFilesystem(bootable_image.Filesystem):
             return
 
         # no loopback needed here
-        logCall("mount %s %s" % (self.fsDev, mountPoint))
+        logCall("mount -n %s %s" % (self.fsDev, mountPoint))
         self.mounted = True
 
     def umount(self):
@@ -26,7 +30,7 @@ class LVMFilesystem(bootable_image.Filesystem):
         if not self.mounted:
             return
 
-        logCall("umount %s" % (self.fsDev), ignoreErrors = True)
+        logCall("umount -n %s" % (self.fsDev), ignoreErrors = True)
         self.mounted = False
 
 class LVMContainer:
