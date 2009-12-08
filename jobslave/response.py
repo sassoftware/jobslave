@@ -20,6 +20,7 @@ try:
     from xml.etree import ElementTree as ET
 except ImportError:
     from elementtree import ElementTree as ET
+from jobslave import jobstatus
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +66,9 @@ class ResponseProxy(object):
         try:
             self._post('PUT', 'status', body=ET.tostring(root))
         except:
+            if code >= jobstatus.FINISHED:
+                # Don't eat errors from sending a final status.
+                raise
             log.exception("Failed to send status upstream")
 
     def sendLog(self, data):
