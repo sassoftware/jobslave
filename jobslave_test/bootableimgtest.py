@@ -498,6 +498,21 @@ auth	required	pam_env.so
 auth	required	pam_unix2.so
 """)
             f.close()
+
+            selinux = os.path.join(tmpDir, 'etc/selinux/config')
+            file(selinux, 'w').write('''
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+# enforcing - SELinux security policy is enforced.
+# permissive - SELinux prints warnings instead of enforcing.
+# disabled - SELinux is fully disabled.
+SELINUX=enforcing
+# SELINUXTYPE= type of policy in use. Possible values are:
+# targeted - Only targeted network daemons are protected.
+# strict - Full SELinux protection.
+SELINUXTYPE=targeted
+''')
+
             self.bootable.updateKernelChangeSet = \
                     self.bootable.updateGroupChangeSet = \
                     self.bootable.fileSystemOddsNEnds = \
@@ -519,6 +534,8 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
+            self.failIf('.autorelabel' not in os.listdir(tmpDir),
+                    "selinux .autorelabel not created")
             self.failIf(len(self.cmds) != 9,
                     "unexpected number of external calls")
             # make sure we unmount things in the right order

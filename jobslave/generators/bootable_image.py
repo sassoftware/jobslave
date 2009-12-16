@@ -474,6 +474,13 @@ class BootableImage(ImageGenerator):
         else:
             log.info("Not changing root password.")
 
+        # Set up selinux autorelabel if appropriate
+        selinux = self.filePath('etc/selinux/config')
+        if os.path.exists(selinux):
+            selinuxLines = [x.strip() for x in file(selinux).readlines()]
+            if not 'SELINUX=disabled' in selinuxLines:
+                self.createFile('.autorelabel')
+
         # Finish installation of bootloader
         self.bootloader.install()
 
