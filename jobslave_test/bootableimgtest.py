@@ -393,6 +393,10 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
             self.failUnlessEqual(f.read(), '''LABEL=label\t/\text3\tdefaults\t1\t1
 LABEL=swap\tswap\tswap\tdefaults\t0\t0
 LABEL=label\t/boot\text3\tdefaults\t1\t2
+devpts                  /dev/pts                devpts  gid=5,mode=620  0 0
+tmpfs                   /dev/shm                tmpfs   defaults        0 0
+proc                    /proc                   proc    defaults        0 0
+sysfs                   /sys                    sysfs   defaults        0 0
 ''')
         finally:
             util.rmtree(tmpDir)

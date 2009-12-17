@@ -316,9 +316,8 @@ class BootableImage(ImageGenerator):
     def createFile(self, path, contents='', mode=0644):
         self.createDirectory(os.path.dirname(path))
         path = self.filePath(path)
-        if not os.path.isfile(path):
-            open(path, 'wb').write(contents)
-            os.chmod(path, mode)
+        open(path, 'wb').write(contents)
+        os.chmod(path, mode)
 
     def appendFile(self, path, contents):
         self.createDirectory(os.path.dirname(path))
@@ -336,19 +335,32 @@ class BootableImage(ImageGenerator):
         self.createDirectory('boot/grub')
         self.createDirectory('etc/sysconfig/network-scripts')
 
-        # Create fstab early for RPM scripts to use.
+        # Create fstab early for RPM scripts to use.  Use normal
+        # defaults that will work on RPM-based and Conary-based
+        # systems.  If this becomes insufficient, we will need
+        # to add default fstab setup to product definition.
         fstab = ""
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
             reqSize, freeSpace, fsType = self.mountDict[mountPoint]
             fs = self.filesystems[mountPoint]
 
             if fsType == "ext3":
-                fstab += "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % (
+                fstab = "LABEL=%s\t%s\text3\tdefaults\t1\t%d\n" % (
                     (fs.fsLabel, mountPoint, (mountPoint == '/') and 1 or 2))
             elif fsType == "swap":
-                fstab += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
+                fstab = "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
 
-            self.createFile('etc/fstab', fstab)
+        # Add elements that might otherwise be missing:
+        if 'devpts ' not in fstab:
+            fstab += "devpts                  /dev/pts                devpts  gid=5,mode=620  0 0\n"
+        if '/dev/shm ' not in fstab:
+            fstab += "tmpfs                   /dev/shm                tmpfs   defaults        0 0\n"
+        if '/proc ' not in fstab:
+            fstab += "proc                    /proc                   proc    defaults        0 0\n"
+        if '/sys ' not in fstab:
+            fstab += "sysfs                   /sys                    sysfs   defaults        0 0\n"
+
+        self.createFile('etc/fstab', fstab)
 
     @timeMe
     def preTagScripts(self):
