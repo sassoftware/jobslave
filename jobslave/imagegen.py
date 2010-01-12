@@ -1,22 +1,13 @@
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2004-2010 rPath, Inc.
 #
-# All Rights Reserved
+# All rights reserved.
 #
 
 import logging
 import os
 import re
-import signal
-import stat
 import StringIO
-import subprocess
-import select
-import shutil
-import sys
-import tempfile
-import time
-import traceback
 import urllib
 
 from conary import conarycfg
@@ -78,7 +69,41 @@ class Generator(object):
         return ccfg
 
     def getBuildData(self, key):
-        return self.jobData.get('data', {}).get(key)
+        val = self.jobData.get('data', {}).get(key)
+        if val is None:
+            protocolVersion = self.jobData.get('protocolVersion')
+            if protocolVersion == 1:
+                defaults = {
+                        'autoResolve': False,
+                        'maxIsoSize': '681574400',
+                        'bugsUrl': 'http://issues.rpath.com/',
+                        'natNetworking': False,
+                        'vhdDiskType': 'dynamic',
+                        'anacondaCustomTrove': '',
+                        'stringArg': '',
+                        'mediaTemplateTrove': '',
+                        'baseFileName': '',
+                        'vmSnapshots': False,
+                        'swapSize': 128,
+                        'betaNag': False,
+                        'anacondaTemplatesTrove': '',
+                        'enumArg': '2',
+                        'vmMemory': 256,
+                        'installLabelPath': '',
+                        'intArg': 0,
+                        'freespace': 250,
+                        'boolArg': False,
+                        'mirrorUrl': '',
+                        'zisofs': True,
+                        'diskAdapter': 'lsilogic',
+                        'unionfs': False,
+                        'showMediaCheck': False,
+                        'amiHugeDiskMountpoint': '',
+                        }
+            else:
+                defaults = {}
+            val = defaults.get(key)
+        return val
 
     def write(self):
         raise NotImplementedError
