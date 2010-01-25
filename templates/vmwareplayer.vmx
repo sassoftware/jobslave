@@ -46,12 +46,6 @@ floppy0.present = "FALSE"
 @ADAPTERDEV@0.virtualDev = "@ADAPTER@"
 @ADAPTERDEV@0.autodetect = "TRUE"
 
-ide1:0.present = "TRUE"
-ide1:0.fileName = "auto detect"
-ide1:0.deviceType = "cdrom-raw"
-ide1:0.startConnected = "FALSE"
-ide1:0.autodetect = "TRUE"
-
 #####
 # Network
 #####
