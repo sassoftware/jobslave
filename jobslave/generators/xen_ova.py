@@ -6,9 +6,9 @@
 
 import os
 
-from jobslave.imagegen import logCall
 from jobslave.generators import constants
 from jobslave.generators import raw_hd_image, bootable_image
+from jobslave.util import logCall
 
 from conary.deps import deps
 from conary.lib import util
@@ -64,7 +64,7 @@ class XenOVA(raw_hd_image.RawHdImage):
         deliverable = os.path.join(outputDir, self.basefilename + self.suffix)
 
         # Build the filesystem images
-        #totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
+        #totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         image_path = os.path.join(self.workDir, 'hdimage')
         size = self.makeHDImage(image_path)
 

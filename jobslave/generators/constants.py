@@ -8,40 +8,24 @@ import sys
 
 from conary.lib import util
 
-## Disk geometry
-sectorSize          = 512 # bytes per block ("sector")
-sectors             = 32  # sectors per disk
-heads               = 64  # heads per disk
 
-VHDsectors          = 63  # sectors per disk for VHD
-VHDheads            = 16  # heads per disk for VHD
+## Paths
+dataDir             = '/usr/share/jobslave'
+anacondaImagesPath  = dataDir + '/pixmaps'
+entDir              = dataDir + '/entitlements'
+fallbackDir         = dataDir + '/fallback'
+scriptPath          = dataDir + '/scripts'
+skelDir             = dataDir + '/skel'
+templateDir         = dataDir + '/templates'
+#finishedDir         = dataDir + '/finished-images'
 
-bytesPerCylinder    = sectors * sectorSize * heads  # DEPRECATED
-partitionOffset     = 128 * sectorSize # offset of first partition (bytes)
+tmpDir              = '/tmp'
+anacondaTemplatesPath = tmpDir + '/anaconda-templates'
+cachePath           = tmpDir + '/changesets'
+finishedDir         = tmpDir + '/finished-images'
 
-
-# path for temporary finished images
-finishedDir = util.joinPaths(os.path.sep, 'tmp', 'finished-images')
-
-# directory containing file tree with fstab and other hooks
-skelDir         = util.joinPaths(os.path.sep, 'srv', 'jobslave', 'skel')
-
-# where to look for tools needed to boot a live ISO.
-fallbackDir     = util.joinPaths(os.path.sep, 'srv', 'jobslave', 'fallback')
-
-# directory to get direct image templates from, eg vmx files
-templateDir = util.joinPaths(os.path.sep, 'srv', 'jobslave', 'templates')
-
-# temporary directory
-tmpDir = util.joinPaths(os.path.sep, 'tmp')
-
-scriptPath = util.joinPaths(os.path.sep, 'usr', 'share', 'jobslave', 'scripts')
-cachePath = util.joinPaths(os.path.sep, 'tmp', 'changesets')
-implantIsoMd5 = util.joinPaths(os.path.sep, 'usr', 'bin', 'implantisomd5')
-anacondaImagesPath = util.joinPaths(os.path.sep, 'srv', 'jobslave', 'pixmaps')
-anacondaTemplatesPath = util.joinPaths(os.path.sep, 'tmp', 'anaconda-templates')
+implantIsoMd5 = '/usr/bin/implantisomd5'
 templatesLabel = 'conary.rpath.com@rpl:1'
-entDir =  util.joinPaths(os.path.sep, 'srv', 'jobslave', 'entitlements')
 
 pinKernelRE = '(kernel|linux-image-2\.6\.[0-9]+-[0-9]+(-[a-z]+)?)([:-].*|$)'
 

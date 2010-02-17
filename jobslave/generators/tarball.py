@@ -9,7 +9,7 @@ import os
 
 # jobslave imports
 from jobslave.generators import bootable_image, constants
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 from conary.lib import util
 from jobslave import buildtypes
@@ -20,15 +20,14 @@ class Tarball(bootable_image.BootableImage):
 
     def write(self):
         self.swapSize = self.getBuildData("swapSize") * 1048576
-        topDir = os.path.join(constants.tmpDir, self.jobId)
-        basePath = os.path.join(topDir, self.basefilename)
+        basePath = os.path.join(self.workDir, self.basefilename)
         util.mkdirChain(basePath)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
         tarball = os.path.join(outputDir, self.basefilename + '.tar.gz')
         cwd = os.getcwd()
         try:
-            self.installFileTree(basePath)
+            self.installFileTree(basePath, no_mbr=True)
             os.chdir(basePath)
             self.status('Creating tarball')
             logCall('tar -C %s -cpPs --to-stdout ./ | gzip > %s' % \
