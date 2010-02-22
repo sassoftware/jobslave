@@ -517,8 +517,13 @@ class BootableImage(ImageGenerator):
             # Remove any regular files that might have been created while
             # scripts were running. (RHEL sometimes ends up with empty files
             # in /dev due to post scripts.)
-            if os.path.exists(devicePath) and util.isregular(devicePath):
-                os.unlink(devicePath)
+            if os.path.exists(devicePath):
+                if util.isregular(devicePath):
+                    os.unlink(devicePath)
+
+                # This is probably already an existing device file, skip it.
+                else:
+                    continue
 
             if type == 'c':
                 flags = stat.S_IFCHR
