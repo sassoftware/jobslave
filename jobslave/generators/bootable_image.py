@@ -273,6 +273,23 @@ class BootableImage(ImageGenerator):
         self.bootloader = None
         self.outputFileList = []
 
+        # List of devicePath (realative to the rootPath's /dev), device
+        # type 'c' or 'b', major, and minor numbers.
+        self.devices = [
+
+            # common characture devices
+            ('console', 'c', 5, 1),
+            ('null', 'c', 1, 3),
+            ('zero', 'c', 1, 5),
+            ('full', 'c', 1, 7),
+            ('tty', 'c', 5, 0),
+
+            # common block devices
+            ('sda', 'b', 8, 0),
+            ('sda1', 'b', 8, 1),
+            ('sda2', 'b', 8, 2),
+        ]
+
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
 
@@ -492,6 +509,30 @@ class BootableImage(ImageGenerator):
             selinuxLines = [x.strip() for x in file(selinux).readlines()]
             if not 'SELINUX=disabled' in selinuxLines:
                 self.createFile('.autorelabel')
+
+        # Create devices that we need most of the time.
+        for dev, type, major, minor in self.devices:
+            devicePath = self.filePath('dev/%s' % dev)
+
+            # Remove any regular files that might have been created while
+            # scripts were running. (RHEL sometimes ends up with empty files
+            # in /dev due to post scripts.)
+            if os.path.exists(devicePath):
+                if util.isregular(devicePath):
+                    os.unlink(devicePath)
+
+                # This is probably already an existing device file, skip it.
+                else:
+                    continue
+
+            if type == 'c':
+                flags = stat.S_IFCHR
+            else:
+                flags = stat.S_IFBLK
+
+            # Create device.
+            devnum = os.makedev(major, minor)
+            os.mknod(devicePath, flags, devnum)
 
         # Finish installation of bootloader
         self.bootloader.install()
