@@ -220,7 +220,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     def getGuestOS(self):
         platformName = self.getBuildData('platformName')
-        platform = self.platforms[platformName]
+        platform = self.platforms.get(platformName, 'other26xlinux')
         suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
                 and "-64" or ""
         return platform + suffix
