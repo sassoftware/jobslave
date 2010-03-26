@@ -99,6 +99,7 @@ class Generator(object):
                         'unionfs': False,
                         'showMediaCheck': False,
                         'amiHugeDiskMountpoint': '',
+                        'platformName': '',
                         }
             else:
                 defaults = {}

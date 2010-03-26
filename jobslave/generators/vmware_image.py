@@ -68,6 +68,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     ovfClass = ovf_image.VMwareOVFImage
 
+    platforms = {'' : 'other26xlinux',
+                 'Red Hat Enterprise Linux AS 4' : 'rhel4',
+                 'Red Hat Enterprise Linux Server 5' : 'rhel5',
+                }
+
     def _createVMDK(self, hdImage, outfile, size, streaming=False):
         args = [
                 os.path.join(self.cfg.binPath, 'raw2vmdk'),
@@ -211,9 +216,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
             self.scsiModules = True
 
     def getGuestOS(self):
+        platformName = self.getBuildData('platformName')
+        platform = self.platforms[platformName]
         suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
                 and "-64" or ""
-        return "other26xlinux" + suffix
+        return platform + suffix
 
 class VMwareOVFImage(VMwareImage):
     useOVF = True
