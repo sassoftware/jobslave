@@ -71,6 +71,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
     platforms = {'' : 'other26xlinux',
                  'Red Hat Enterprise Linux AS 4' : 'rhel4',
                  'Red Hat Enterprise Linux Server 5' : 'rhel5',
+                 'Red Hat Enterprise Linux Desktop Workstation 5' : 'rhel5',
                  'SLES 11 Delivered by rPath' : 'sles',
                  'SLES 10 Delivered by rPath' : 'sles',
                 }
