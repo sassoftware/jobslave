@@ -21,6 +21,7 @@ from jobslave import filesystems
 from jobslave import generators
 from jobslave import helperfuncs
 from jobslave import loophelpers
+from jobslave import buildtypes
 from jobslave.bootloader.grub_installer import GrubInstaller
 from jobslave.distro_detect import *
 from jobslave.filesystems import sortMountPoints
@@ -593,19 +594,34 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def addScsiModules(self):
+        # FIXME: this part of the code needs a rewrite, because any
+        # bootable image type / distro combination may need different
+        # drivers to be specified here.  It's not a simple True/False.
+        # Also, 'Raw HD Image' means QEMU/KVM to me, but someone else
+        # might be using it with another environment.
+        filePath = self.filePath('etc/modprobe.conf')
+        moduleList = [ 'mptbase', 'mptspi' ]
+
+        if is_SUSE(self.root):
+           filePath = filePath + '.local'  
+           if self.jobData['buildType'] == buildtypes.RAW_HD_IMAGE:
+               self.scsiModules = True
+               moduleList = [ 'piix', ]
+
         if not self.scsiModules:
             return
-        filePath = self.filePath('etc/modprobe.conf')
+
         if not os.path.exists(filePath):
-            log.warning('modprobe.conf not found while adding scsi modules')
+            log.warning('%s not found while adding scsi modules' % \
+                        os.path.basename(filePath))
 
         util.mkdirChain(os.path.split(filePath)[0])
         f = open(filePath, 'a')
         if os.stat(filePath)[6]:
             f.write('\n')
-        f.write('\n'.join(('alias scsi_hostadapter mptbase',
-                           'alias scsi_hostadapter1 mptspi',
-                           '')))
+        for idx in range(0,len(moduleList)):
+            f.write("alias scsi_hostadapter%s %s\n" % \
+                (idx and idx or '', moduleList[idx]))
         f.close()
 
     @timeMe
@@ -681,12 +697,9 @@ class BootableImage(ImageGenerator):
         outs.close()
         os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
 
-        if is_SUSE(dest, version=10):
-            # SUSE needs udev to be started in the chroot in order to
-            # run mkinitrd
-            logCall("chroot %s sh -c '/etc/rc.d/boot.udev stop'" %dest)
-            logCall("chroot %s sh -c '/etc/rc.d/boot.udev start'" %dest)
-            logCall("chroot %s sh -c '/etc/rc.d/boot.udev force-reload'" %dest)
+        if is_SUSE(dest):
+            # SUSE needs /dev/fd for mkinitrd (RBL-5689)
+            os.symlink('/proc/self/fd', util.joinPaths(os.path.sep, dest, 'dev/fd'))
         elif is_SUSE(dest, version=11):
             # SLES 11 won't start udev since the socket already exists, must
             # bind mount dev instead.
