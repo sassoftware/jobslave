@@ -122,7 +122,7 @@ class OvfImage(object):
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
-        hd = Harddisk()
+        hd = Harddisk(AddressOnParent=0)
         hd.HostResource = 'ovf:/disk/%s' % self.diskId
         VirtualHardware.addItem(hd)
         VirtualHardware.addItem(ScsiController())
