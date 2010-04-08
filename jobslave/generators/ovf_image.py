@@ -64,8 +64,8 @@ class CdRom(ovf.Item):
 class OvfImage(object):
 
     def __init__(self, imageName, imageDescription, diskFormat,
-                  diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-                  workingDir, outputDir):
+                 diskFilePath, diskFileSize, diskCapacity, diskCompressed,
+                 memorySize, workingDir, outputDir):
         self.imageName = imageName
         self.imageDescription = imageDescription
         self.diskFormat = diskFormat
@@ -73,6 +73,7 @@ class OvfImage(object):
         self.diskFileSize = diskFileSize
         self.diskCapacity = diskCapacity
         self.diskCompressed = diskCompressed
+        self.memorySize = memorySize
         self.workingDir = workingDir
         self.outputDir = outputDir
 
@@ -118,11 +119,11 @@ class OvfImage(object):
 
     def addHardwareDefaults(self, VirtualHardware):
         VirtualHardware.addItem(Cpu())
-        VirtualHardware.addItem(Memory())
+        VirtualHardware.addItem(Memory(VirtualQuantity=self.memorySize))
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
-        hd = Harddisk()
+        hd = Harddisk(AddressOnParent=0)
         hd.HostResource = 'ovf:/disk/%s' % self.diskId
         VirtualHardware.addItem(hd)
         VirtualHardware.addItem(ScsiController())
@@ -260,7 +261,7 @@ class ISOOvfImage(OvfImage):
 
     def addHardwareDefaults(self, VirtualHardware):
         VirtualHardware.addItem(Cpu())
-        VirtualHardware.addItem(Memory())
+        VirtualHardware.addItem(Memory(VirtualQuantity=self.memorySize))
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
