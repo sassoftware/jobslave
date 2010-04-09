@@ -120,7 +120,8 @@ class OvfImage(object):
 
     def addHardwareDefaults(self, VirtualHardware):
         VirtualHardware.addItem(Cpu())
-        VirtualHardware.addItem(Memory(VirtualQuantity=self.memorySize))
+        VirtualHardware.addItem(Memory(VirtualQuantity=self.memorySize,
+                                       Caption="%s MB of Memory" % self.memorySize))
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
