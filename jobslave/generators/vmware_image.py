@@ -280,7 +280,3 @@ class VMwareESXImage(VMwareImage):
 
         # Move the raw HD image into place.
         os.rename(hdImage, outfile.replace('.vmdk', '-flat.vmdk'))
-
-    def getGuestOS(self):
-        arch64 = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64'))
-        return arch64 and "otherlinux-64" or "linux"
