@@ -39,6 +39,7 @@ class Harddisk(ovf.Item):
     rasd_InstanceID = '5'
     rasd_Parent = '4'
     rasd_ResourceType = '17'
+    rasd_AddressOnParent = '0'
 
 class ScsiController(ovf.Item):
     rasd_Caption = 'SCSI Controller 0 - LSI Logic'
@@ -123,7 +124,7 @@ class OvfImage(object):
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
-        hd = Harddisk(AddressOnParent=0)
+        hd = Harddisk()
         hd.HostResource = 'ovf:/disk/%s' % self.diskId
         VirtualHardware.addItem(hd)
         VirtualHardware.addItem(ScsiController())
