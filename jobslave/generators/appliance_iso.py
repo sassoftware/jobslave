@@ -199,8 +199,8 @@ class ApplianceInstaller(bootable_image.BootableImage,
                 diskFileSize = imagegen.getFileSize(outputFileList[0][0])
                 self.ovfImage = ovf_image.ISOOvfImage(self.basefilename,
                     self.jobData['description'], None, outputFileList[0][0],
-                    diskFileSize, self.maxIsoSize, False, self.workingDir,
-                    self.outputDir)
+                    diskFileSize, self.maxIsoSize, False, self.vmMemory,
+                    self.workingDir, self.outputDir)
 
                 self.ovfObj = self.ovfImage.createOvf()
                 self.ovfXml = self.ovfImage.writeOvf()
