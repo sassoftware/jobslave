@@ -450,7 +450,10 @@ class BootableImage(ImageGenerator):
         appNameFile = os.path.join(appliancePath, 'appliance-name')
         if not os.path.exists(appNameFile) or not os.path.getsize(appNameFile):
             f = open(appNameFile, 'w')
-            f.write('%s\n' % self.jobData['project']['name'])
+            name = self.jobData['project']['name']
+            if isinstance(name, unicode):
+                name = name.encode('utf8')
+            f.write(name + '\n')
             f.close()
 
         # Configure the bootloader (but don't install it yet).
