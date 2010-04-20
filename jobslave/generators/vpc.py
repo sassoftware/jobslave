@@ -78,8 +78,9 @@ class VirtualPCImage(raw_hd_image.RawHdImage):
             diskFileSize = imagegen.getFileSize(outputFile)
             self.ovfImage = ovf_image.XenOvfImage(self.basefilename,
                 self.jobData['description'], constants.VHD, outputFile,
-                diskFileSize, self.capacity, True, self.vmMemory,
-                workingDir, self.outputDir)
+                diskFileSize, self.capacity, True, 
+                self.getBuildData('vmMemory'), workingDir, 
+                self.outputDir)
 
             self.ovfObj = self.ovfImage.createOvf()
             self.ovfXml = self.ovfImage.writeOvf()
