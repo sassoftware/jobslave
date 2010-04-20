@@ -46,6 +46,7 @@ VMwareOvfXml = """\
         <rasd:ResourceType>10</rasd:ResourceType>
       </ovf:Item>
       <ovf:Item>
+        <rasd:AddressOnParent>0</rasd:AddressOnParent>
         <rasd:Caption>Harddisk</rasd:Caption>
         <rasd:ElementName>Hard disk</rasd:ElementName>
         <rasd:HostResource>ovf:/disk/diskId_1</rasd:HostResource>
