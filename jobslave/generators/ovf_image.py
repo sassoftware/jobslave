@@ -38,6 +38,7 @@ class Harddisk(ovf.Item):
     rasd_InstanceID = '5'
     rasd_Parent = '4'
     rasd_ResourceType = '17'
+    rasd_AddressOnParent = '0'
 
 class ScsiController(ovf.Item):
     rasd_Caption = 'SCSI Controller 0 - LSI Logic'
@@ -63,8 +64,8 @@ class CdRom(ovf.Item):
 class OvfImage(object):
 
     def __init__(self, imageName, imageDescription, diskFormat,
-                  diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-                  workingDir, outputDir):
+                 diskFilePath, diskFileSize, diskCapacity, diskCompressed,
+                 memorySize, workingDir, outputDir):
         self.imageName = imageName
         self.imageDescription = imageDescription
         self.diskFormat = diskFormat
@@ -72,6 +73,7 @@ class OvfImage(object):
         self.diskFileSize = diskFileSize
         self.diskCapacity = diskCapacity
         self.diskCompressed = diskCompressed
+        self.memorySize = memorySize
         self.workingDir = workingDir
         self.outputDir = outputDir
 
@@ -117,7 +119,8 @@ class OvfImage(object):
 
     def addHardwareDefaults(self, VirtualHardware):
         VirtualHardware.addItem(Cpu())
-        VirtualHardware.addItem(Memory())
+        VirtualHardware.addItem(Memory(VirtualQuantity=self.memorySize,
+                                       Caption="%s MB of Memory" % self.memorySize))
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
@@ -261,7 +264,8 @@ class ISOOvfImage(OvfImage):
 
     def addHardwareDefaults(self, VirtualHardware):
         VirtualHardware.addItem(Cpu())
-        VirtualHardware.addItem(Memory())
+        VirtualHardware.addItem(Memory(VirtualQuantity=self.memorySize,
+                                       Caption="%s MB of Memory" % self.memorySize))
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)

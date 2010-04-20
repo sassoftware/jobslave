@@ -471,7 +471,7 @@ class ImageGenerator(Generator):
         self.ovfImage = self.ovfClass(
             imageName, imageDescription, diskFormat,
             diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-            workingDir, outputDir)
+            self.getBuildData('vmMemory'), workingDir, outputDir)
 
         ovfObj = self.ovfImage.createOvf()
         ovfXml = self.ovfImage.writeOvf()
