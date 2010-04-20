@@ -46,7 +46,7 @@ class GeneratorStub(object):
         self.ovfImage = self.ovfClass(
             imageName, imageDescription, diskFormat,
             diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-            workingDir, outputDir)
+            256, workingDir, outputDir)
 
         self.ovfImage.createOvf()
         self.ovfImage.writeOvf()
