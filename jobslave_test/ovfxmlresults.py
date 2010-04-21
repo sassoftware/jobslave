@@ -30,7 +30,7 @@ VMwareOvfXml = """\
       </ovf:Item>
       <ovf:Item>
         <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-        <rasd:Caption>256 MB of memory</rasd:Caption>
+        <rasd:Caption>256 MB of Memory</rasd:Caption>
         <rasd:Description>Memory Size</rasd:Description>
         <rasd:ElementName>some mem size</rasd:ElementName>
         <rasd:InstanceID>2</rasd:InstanceID>
@@ -101,7 +101,7 @@ amiOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Caption>256 MB of Memory</rasd:Caption>
           <rasd:Description>Memory Size</rasd:Description>
           <rasd:ElementName>some mem size</rasd:ElementName>
           <rasd:InstanceID>2</rasd:InstanceID>
@@ -172,7 +172,7 @@ rawHdOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Caption>256 MB of Memory</rasd:Caption>
           <rasd:Description>Memory Size</rasd:Description>
           <rasd:ElementName>some mem size</rasd:ElementName>
           <rasd:InstanceID>2</rasd:InstanceID>
@@ -243,7 +243,7 @@ rawFsOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Caption>256 MB of Memory</rasd:Caption>
           <rasd:Description>Memory Size</rasd:Description>
           <rasd:ElementName>some mem size</rasd:ElementName>
           <rasd:InstanceID>2</rasd:InstanceID>
@@ -314,7 +314,7 @@ vpcOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Caption>256 MB of Memory</rasd:Caption>
           <rasd:Description>Memory Size</rasd:Description>
           <rasd:ElementName>some mem size</rasd:ElementName>
           <rasd:InstanceID>2</rasd:InstanceID>
@@ -384,7 +384,7 @@ appIsoOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Caption>256 MB of Memory</rasd:Caption>
           <rasd:Description>Memory Size</rasd:Description>
           <rasd:ElementName>some mem size</rasd:ElementName>
           <rasd:InstanceID>2</rasd:InstanceID>
@@ -446,7 +446,7 @@ instIsoOvfXml = """\
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>MegaBytes</rasd:AllocationUnits>
-          <rasd:Caption>256 MB of memory</rasd:Caption>
+          <rasd:Caption>256 MB of Memory</rasd:Caption>
           <rasd:Description>Memory Size</rasd:Description>
           <rasd:ElementName>some mem size</rasd:ElementName>
           <rasd:InstanceID>2</rasd:InstanceID>
