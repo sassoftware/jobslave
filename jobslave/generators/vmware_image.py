@@ -72,8 +72,8 @@ class VMwareImage(raw_hd_image.RawHdImage):
                  'Red Hat Enterprise Linux AS 4' : 'rhel4',
                  'Red Hat Enterprise Linux Server 5' : 'rhel5',
                  'Red Hat Enterprise Linux Desktop Workstation 5' : 'rhel5',
-                 'SLES 11 Delivered by rPath' : 'sles10',
-                 'SLES 10 Delivered by rPath' : 'sles11',
+                 'SLES 11 Delivered by rPath' : 'sles11',
+                 'SLES 10 Delivered by rPath' : 'sles10',
                 }
 
     def _createVMDK(self, hdImage, outfile, size, streaming=False):
