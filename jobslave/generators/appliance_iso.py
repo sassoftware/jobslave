@@ -196,6 +196,9 @@ class ApplianceInstaller(bootable_image.BootableImage,
             outputFileList = self.buildIsos(topDir)
 
             if self.buildOVF10:
+                self.workingDir = os.path.join(self.workDir, self.basefilename)
+                util.mkdirChain(self.workingDir)
+
                 diskFileSize = imagegen.getFileSize(outputFileList[0][0])
                 self.ovfImage = ovf_image.ISOOvfImage(self.basefilename,
                     self.jobData['description'], None, outputFileList[0][0],
