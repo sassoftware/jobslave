@@ -377,6 +377,8 @@ class BootableImage(ImageGenerator):
             fstab += "proc                    /proc                   proc    defaults        0 0\n"
         if '/sys ' not in fstab:
             fstab += "sysfs                   /sys                    sysfs   defaults        0 0\n"
+        if self.swapSize and self.swapPath and ' swap ' not in fstab:
+            fstab += "%s\tswap\tswap\tdefaults\t0\t0\n" % self.swapPath
 
         self.createFile('etc/fstab', fstab)
 
