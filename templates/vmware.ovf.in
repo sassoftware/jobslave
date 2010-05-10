@@ -112,14 +112,8 @@
         <rasd:ResourceType>10</rasd:ResourceType>
         <rasd:ResourceSubType>PCNet32</rasd:ResourceSubType>
         <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
-<!-- if @NETWORK_CONNECTION@ == nat
-        <rasd:Connection>nat</rasd:Connection>
-        <rasd:AddressOnParent>2</rasd:AddressOnParent>
--->
-<!-- if @NETWORK_CONNECTION@ == bridged
         <rasd:Connection>bridged</rasd:Connection>
         <rasd:AddressOnParent>1</rasd:AddressOnParent>
--->
       </Item>
     </Section>
     <Section ovf:required="false" xsi:type="ovf:AnnotationSection_Type">
