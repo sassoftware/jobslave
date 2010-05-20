@@ -114,14 +114,18 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'ADAPTER': self.adapter,
             'ADAPTERDEV': self.adapter == 'lsilogic' and 'scsi' or 'ide',
             'SNAPSHOT': str(not self.vmSnapshots).upper(),
-            'GUESTOS': self.getGuestOSOvf(),
+            'GUESTOS': self.getGuestOS(),
             'SIZE': str(self.vmdkSize),
             'CAPACITY': str(self.capacity),
             }
 
         #write the file to the proper location
         #Read in the stub file
-        template = (type == 'ovf') and 'vmware.ovf.in' or self.templateName
+        if type == 'ovf':
+            template = 'vmware.ovf.in'
+            variables['GUESTOS'] = self.getGuestOSOvf()
+        else:
+            template = self.templateName
         infile = open(os.path.join(constants.templateDir, template),
                   'rb')
         filecontents = infile.read()
