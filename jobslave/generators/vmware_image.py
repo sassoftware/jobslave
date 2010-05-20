@@ -114,7 +114,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'ADAPTER': self.adapter,
             'ADAPTERDEV': self.adapter == 'lsilogic' and 'scsi' or 'ide',
             'SNAPSHOT': str(not self.vmSnapshots).upper(),
-            'GUESTOS': self.getGuestOS(),
+            'GUESTOS': self.getGuestOSOvf(),
             'SIZE': str(self.vmdkSize),
             'CAPACITY': str(self.capacity),
             }
@@ -221,6 +221,12 @@ class VMwareImage(raw_hd_image.RawHdImage):
     def getGuestOS(self):
         platformName = self.getBuildData('platformName')
         platform = self.platforms.get(platformName, 'other26xlinux')
+        suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
+                and "-64" or ""
+        return platform + suffix
+
+    def getGuestOSOvf(self):
+        platform = 'other26xlinux'
         suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
                 and "-64" or ""
         return platform + suffix
