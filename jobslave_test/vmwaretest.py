@@ -59,33 +59,22 @@ class VMwareTest(testsuite.TestCase):
         self.failIf(ref != res,
                 "vmEscape returned '%s' but expected '%s'" % (res, ref))
 
+    def _testGuestOS(self, base, platform, flavor, expected):
+        class DummyImage(base):
+            def __init__(xself):
+                xself.baseFlavor = deps.parseFlavor(flavor)
+                xself.jobData = {'platformName': platform}
+        self.assertEquals(DummyImage().getGuestOS(), expected)
+
     def testGuestOS(self):
-        class DummyImage(vmware_image.VMwareImage):
-            def __init__(x, flav):
-                x.baseFlavor = deps.parseFlavor(flav)
-        gen = DummyImage('')
-        self.assertEquals(gen.getGuestOS(), "other26xlinux")
-
-    def testGuestOS64(self):
-        class DummyImage(vmware_image.VMwareImage):
-            def __init__(x, flav):
-                x.baseFlavor = deps.parseFlavor(flav)
-        gen = DummyImage('is: x86_64')
-        self.assertEquals(gen.getGuestOS(), "other26xlinux-64")
-
-    def testGuestOSESX(self):
-        class DummyImage(vmware_image.VMwareESXImage):
-            def __init__(x, flav):
-                x.baseFlavor = deps.parseFlavor(flav)
-        gen = DummyImage('')
-        self.assertEquals(gen.getGuestOS(), "linux")
-
-    def testGuestOSESX64(self):
-        class DummyImage(vmware_image.VMwareESXImage):
-            def __init__(x, flav):
-                x.baseFlavor = deps.parseFlavor(flav)
-        gen = DummyImage('is: x86_64')
-        self.assertEquals(gen.getGuestOS(), "otherlinux-64")
+        self._testGuestOS(vmware_image.VMwareImage, '', '',
+                'other26xlinux')
+        self._testGuestOS(vmware_image.VMwareImage, '', 'is: x86_64',
+                'other26xlinux-64')
+        self._testGuestOS(vmware_image.VMwareESXImage, '', '',
+                'other26xlinux')
+        self._testGuestOS(vmware_image.VMwareESXImage, '', 'is: x86_64',
+                'other26xlinux-64')
 
 
 if __name__ == "__main__":
