@@ -1,1 +1,22 @@
-{"buildType": 15, "protocolVersion": 1, "data": {"jsversion": "3.1.3", "baseFileName": "", "media-template": "media-template=/test.rpath.local@rpl:devel/1.3.0-2-1[is: x86]"}, "description": "this is a test", "outputToken": "580466f08ddfcfa130ee85f2d48c61ced992d4d4", "troveVersion": "/test.rpath.local@rpl:devel/0.0:1.3-1-6", "UUID": "test.rpath.local-build-96", "project": {"conaryCfg": "entitlement test.rpath.com xxxxxxxxxxxxxx\nrepositoryMap test.rpath.local http://test.rpath.local/conary/\nuser test.rpath.local anonymous anonymous\n", "hostname": "test", "name": "Test Linux", "label": "test.rpath.local@rpl:devel"}, "troveFlavor": "1#x86:i486:i586:i686:~!sse2|5#use:~Mesa.dri:~MySQL-python.threadsafe:X:~!alternatives:~!ati:~!bootstrap:~buildtests:desktop:~!dom0:~!domU:emacs:gcj:gnome:~!grub.static:ipv6:~!kernel.debug:~!kernel.debugdata:~!kernel.numa:~!kernel.pae:~kernel.smp:krb:ldap:nptl:~!nvidia:~!openssh.smartcard:~!openssh.static_libcrypto:pam:pcre:perl:~!pie:~!postfix.mysql:qt:readline:sasl:~!selinux:~sqlite.threadsafe:ssl:tcl:tcpwrappers:tk:~!xen:~xorg-server.dmx:~xorg-server.dri:~xorg-server.xnest", "troveName": "group-dist", "outputUrl": "http://nowhere:31337/", "type": "build", "name": "Test Linux"}
+{"buildType": 15,
+"protocolVersion": 1,
+"data": {
+    "jsversion": "3.1.3",
+    "baseFileName": "",
+    "media-template": "media-template=/test.rpath.local@rpl:devel/1.3.0-2-1[is: x86]"
+    },
+"description": "this is a test",
+"outputToken": "580466f08ddfcfa130ee85f2d48c61ced992d4d4",
+"troveVersion": "/test.rpath.local@rpl:devel/0.0:1.3-1-6",
+"UUID": "test.rpath.local-build-96",
+"project": {
+    "conaryCfg": "entitlement test.rpath.com xxxxxxxxxxxxxx\nrepositoryMap test.rpath.local http://test.rpath.local/conary/\nuser test.rpath.local anonymous anonymous\n",
+    "hostname": "test",
+    "name": "Test Linux",
+    "label": "test.rpath.local@rpl:devel"},
+"troveFlavor": "1#x86:i486:i586:i686:~!sse2|5#use:~Mesa.dri:~MySQL-python.threadsafe:X:~!alternatives:~!ati:~!bootstrap:~buildtests:desktop:~!dom0:~!domU:emacs:gcj:gnome:~!grub.static:ipv6:~!kernel.debug:~!kernel.debugdata:~!kernel.numa:~!kernel.pae:~kernel.smp:krb:ldap:nptl:~!nvidia:~!openssh.smartcard:~!openssh.static_libcrypto:pam:pcre:perl:~!pie:~!postfix.mysql:qt:readline:sasl:~!selinux:~sqlite.threadsafe:ssl:tcl:tcpwrappers:tk:~!xen:~xorg-server.dmx:~xorg-server.dri:~xorg-server.xnest",
+"troveName": "group-dist",
+"outputUrl": "http://nowhere:31337/",
+"type": "build",
+"name": "Test Linux",
+}

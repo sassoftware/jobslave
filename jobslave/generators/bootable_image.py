@@ -346,9 +346,9 @@ class BootableImage(ImageGenerator):
     @timeMe
     def preInstallScripts(self):
         # /proc and /sys are already created and mounted
+        self.createDirectory('dev')
         self.createDirectory('root')
         self.createDirectory('tmp')
-        self.createDirectory('var')
         self.createDirectory('var')
         self.createDirectory('boot/grub')
         self.createDirectory('etc/sysconfig/network-scripts')
