@@ -121,7 +121,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         #write the file to the proper location
         #Read in the stub file
-        template = (type == 'ovf') and 'vmware.ovf.in' or self.templateName
+        if type == 'ovf':
+            template = 'vmware.ovf.in'
+            variables['GUESTOS'] = self.getGuestOSOvf()
+        else:
+            template = self.templateName
         infile = open(os.path.join(constants.templateDir, template),
                   'rb')
         filecontents = infile.read()
@@ -221,6 +225,12 @@ class VMwareImage(raw_hd_image.RawHdImage):
     def getGuestOS(self):
         platformName = self.getBuildData('platformName')
         platform = self.platforms.get(platformName, 'other26xlinux')
+        suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
+                and "-64" or ""
+        return platform + suffix
+
+    def getGuestOSOvf(self):
+        platform = 'other26xlinux'
         suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
                 and "-64" or ""
         return platform + suffix
