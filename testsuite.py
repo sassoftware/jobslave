@@ -14,11 +14,9 @@ EXCLUDED_PATHS = ['dist/', '/build/', 'test', 'setup.py', 'trovebucket.py',
 
 
 def setup():
-    pathManager.addExecPath('MCP_PATH')
     pathManager.addExecPath('PYOVF_PATH')
     pathManager.addExecPath('RESTLIB_PATH')
     pathManager.addExecPath('CONARY_PATH')
-    pathManager.addExecPath('BOTO_PATH')
     pathManager.addExecPath('XOBJ_PATH')
 
     conaryTestPath = pathManager.addExecPath('CONARY_TEST_PATH')
