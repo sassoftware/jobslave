@@ -1,17 +1,15 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2006-2010 rPath, Inc.
 #
 # All rights reserved
 #
 
+import copy
 import logging
 import os
-import signal
-import simplejson
 import subprocess
 import sys
-import threading
 import tempfile
 
 from rephelp import RepositoryHelper as TestCase
@@ -19,79 +17,11 @@ from rephelp import RepositoryHelper as TestCase
 from conary.lib import util
 from conary.lib import log as conary_log
 from cStringIO import StringIO
-from mcp import mcp_log
 
-from jobslave import jobhandler, slave, constants, generators
+from jobslave import jobhandler, slave, generators
 from jobslave import buildtypes
 
-from testrunner import pathManager
-
-log = logging.getLogger('')
-
-
-class DummyConnection(object):
-    def __init__(self, *args, **kwargs):
-        self.sent = []
-        self.listeners = []
-        self.subscriptions = []
-        self.unsubscriptions = []
-        self.acks = []
-
-    def send(self, message, destination):
-        self.sent.insert(0, (destination, message))
-
-    def on_message(self, headers, message):
-        for listener in self.listeners:
-            listener.on_message(headers, message)
-
-    def subscribe(self, destination, ack = 'auto'):
-        if destination.startswith('/queue/'):
-            assert ack == 'client', 'Queue will not be able to refuse a message'
-        self.subscriptions.insert(0, destination)
-
-    def unsubscribe(self, dest):
-        self.unsubscriptions.insert(0, dest)
-
-    def add_listener(self, listener):
-        if listener not in self.listeners:
-            self.listeners.append(listener)
-
-    def dellistener(self, listener):
-        if listener in self.listeners:
-            self.listeners.remove(listener)
-
-    def start(self):
-        pass
-
-    def connect(self):
-        pass
-
-    def is_connected(self):
-        return True
-
-    def ack(self, messageId):
-        self.acks.append(messageId)
-
-    def insertMessage(self, message):
-        message = 'message-id: dummy-message\n\n\n' + message
-        self.on_message({}, message)
-
-    def disconnect(self):
-        pass
-
-class DummyResponse(object):
-    response = DummyConnection()
-    def __init__(self, node='fake-node', cfg=None):
-        self.node = node
-        self.cfg = cfg
-
-    def jobStatus(self, jobId, status, msg):
-        pass
-
-class ThreadedJobSlave(slave.JobSlave, threading.Thread):
-    def __init__(self, *args, **kwargs):
-        threading.Thread.__init__(self)
-        slave.JobSlave.__init__(self, *args, **kwargs)
+log = logging.getLogger()
 
 
 class DummyHandler(logging.Handler):
@@ -100,6 +30,18 @@ class DummyHandler(logging.Handler):
     '''
     def emit(self, record):
         # om nom nom nom
+        pass
+
+
+class DummyResponse(object):
+
+    def sendStatus(self, code, message):
+        pass
+
+    def sendLog(self, data):
+        pass
+
+    def postOutput(self, fileList):
         pass
 
 
@@ -113,10 +55,15 @@ class JobSlaveHelper(TestCase):
                                'label'      : 'foo.rpath.local@rpl:devel',
                                'conaryCfg'  : ''},
         'UUID'              : 'mint.rpath.local-build-25',
+        'buildId'           : 25,
+        'outputToken'       : '580466f08ddfcfa130ee85f2d48c61ced992d4d4',
         'troveName'         : 'group-core',
         'troveVersion'      : '/conary.rpath.com@rpl:1/0:1.0.1-1-1',
         'troveFlavor'       : '1#x86',
-        'data'              : {'jsversion': '3.0.0'},
+        'projectLabel'      : 'conary.rpath.com@rpl:1',
+        'data'              : {
+            'jsversion': '3.0.0',
+            },
         'outputQueue'       : 'test',
         'name'              : 'Test Project',
         'entitlements'      : {'conary.rpath.com': ('class', 'key')},
@@ -141,20 +88,8 @@ class JobSlaveHelper(TestCase):
         TestCase.setUp(self)
 
         self.slaveCfg = slave.SlaveConfig()
-        self.slaveCfg.configLine('namespace test')
-        self.slaveCfg.configLine('nodeName testMaster:testSlave')
-        self.slaveCfg.configLine('jobQueueName job3.0.0:x86')
         self.slaveCfg.configLine('debugMode True')
-
-        f = open ( os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'),'jobdata.txt'))
-        _signal = signal.signal
-        try:
-            signal.signal = lambda x, y: None
-            self.jobSlave = ThreadedJobSlave(self.slaveCfg,
-                    simplejson.loads(f.read()))
-        finally:
-            signal.signal = _signal
-            f.close()
+        self.slaveCfg.configLine('masterUrl http://no.master/api/')
 
         self.finishedDir = tempfile.mkdtemp(prefix="jobslave-test-finished-images")
         self.entDir = tempfile.mkdtemp(prefix="jobslave-test-ent")
@@ -194,18 +129,6 @@ class JobSlaveHelper(TestCase):
             self.suppressOutput(util.rmtree, x, ignore_errors = True)
         tempfile.mkdtemp = self.realMkdtemp
 
-        # Sanity check: make sure no-one other than us has a reference
-        # to the jobslave (the second reference is from the copy we're
-        # passing to getrefcount)
-        references = sys.getrefcount(self.jobSlave) - 2
-        if references:
-            print "WARNING: %d extra references to jobslave."
-            print "Expect unfreed resources!"
-
-        # Delete our reference to the jobslave now so that any
-        # resources it holds are freed and we can check for stragglers.
-        del self.jobSlave
-
         # Make sure logfiles get closed
         for handler in log.handlers:
             log.removeHandler(handler)
@@ -225,10 +148,13 @@ class JobSlaveHelper(TestCase):
         TestCase.tearDown(self)
 
     def getHandler(self, buildType):
-        self.data['buildType'] = buildType
+        data = copy.deepcopy(self.data)
+        data['buildType'] = buildType
         if buildType == buildtypes.AMI:
-            self.data.update(self.amiData)
-        return jobhandler.getHandler(self.data, self.jobSlave)
+            data.update(self.amiData)
+        handler = jobhandler.getHandler(self.slaveCfg, data)
+        handler.response = DummyResponse()
+        return handler
 
     def suppressOutput(self, func, *args, **kwargs):
         oldErr = os.dup(sys.stderr.fileno())

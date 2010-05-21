@@ -28,10 +28,10 @@ class BootloaderTest(jobslave_helper.JobSlaveHelper):
             handler = self.getHandler(buildtypes.RAW_HD_IMAGE)
         if kind == 'grub':
             return grub_installer.GrubInstaller(handler, tmpdir,
-                    handler.sectors, handler.heads, **kw)
+                    handler.geometry, **kw)
         elif kind == 'extlinux':
             return extlinux_installer.ExtLinuxInstaller(handler, tmpdir,
-                    handler.sectors, handler.heads, **kw)
+                    handler.geometry, **kw)
         else:
             self.fail()
 
@@ -127,14 +127,16 @@ class BootloaderTest(jobslave_helper.JobSlaveHelper):
         try:
             self.touch(os.path.join(tmpDir, 'sbin', 'grub'))
             self.touch(os.path.join(tmpDir, 'etc', 'debian_version'))
-            installer = jobslave.generators.get_bootloader(
-                    self.getHandler(buildtypes.RAW_HD_IMAGE), tmpDir, 32, 64)
+            handler = self.getHandler(buildtypes.RAW_HD_IMAGE)
+            installer = jobslave.generators.get_bootloader(handler, tmpDir,
+                    handler.geometry)
 
             self.calls = []
             self.mock(grub_installer, 'logCall', lambda x: self.calls.append(x))
 
             self.assertRaises(AssertionError, installer.install_mbr, tmpDir, 'asdfasdf', 516097)
-            installer.install_mbr(tmpDir, os.path.join(tmpDir, 'mbr_device'), 2 * constants.bytesPerCylinder)
+            installer.install_mbr(tmpDir, os.path.join(tmpDir, 'mbr_device'),
+                    2 * handler.geometry.bytesPerCylinder)
             self.failUnless('geometry (hd0) 2 64 32' in self.calls[0], 'geometry miscalculation')
         finally:
             util.rmtree(tmpDir)

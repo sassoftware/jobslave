@@ -10,7 +10,7 @@ import tempfile
 from jobslave.bootloader import grub_installer
 from jobslave.generators import bootable_image, constants
 from jobslave.filesystems import sortMountPoints
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 from conary.lib import util, log
 
@@ -64,7 +64,7 @@ class RawFsImage(bootable_image.BootableImage):
         return imgFiles
 
     def write(self):
-        totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
+        totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         finalImage = os.path.join(self.outputDir, self.basefilename + '.fs.tar.gz')
 
         images = self.makeFSImage(sizes)

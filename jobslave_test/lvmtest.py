@@ -46,8 +46,8 @@ class LVMTest(ExecuteLoggerTest):
         swap.umount()
 
         self.failUnlessEqual(self.callLog,
-            ['mount /dev/vg00/root /',
-             'umount /dev/vg00/root']
+            ['mount -n /dev/vg00/root /',
+             'umount -n /dev/vg00/root']
         )
 
         self.reset()

@@ -7,6 +7,11 @@
 from conary.lib import util
 import os.path
 
+
+def is_RH(image_root):
+    return os.path.exists(util.joinPaths(image_root, 'etc/redhat-release'))
+
+
 def is_SUSE(image_root, version=None):
     versionFile = util.joinPaths(image_root, 'etc', 'SuSE-release')
     if not os.path.exists(versionFile):

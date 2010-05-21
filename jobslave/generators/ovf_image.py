@@ -11,6 +11,7 @@ import sys
 
 from jobslave import buildtypes
 from jobslave.generators import constants
+from jobslave.util import logCall
 
 from pyovf import helper, ovf, item
 
@@ -202,8 +203,6 @@ class OvfImage(object):
 
         The ova is a tar consisting of the ovf and the disk file(s).
         """
-        from jobslave.imagegen import logCall
-
         self.ovaFileName = self.imageName + '.' + constants.OVA_EXTENSION
         self.ovaPath = os.path.join(self.outputDir, self.ovaFileName)
 

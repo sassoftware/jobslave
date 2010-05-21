@@ -11,7 +11,7 @@ import os
 import sys
 import time
 
-from jobslave.generators import constants
+from jobslave.geometry import GEOMETRY_VHD
 from jobslave.generators.raw_hd_image import divCeil
 
 SEEK_SET = 0
@@ -129,9 +129,9 @@ class VHDFooter(PackedHeader):
          ("reserved",       "427s", "")
     ]
 
-    sectors = constants.VHDsectors
-    heads = constants.VHDheads
-    cylinderSize = sectors * heads * constants.sectorSize
+    sectors = GEOMETRY_VHD.sectors
+    heads = GEOMETRY_VHD.heads
+    cylinderSize = GEOMETRY_VHD.bytesPerCylinder
 
     def __setattr__(self, name, val):
         if name == 'originalSize':
