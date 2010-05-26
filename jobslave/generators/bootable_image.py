@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -325,6 +325,9 @@ class BootableImage(ImageGenerator):
     def fileExists(self, path):
         return os.path.exists(self.filePath(path))
 
+    def readFile(self, path):
+        return open(self.filePath(path)).read()
+
     def createDirectory(self, path, mode=0755):
         path = self.filePath(path)
         if not os.path.isdir(path):
@@ -340,6 +343,9 @@ class BootableImage(ImageGenerator):
     def appendFile(self, path, contents):
         self.createDirectory(os.path.dirname(path))
         open(self.filePath(path), 'ab').write(contents)
+
+    def deleteFile(self, path):
+        os.unlink(self.filePath(path))
 
 
     ## Pre/post scripts
@@ -457,6 +463,19 @@ class BootableImage(ImageGenerator):
                 name = name.encode('utf8')
             f.write(name + '\n')
             f.close()
+
+        # HACK: rpm refuses to install passwd/group from setup:rpm if an info
+        # package was installed earlier.
+        if self.fileExists('/etc/passwd.rpmnew'):
+            first = self.readFile('/etc/passwd.rpmnew')
+            second = self.readFile('/etc/passwd')
+            self.createFile('/etc/passwd', first + second)
+            self.deleteFile('/etc/passwd.rpmnew')
+        if self.fileExists('/etc/group.rpmnew'):
+            first = self.readFile('/etc/group.rpmnew')
+            second = self.readFile('/etc/group')
+            self.createFile('/etc/group', first + second)
+            self.deleteFile('/etc/group.rpmnew')
 
         # Configure the bootloader (but don't install it yet).
         self.bootloader.setup()
