@@ -14,7 +14,6 @@ import signal
 import stat
 import subprocess
 import time
-import traceback
 
 # mint imports
 from jobslave import filesystems
@@ -22,8 +21,7 @@ from jobslave import generators
 from jobslave import helperfuncs
 from jobslave import loophelpers
 from jobslave import buildtypes
-from jobslave.bootloader.grub_installer import GrubInstaller
-from jobslave.distro_detect import *
+from jobslave.distro_detect import is_SUSE, is_UBUNTU
 from jobslave.filesystems import sortMountPoints
 from jobslave.geometry import GEOMETRY_REGULAR
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
