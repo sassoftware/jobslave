@@ -14,7 +14,6 @@ import signal
 import stat
 import subprocess
 import time
-import traceback
 
 # mint imports
 from jobslave import filesystems
@@ -22,8 +21,7 @@ from jobslave import generators
 from jobslave import helperfuncs
 from jobslave import loophelpers
 from jobslave import buildtypes
-from jobslave.bootloader.grub_installer import GrubInstaller
-from jobslave.distro_detect import *
+from jobslave.distro_detect import is_SUSE, is_UBUNTU
 from jobslave.filesystems import sortMountPoints
 from jobslave.geometry import GEOMETRY_REGULAR
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
@@ -37,6 +35,7 @@ from conary.conaryclient.cmdline import parseTroveSpec
 from conary.deps import deps
 from conary.lib import util
 from conary.repository import errors
+from conary.versions import Label
 
 log = logging.getLogger(__name__)
 
@@ -686,6 +685,46 @@ class BootableImage(ImageGenerator):
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script-kernel'))
 
     @timeMe
+    def installBootstrapTroves(self, callback):
+        pd = self.getProductDefinition()
+        if not pd:
+            return
+        info = pd.getPlatformInformation()
+        if not info or not info.bootstrapTrove:
+            return
+        bootstrapTroves = [
+                parseTroveSpec(x.encode('ascii')) for x in info.bootstrapTrove]
+
+        # TODO: Use the full search path for this, although it's super unlikely
+        # to cause problems. To insure against subtle bugs in the future,
+        # assert that the trove has no flavor.
+        installLabelPath = [Label(x.label) for x in pd.getGroupSearchPaths()]
+        result = self.nc.findTroves(installLabelPath,
+                [(x, None, None) for x in bootstrapTroves])
+        jobList = []
+        for query, matches in result.items():
+            name, version, flavor = max(matches)
+            if not flavor.isEmpty():
+                log.error("Bootstrap trove %s=%s[%s] cannot be installed "
+                        "because it has a flavor.", name, version, flavor)
+                raise RuntimeError("Bootstrap troves must not have a flavor")
+            jobList.append((name, (None, None), (version, flavor), True))
+
+        log.info("Installing %d bootstrap trove(s)", len(jobList))
+        oldDB = self.conarycfg.dbPath
+        cclient = None
+        try:
+            self.conarycfg.dbPath += '.bootstrap'
+            cclient = conaryclient.ConaryClient(self.conarycfg)
+            uJob = cclient.newUpdateJob()
+            cclient.prepareUpdateJob(uJob, jobList, resolveDeps=False)
+            cclient.applyUpdateJob(uJob, replaceFiles=True, noRestart=True)
+        finally:
+            if cclient:
+                cclient.close()
+            self.conarycfg.dbPath = oldDB
+
+    @timeMe
     def runTagScripts(self):
         dest = self.root
         self.status("Running tag scripts")
@@ -839,6 +878,7 @@ class BootableImage(ImageGenerator):
                 callback = InstallCallback(self.status)
                 cclient.setUpdateCallback(callback)
 
+                self.installBootstrapTroves(callback)
                 self.updateGroupChangeSet(cclient)
 
                 # set up the flavor for the kernel install based on the 
