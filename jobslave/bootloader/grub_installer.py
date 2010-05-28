@@ -287,13 +287,17 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         if kernels:
             log.info("Manually populating grub.conf with installed kernels")
             self.writeConf(kernels)
+            mkinitrdArgs = [
+                '/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
+                '-f',
+                # make sure that whatever variant of the megaraid driver is
+                # present is included in the initrd, since it is required
+                # for vmware and doesn't hurt anything else
+                '--with=megaraid', '--with=mptscsih', '--allow-missing',]
+            if is_RH(self.image_root):
+                mkinitrdArgs.append('--preload=xenblk')
             for kver in kernels:
-                logCall(['/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
-                    '-f',
-                    # make sure that whatever variant of the megaraid driver is
-                    # present is included in the initrd, since it is required
-                    # for vmware and doesn't hurt anything else
-                    '--with=megaraid', '--with=mptscsih', '--allow-missing',
-                    '/boot/initrd-%s.img' % kver, kver])
+                verArgs = mkinitrdArgs + ['/boot/initrd-%s.img' % kver, kver]
+                logCall(verArgs)
         else:
             log.error("No kernels found; this image will not be bootable.")
