@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #
@@ -13,9 +13,9 @@ from conary.lib import util
 
 from jobslave import bootloader
 from jobslave import buildtypes
-from jobslave.distro_detect import *
-from jobslave.generators import constants
+from jobslave.distro_detect import is_RH, is_SUSE, is_UBUNTU
 from jobslave.util import logCall
+
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
         includeTemplate=True, kversions=()):
@@ -166,6 +166,12 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             if re.match('xen.gz-.*', x)])
         hasInitrd = bool([x for x in bootDirFiles
             if re.match('initrd-.*.img', x)])
+
+        # TODO: RH-alikes ship a combo dom0/domU kernel so we can't distinguish
+        # by file contents alone. domU is the common case, so hard-code that
+        # for now.
+        if is_RH(self.image_root):
+           dom0 = False
 
         clock = ""
         if self.jobData['buildType'] == buildtypes.VMWARE_IMAGE:
