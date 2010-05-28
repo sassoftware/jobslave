@@ -1,12 +1,8 @@
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
-import os
-import sys
-
-from conary.lib import util
 
 
 ## Paths
@@ -34,15 +30,8 @@ OVF_EXTENSION = 'ovf'
 OVA_EXTENSION = 'ova'
 MF_EXTENSION = 'mf'
 
-DISKFORMATS = {
-    'VMDK'      : 1,
-    'VHD'       : 2,
-    'RAWFS'     : 3,
-    'RAWHD'     : 4,
-}
 
-sys.modules[__name__].__dict__.update(DISKFORMATS)
-
+VMDK, VHD, RAWFS, RAWHD = range(1, 5)
 DISKFORMATURLS = {
     VMDK : 'http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized',
     RAWFS : 'http://wiki.rpath.com/wiki/rBuilder_Online:Raw_Filesystem_Image',

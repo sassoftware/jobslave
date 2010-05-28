@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2006-2010 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #

@@ -1,11 +1,10 @@
 #
-# Copyright (c) 2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 import os
-from conary.lib import util
 from jobslave.util import logCall
 
 def loopAttach(image, offset = 0):

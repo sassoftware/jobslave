@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -7,8 +7,6 @@
 import os
 import logging
 import tempfile
-import urlparse
-import urllib
 
 from conary.lib import util, log as conary_log
 from conary.deps import deps

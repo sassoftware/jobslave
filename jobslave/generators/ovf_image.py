@@ -1,19 +1,16 @@
 #
-# Copyright (c) 2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 import os
-import os.path
 import sha
-import sys
 
-from jobslave import buildtypes
 from jobslave.generators import constants
 from jobslave.util import logCall
 
-from pyovf import helper, ovf, item
+from pyovf import helper, ovf
 
 class Cpu(ovf.Item):
     rasd_Caption = 'Virtual CPU'

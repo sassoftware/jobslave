@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -7,7 +7,6 @@
 from jobslave import buildtypes
 from jobslave.generators import bootable_image, vpc
 
-from conary.lib import util
 
 class VirtualIronVHD(vpc.VirtualPCImage):
     @bootable_image.timeMe

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- mode: python -*-
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 
 import sys

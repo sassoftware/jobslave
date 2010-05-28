@@ -1,10 +1,11 @@
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 # python standard library imports
+import itertools
 import logging
 from math import ceil
 import os

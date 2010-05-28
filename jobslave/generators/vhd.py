@@ -1,14 +1,12 @@
 #
-# Copyright (c) 2006 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
-import md5
 import struct
 import stat
 import os
-import sys
 import time
 
 from jobslave.geometry import GEOMETRY_VHD

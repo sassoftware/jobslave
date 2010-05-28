@@ -1,12 +1,10 @@
 #
-# Copyright (c) 2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 # All Rights Reserved
 #
 
 import logging
-import sys
 
-from conary.lib import util
 from jobslave import loophelpers
 from jobslave.util import logCall
 from jobslave.generators import bootable_image

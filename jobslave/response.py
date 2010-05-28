@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved.
 #
@@ -15,10 +15,10 @@ import restlib.client
 import threading
 import time
 from conary.lib import digestlib
-from conary.lib import util
 try:
     from xml.etree import ElementTree as ET
 except ImportError:
+    # pyflakes=ignore
     from elementtree import ElementTree as ET
 from jobslave import jobstatus
 

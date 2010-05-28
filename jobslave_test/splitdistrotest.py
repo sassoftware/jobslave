@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2005-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 
 import testsuite
