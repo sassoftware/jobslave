@@ -400,6 +400,7 @@ sysfs                   /sys                    sysfs   defaults        0 0
         constants.tmpDir = tempfile.mkdtemp()
         logCall = bootable_image.logCall
         mknod = os.mknod
+        chmod = os.chmod
         try:
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script.in'))
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
@@ -477,6 +478,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.open = open
             bootable_image.file = file
             os.mknod = mknod
+            os.chmod = chmod
 
     def _getStubCClient(self, isKernel):
         data = self.bootable.jobData
