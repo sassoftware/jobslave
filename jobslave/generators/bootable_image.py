@@ -397,7 +397,7 @@ class BootableImage(ImageGenerator):
             logCall('dd if=/dev/zero of=%s bs=4096 count=%d' % (
                     swapFile, self.swapSize / 4096))
             logCall('/sbin/mkswap %s' % swapFile)
-            os.chmod(swapFile, 0644)
+            os.chmod(swapFile, 0600)
 
         # Copy a skeleton config tree.
         # Exclude things that are not being installed.
