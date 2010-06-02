@@ -1,4 +1,4 @@
-/* Copyright (C) 2006, 2009 rPath, Inc.
+/* Copyright (c) 2010 rPath, Inc.
  * All rights reserved.
  */
 

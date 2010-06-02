@@ -1,14 +1,12 @@
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 import logging
 import os
-import tempfile
 
-from jobslave import buildtypes
 from jobslave import lvm
 from jobslave.generators import bootable_image, constants
 from jobslave.geometry import FSTYPE_LINUX, FSTYPE_LINUX_LVM

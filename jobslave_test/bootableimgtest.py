@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #
@@ -456,6 +456,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             os.mknod = lambda *args: None
             os.chmod = lambda *args: None
             self.bootable.inspectGroup = lambda: None
+            self.bootable.loadRPM = lambda: None
             self.bootable._getLabelPath = lambda *args: ''
             self.bootable.installFileTree(tmpDir)
             self.failUnless('pam_unix2.so nullok' in file(common_auth).read())

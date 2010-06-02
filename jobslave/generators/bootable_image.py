@@ -5,6 +5,7 @@
 #
 
 # python standard library imports
+import itertools
 import logging
 from math import ceil
 import os
@@ -35,6 +36,7 @@ from conary.conaryclient.cmdline import parseTroveSpec
 from conary.deps import deps
 from conary.lib import util
 from conary.repository import errors
+from conary.versions import Label
 
 log = logging.getLogger(__name__)
 
@@ -711,6 +713,46 @@ class BootableImage(ImageGenerator):
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script-kernel'))
 
     @timeMe
+    def installBootstrapTroves(self, callback):
+        pd = self.getProductDefinition()
+        if not pd:
+            return
+        info = pd.getPlatformInformation()
+        if not info or not info.bootstrapTrove:
+            return
+        bootstrapTroves = [
+                parseTroveSpec(x.encode('ascii')) for x in info.bootstrapTrove]
+
+        # TODO: Use the full search path for this, although it's super unlikely
+        # to cause problems. To insure against subtle bugs in the future,
+        # assert that the trove has no flavor.
+        installLabelPath = [Label(x.label) for x in pd.getGroupSearchPaths()]
+        result = self.nc.findTroves(installLabelPath,
+                [(x, None, None) for x in bootstrapTroves])
+        jobList = []
+        for query, matches in result.items():
+            name, version, flavor = max(matches)
+            if not flavor.isEmpty():
+                log.error("Bootstrap trove %s=%s[%s] cannot be installed "
+                        "because it has a flavor.", name, version, flavor)
+                raise RuntimeError("Bootstrap troves must not have a flavor")
+            jobList.append((name, (None, None), (version, flavor), True))
+
+        log.info("Installing %d bootstrap trove(s)", len(jobList))
+        oldDB = self.conarycfg.dbPath
+        cclient = None
+        try:
+            self.conarycfg.dbPath += '.bootstrap'
+            cclient = conaryclient.ConaryClient(self.conarycfg)
+            uJob = cclient.newUpdateJob()
+            cclient.prepareUpdateJob(uJob, jobList, resolveDeps=False)
+            cclient.applyUpdateJob(uJob, replaceFiles=True, noRestart=True)
+        finally:
+            if cclient:
+                cclient.close()
+            self.conarycfg.dbPath = oldDB
+
+    @timeMe
     def runTagScripts(self):
         dest = self.root
         self.status("Running tag scripts")
@@ -840,7 +882,7 @@ class BootableImage(ImageGenerator):
             no_mbr=False):
         self.root = dest = dest or self.root
         self.status('Installing image contents')
-        self.inspectGroup()
+        self.loadRPM()
 
         if os.access(constants.tmpDir, os.W_OK):
             util.settempdir(constants.tmpDir)
@@ -864,6 +906,7 @@ class BootableImage(ImageGenerator):
                 callback = InstallCallback(self.status)
                 cclient.setUpdateCallback(callback)
 
+                self.installBootstrapTroves(callback)
                 self.updateGroupChangeSet(cclient)
 
                 # set up the flavor for the kernel install based on the 
@@ -914,12 +957,20 @@ class BootableImage(ImageGenerator):
             except:
                 log.exception("Error during cleanup:")
 
-    def inspectGroup(self):
-        """
-        Inspect the image group to:
-         * Determine which RPM is needed to install the group.
-         * Determine whether the platform requires certain preinstall actions
-        """
+    def loadRPM(self):
+        """Insert the necessary RPM (if any) into sys.path."""
+        pd = self.getProductDefinition()
+        if pd:
+            info = pd.getPlatformInformation()
+            if info:
+                # Platform info is present and indicates which RPM to use
+                return self._loadRPMFromRequirement(info.rpmRequirement)
+
+        # Platform info is not present, look in the group (legacy support)
+        return self._loadRPMFromGroup()
+
+    def _loadRPMFromGroup(self):
+        """Locate RPM by inspecting the contents of the group."""
         imageTrove = self.nc.getTrove(withFiles=False, *self.baseTup)
 
         rpmVersions = set()
@@ -955,10 +1006,56 @@ class BootableImage(ImageGenerator):
             log.warning("RPM import path %s does not exist.", sitePackages)
             return
 
-        log.info("Using RPM from %s", sitePackages)
-        if sitePackages in sys.path:
-            sys.path.remove(sitePackages)
-        sys.path.insert(0, sitePackages)
+        self._installRPM(sitePackages)
+
+    def _loadRPMFromRequirement(self, choices):
+        """Locate RPM by looking for a trove that provides a given dep."""
+        if not choices:
+            # No RPM is needed.
+            return
+
+        # Find troves that provide the necessary RPM dep.
+        choices = [deps.parseDep(x) for x in choices]
+        log.info("Searching for a RPM trove matching one of these "
+                "requirements:")
+        for dep in sorted(choices):
+            log.info("  %s", dep)
+        found = self.cc.db.getTrovesWithProvides(choices)
+        tups = list(itertools.chain(*found.values()))
+        if tups:
+            log.info("Checking these troves for loadable RPM:")
+            for tup in sorted(tups):
+                log.info("  %s=%s[%s]", *tup)
+        else:
+            log.error("No matching RPM trove found.")
+            raise RuntimeError("Could not locate a RPM trove meeting the "
+                    "necessary requirements.")
+
+        # Search those troves for the python import root.
+        targetRoot = "/python%s.%s/site-packages" % sys.version_info[:2]
+        targetPath = targetRoot = "/rpm/__init__.py"
+        roots = set()
+        for trove in self.cc.db.getTroves(tups, pristine=False):
+            for pathId, path, fileId, fileVer in trove.iterFileList():
+                if path.endswith(targetPath):
+                    root = path[:-len(targetPath)] + targetRoot
+                    roots.add(root)
+
+        # Insert into the search path and do a test import
+        if not roots:
+            raise RuntimeError("A required RPM trove was found but did not "
+                    "contain a suitable python module (expected python%s.%s)" %
+                    sys.version_info[:2])
+
+        sitePackages = sorted(roots)[0]
+        self._installRPM(sitePackages)
+
+    def _installRPM(self, path):
+        log.info("Using RPM from %s", path)
+        if path in sys.path:
+            sys.path.remove(path)
+        sys.path.insert(0, path)
+        __import__('rpm')
 
     @timeMe
     def gzip(self, source, dest = None):

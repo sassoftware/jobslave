@@ -1,5 +1,6 @@
 #
-# Copyright (c) 2006-2008 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
+#
 # All rights reserved.
 #
 
@@ -7,9 +8,8 @@ import copy
 
 from conary.deps import deps
 from conary.errors import TroveNotFound
-from conary.repository import changeset
 from conary.repository.resolvemethod import DepResolutionByLabelPath
-from conary import trove, versions, conaryclient
+from conary import trove, conaryclient
 
 import sys
 import time

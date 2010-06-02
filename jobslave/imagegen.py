@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2010 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved.
 #
@@ -21,6 +21,8 @@ from jobslave import response
 from jobslave.generators import constants, ovf_image
 from jobslave.response import LogHandler
 from jobslave.util import getFileSize
+
+from rpath_proddef import api1 as proddef
 
 log = logging.getLogger(__name__)
 
@@ -191,6 +193,10 @@ class ImageGenerator(Generator):
         self.basefilename = basefilename.encode('utf8')
         self.buildOVF10 = self.getBuildData('buildOVF10')
 
+        # Product definition / platform information
+        self.productDefinition = None
+        self.platformTags = None
+
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()
         trv = repos.getTroves([trove])
@@ -247,4 +253,25 @@ class ImageGenerator(Generator):
         ovaPath = self.ovfImage.createOva()
 
         return ovaPath
-      
+
+    def getProductDefinition(self):
+        if self.productDefinition:
+            return self.productDefinition
+
+        projectLabel = self.getBuildData('projectLabel')
+        if projectLabel is None:
+            return None
+
+        self.platformDefinition = proddef.ProductDefinition()
+        self.platformDefinition.setBaseLabel(projectLabel)
+        self.platformDefinition.loadFromRepository(self.cc)
+
+        info = self.platformDefinition.getPlatformInformation()
+        if info:
+            self.platformTags = set(info.platformClassifier.tags.split())
+
+        return self.platformDefinition
+
+    def isPlatform(self, tag):
+        self.getProductDefinition()
+        return tag in self.platformTags

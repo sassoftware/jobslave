@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 # All Rights Reserved
 #
 from conary.deps import deps

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- mode: python -*-
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 
 import sys
@@ -16,6 +16,7 @@ EXCLUDED_PATHS = ['dist/', '/build/', 'test', 'setup.py', 'trovebucket.py',
 def setup():
     pathManager.addExecPath('PYOVF_PATH')
     pathManager.addExecPath('RESTLIB_PATH')
+    pathManager.addExecPath('PRODUCT_DEFINITION_PATH')
     pathManager.addExecPath('CONARY_PATH')
     pathManager.addExecPath('XOBJ_PATH')
 

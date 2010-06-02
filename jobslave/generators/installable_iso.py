@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved.
 #
@@ -7,17 +7,11 @@
 import cPickle
 import logging
 import os
-import pwd
-import re
-import socket
-import string
 import subprocess
-import sys
 import tempfile
 import time
 import urllib
 import urllib2
-import urlparse
 
 from jobslave.generators import constants
 from jobslave import gencslist
@@ -33,16 +27,12 @@ from jobslave import flavors
 
 from conary import callbacks
 from conary import conaryclient
-from conary import conarycfg
 from conary.deps import deps
 from conary import versions
 from conary.repository import changeset
-from conary.repository import errors
 from conary import trove
-from conary.build import use
-from conary.conarycfg import ConfigFile
 from conary.conaryclient.cmdline import parseTroveSpec
-from conary.lib import util, sha1helper, openpgpfile
+from conary.lib import util, openpgpfile
 
 
 log = logging.getLogger('')

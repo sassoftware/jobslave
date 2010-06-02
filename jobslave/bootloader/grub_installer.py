@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #
@@ -13,9 +13,9 @@ from conary.lib import util
 
 from jobslave import bootloader
 from jobslave import buildtypes
-from jobslave.distro_detect import *
-from jobslave.generators import constants
+from jobslave.distro_detect import is_RH, is_SUSE, is_UBUNTU
 from jobslave.util import logCall
+
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
         includeTemplate=True, kversions=()):
@@ -167,6 +167,12 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         hasInitrd = bool([x for x in bootDirFiles
             if re.match('initrd-.*.img', x)])
 
+        # TODO: RH-alikes ship a combo dom0/domU kernel so we can't distinguish
+        # by file contents alone. domU is the common case, so hard-code that
+        # for now.
+        if is_RH(self.image_root):
+           dom0 = False
+
         clock = ""
         if self.jobData['buildType'] == buildtypes.VMWARE_IMAGE:
             if self.arch == 'x86':
@@ -287,13 +293,17 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         if kernels:
             log.info("Manually populating grub.conf with installed kernels")
             self.writeConf(kernels)
+            mkinitrdArgs = [
+                '/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
+                '-f',
+                # make sure that whatever variant of the megaraid driver is
+                # present is included in the initrd, since it is required
+                # for vmware and doesn't hurt anything else
+                '--with=megaraid', '--with=mptscsih', '--allow-missing',]
+            if is_RH(self.image_root):
+                mkinitrdArgs.append('--preload=xenblk')
             for kver in kernels:
-                logCall(['/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
-                    '-f',
-                    # make sure that whatever variant of the megaraid driver is
-                    # present is included in the initrd, since it is required
-                    # for vmware and doesn't hurt anything else
-                    '--with=megaraid', '--with=mptscsih', '--allow-missing',
-                    '/boot/initrd-%s.img' % kver, kver])
+                verArgs = mkinitrdArgs + ['/boot/initrd-%s.img' % kver, kver]
+                logCall(verArgs)
         else:
             log.error("No kernels found; this image will not be bootable.")

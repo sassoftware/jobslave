@@ -1,15 +1,12 @@
 #
-# Copyright (c) 2004-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 import os
-import tempfile
 
-from jobslave.bootloader import grub_installer
 from jobslave.generators import bootable_image, constants
-from jobslave.filesystems import sortMountPoints
 from jobslave.util import logCall
 
 from conary.lib import util, log

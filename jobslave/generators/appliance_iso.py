@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -13,10 +13,9 @@ import time
 from jobslave.generators import bootable_image, constants, \
     installable_iso, ovf_image
 from jobslave import imagegen
-from jobslave import buildtypes
 from jobslave import splitdistro
+from jobslave.util import call
 
-from conary import versions
 from conary.lib import util
 from conary.lib.sha1helper import sha1String, sha1ToString
 
@@ -190,8 +189,8 @@ class ApplianceInstaller(bootable_image.BootableImage,
                 srcDir = os.path.join(topDir, 'media-template2', cDir)
                 if os.path.exists(srcDir):
                     for src in os.listdir(srcDir):
-                        call('cp', '-R', '--no-dereference', os.path.join(srcDir, src),
-                             current)
+                        call('cp', '-R', '--no-dereference',
+                                os.path.join(srcDir, src), current)
 
             outputFileList = self.buildIsos(topDir)
 
