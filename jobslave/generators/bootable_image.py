@@ -325,6 +325,9 @@ class BootableImage(ImageGenerator):
     def fileExists(self, path):
         return os.path.exists(self.filePath(path))
 
+    def readFile(self, path):
+        return open(self.filePath(path)).read()
+
     def createDirectory(self, path, mode=0755):
         path = self.filePath(path)
         if not os.path.isdir(path):
@@ -340,6 +343,9 @@ class BootableImage(ImageGenerator):
     def appendFile(self, path, contents):
         self.createDirectory(os.path.dirname(path))
         open(self.filePath(path), 'ab').write(contents)
+
+    def deleteFile(self, path):
+        os.unlink(self.filePath(path))
 
 
     ## Pre/post scripts
@@ -458,6 +464,26 @@ class BootableImage(ImageGenerator):
                 name = name.encode('utf8')
             f.write(name + '\n')
             f.close()
+
+        # HACK: rpm refuses to install passwd/group from setup:rpm if an info
+        # package was installed earlier.
+        # Delete after updating to conary 2.1.17
+        for path in ['/etc/passwd', '/etc/group']:
+            newpath = path + '.rpmnew'
+            if not self.fileExists(newpath):
+                continue
+            first = self.readFile(newpath).splitlines()
+            second = self.readFile(path).splitlines()
+            out = ''
+            seen = set()
+            for line in first + second:
+                name = line.split(':')[0]
+                if name not in seen:
+                    seen.add(name)
+                    out += line + '\n'
+
+            self.createFile(path, out)
+            self.deleteFile(newpath)
 
         # Configure the bootloader (but don't install it yet).
         self.bootloader.setup()
