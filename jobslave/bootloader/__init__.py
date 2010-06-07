@@ -44,6 +44,31 @@ class BootloaderInstaller(object):
         '''
         pass
 
+    ## Script helpers
+    def filePath(self, path):
+        while path.startswith('/'):
+            path = path[1:]
+        return os.path.join(self.image_root, path)
+
+    def fileExists(self, path):
+        return os.path.exists(self.filePath(path))
+
+    def createDirectory(self, path, mode=0755):
+        path = self.filePath(path)
+        if not os.path.isdir(path):
+            os.makedirs(path)
+            os.chmod(path, mode)
+
+    def createFile(self, path, contents='', mode=0644):
+        self.createDirectory(os.path.dirname(path))
+        path = self.filePath(path)
+        open(path, 'wb').write(contents)
+        os.chmod(path, mode)
+
+    def appendFile(self, path, contents):
+        self.createDirectory(os.path.dirname(path))
+        open(self.filePath(path), 'ab').write(contents)
+
 
 class DummyInstaller(BootloaderInstaller):
     '''
