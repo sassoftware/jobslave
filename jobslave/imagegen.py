@@ -258,12 +258,12 @@ class ImageGenerator(Generator):
         if self.productDefinition:
             return self.productDefinition
 
-        projectLabel = self.getBuildData('projectLabel')
-        if projectLabel is None:
+        proddefLabel = self.jobData.get('proddefLabel')
+        if proddefLabel is None:
             return None
 
         self.platformDefinition = proddef.ProductDefinition()
-        self.platformDefinition.setBaseLabel(projectLabel)
+        self.platformDefinition.setBaseLabel(proddefLabel)
         self.platformDefinition.loadFromRepository(self.cc)
 
         info = self.platformDefinition.getPlatformInformation()
