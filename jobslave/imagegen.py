@@ -166,6 +166,9 @@ class ImageGenerator(Generator):
                 self.jobData['troveFlavor'].encode('utf8'))
         self.baseTup = self.baseTrove, self.baseVersion, self.baseFlavor
 
+        self.isDomU = self.baseFlavor.stronglySatisfies(
+                deps.parseFlavor('domU'))
+
         if 'filesystems' not in self.jobData:
             # support for legacy requests
             freeSpace = (self.getBuildData("freespace") or 0) * 1048576

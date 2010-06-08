@@ -14,6 +14,7 @@ class BootloaderInstaller(object):
         self.image_root = image_root
         self.geometry = geometry
         self.do_install = True
+        self.force_domU = False
 
     def setup(self):
         '''

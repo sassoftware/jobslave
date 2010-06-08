@@ -913,7 +913,7 @@ class BootableImage(ImageGenerator):
             self.status('Finalizing install')
 
             if not self.bootloader:
-                if self.baseFlavor.stronglySatisfies(deps.parseFlavor('domU')):
+                if self.isDomU:
                     # pygrub requires that grub-install be run
                     bootloader_override = 'grub'
                 self.bootloader = generators.get_bootloader(self, dest,
@@ -921,6 +921,8 @@ class BootableImage(ImageGenerator):
 
             if no_mbr:
                 self.bootloader.do_install = False
+            if self.isDomU:
+                self.bootloader.force_domU = True
 
             self.preTagScripts()
             self.runTagScripts()
