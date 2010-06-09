@@ -4,13 +4,13 @@
 # All rights reserved.
 #
 
+import base64
 import cPickle
 import logging
 import os
 import subprocess
 import tempfile
 import time
-import urllib
 import urllib2
 
 from jobslave.generators import constants
@@ -394,10 +394,15 @@ class InstallableIso(ImageGenerator):
         if not uJob:
             raise RuntimeError, "Failed to find anaconda-templates"
 
-        name, version, flavor = self._getNVF(uJob)
-        url = '%stemplates/getTemplate?%s' % (self.cfg.masterUrl,
-                urllib.urlencode(dict(n=name, v=version.freeze(),
-                    f=flavor.freeze())))
+        kernels = self.findImageSubtrove('kernel')
+        kernelTup = kernels and sorted(kernels)[0] or None
+        params = {
+                'templateTup': self._getNVF(uJob),
+                'kernelTup': kernelTup,
+                }
+        params = base64.urlsafe_b64encode(cPickle.dumps(params, 2))
+
+        url = '%stemplates/getTemplate?p=%s' % (self.cfg.masterUrl, params)
         noStart = False
         path = None
         while True:

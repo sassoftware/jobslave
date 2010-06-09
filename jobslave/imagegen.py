@@ -165,6 +165,7 @@ class ImageGenerator(Generator):
         self.baseFlavor = deps.ThawFlavor(
                 self.jobData['troveFlavor'].encode('utf8'))
         self.baseTup = self.baseTrove, self.baseVersion, self.baseFlavor
+        self.baseTroveObj = None
 
         self.isDomU = self.baseFlavor.stronglySatisfies(
                 deps.parseFlavor('domU'))
@@ -278,3 +279,11 @@ class ImageGenerator(Generator):
     def isPlatform(self, tag):
         self.getProductDefinition()
         return tag in self.platformTags
+
+    def findImageSubtrove(self, name):
+        if self.baseTroveObj is None:
+            self.baseTroveObj = self.nc.getTrove(withFiles=False,
+                    *self.baseTup)
+
+        return set(x for x in self.baseTroveObj.iterTroveList(True, True)
+                if x[0] == name)
