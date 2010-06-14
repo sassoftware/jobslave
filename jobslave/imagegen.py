@@ -272,7 +272,7 @@ class ImageGenerator(Generator):
 
         info = self.platformDefinition.getPlatformInformation()
         if info:
-            self.platformTags = set(info.platformClassifier.tags.split())
+            self.platformTags = set(info.platformClassifier.tags)
 
         return self.platformDefinition
 

@@ -694,8 +694,7 @@ class BootableImage(ImageGenerator):
         info = pd.getPlatformInformation()
         if not info or not info.bootstrapTrove:
             return
-        bootstrapTroves = [
-                parseTroveSpec(x.encode('ascii')) for x in info.bootstrapTrove]
+        bootstrapTroves = info.bootstrapTroves
 
         # TODO: Use the full search path for this, although it's super unlikely
         # to cause problems. To insure against subtle bugs in the future,
@@ -998,7 +997,6 @@ class BootableImage(ImageGenerator):
             return
 
         # Find troves that provide the necessary RPM dep.
-        choices = [deps.parseDep(x.encode('ascii')) for x in choices]
         log.info("Searching for a RPM trove matching one of these "
                 "requirements:")
         for dep in sorted(choices):
