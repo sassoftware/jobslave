@@ -692,7 +692,7 @@ class BootableImage(ImageGenerator):
         if not pd:
             return
         info = pd.getPlatformInformation()
-        if not info or not info.bootstrapTrove:
+        if not info or not info.bootstrapTroves:
             return
         bootstrapTroves = info.bootstrapTroves
 
@@ -946,7 +946,7 @@ class BootableImage(ImageGenerator):
             info = pd.getPlatformInformation()
             if info:
                 # Platform info is present and indicates which RPM to use
-                return self._loadRPMFromRequirement(info.rpmRequirement)
+                return self._loadRPMFromRequirement(info.rpmRequirements)
 
         # Platform info is not present, look in the group (legacy support)
         return self._loadRPMFromGroup()
