@@ -515,6 +515,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.logCall = mockLog
             bootable_image.open = mockOpen
             bootable_image.file = mockOpen
+            os.chmod = lambda *args: None
             self.bootable.installFileTree(tmpDir)
             self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
             self.failIf('etc' not in os.listdir(tmpDir),
