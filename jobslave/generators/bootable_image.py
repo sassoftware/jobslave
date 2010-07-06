@@ -718,17 +718,16 @@ class BootableImage(ImageGenerator):
         if not pd:
             return
         info = pd.getPlatformInformation()
-        if not info or not info.bootstrapTrove:
+        if not info or not info.bootstrapTroves:
             return
-        bootstrapTroves = [
-                parseTroveSpec(x.encode('ascii')) for x in info.bootstrapTrove]
+        bootstrapTroves = info.bootstrapTroves
 
         # TODO: Use the full search path for this, although it's super unlikely
         # to cause problems. To insure against subtle bugs in the future,
         # assert that the trove has no flavor.
-        installLabelPath = [Label(x.label) for x in pd.getGroupSearchPaths()]
-        result = self.nc.findTroves(installLabelPath,
-                [(x, None, None) for x in bootstrapTroves])
+        installLabelPath = [Label(x.label.encode('ascii'))
+                for x in pd.getGroupSearchPaths()]
+        result = self.nc.findTroves(installLabelPath, bootstrapTroves)
         jobList = []
         for query, matches in result.items():
             name, version, flavor = max(matches)
@@ -740,9 +739,10 @@ class BootableImage(ImageGenerator):
 
         log.info("Installing %d bootstrap trove(s)", len(jobList))
         oldDB = self.conarycfg.dbPath
+        tmpDB = oldDB + '.bootstrap'
         cclient = None
         try:
-            self.conarycfg.dbPath += '.bootstrap'
+            self.conarycfg.dbPath = tmpDB
             cclient = conaryclient.ConaryClient(self.conarycfg)
             uJob = cclient.newUpdateJob()
             cclient.prepareUpdateJob(uJob, jobList, resolveDeps=False)
@@ -751,6 +751,7 @@ class BootableImage(ImageGenerator):
             if cclient:
                 cclient.close()
             self.conarycfg.dbPath = oldDB
+        util.rmtree(self.filePath(tmpDB))
 
     @timeMe
     def runTagScripts(self):
@@ -906,8 +907,13 @@ class BootableImage(ImageGenerator):
                 callback = InstallCallback(self.status)
                 cclient.setUpdateCallback(callback)
 
+                # Tell SLES RPM scripts that we're building a fresh system
+                os.environ['YAST_IS_RUNNING'] = 'instsys'
+
                 self.installBootstrapTroves(callback)
                 self.updateGroupChangeSet(cclient)
+
+                del os.environ['YAST_IS_RUNNING']
 
                 # set up the flavor for the kernel install based on the 
                 # rooted flavor setup.
@@ -932,7 +938,7 @@ class BootableImage(ImageGenerator):
             self.status('Finalizing install')
 
             if not self.bootloader:
-                if self.baseFlavor.stronglySatisfies(deps.parseFlavor('domU')):
+                if self.isDomU:
                     # pygrub requires that grub-install be run
                     bootloader_override = 'grub'
                 self.bootloader = generators.get_bootloader(self, dest,
@@ -940,6 +946,8 @@ class BootableImage(ImageGenerator):
 
             if no_mbr:
                 self.bootloader.do_install = False
+            if self.isDomU:
+                self.bootloader.force_domU = True
 
             self.preTagScripts()
             self.runTagScripts()
@@ -964,7 +972,7 @@ class BootableImage(ImageGenerator):
             info = pd.getPlatformInformation()
             if info:
                 # Platform info is present and indicates which RPM to use
-                return self._loadRPMFromRequirement(info.rpmRequirement)
+                return self._loadRPMFromRequirement(info.rpmRequirements)
 
         # Platform info is not present, look in the group (legacy support)
         return self._loadRPMFromGroup()
@@ -1015,7 +1023,6 @@ class BootableImage(ImageGenerator):
             return
 
         # Find troves that provide the necessary RPM dep.
-        choices = [deps.parseDep(x) for x in choices]
         log.info("Searching for a RPM trove matching one of these "
                 "requirements:")
         for dep in sorted(choices):
@@ -1033,7 +1040,7 @@ class BootableImage(ImageGenerator):
 
         # Search those troves for the python import root.
         targetRoot = "/python%s.%s/site-packages" % sys.version_info[:2]
-        targetPath = targetRoot = "/rpm/__init__.py"
+        targetPath = targetRoot + "/rpm/__init__.py"
         roots = set()
         for trove in self.cc.db.getTroves(tups, pristine=False):
             for pathId, path, fileId, fileVer in trove.iterFileList():

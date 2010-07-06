@@ -4,17 +4,20 @@
 # All rights reserved
 #
 
+import logging
 import os
 import re
+import shlex
 import stat
 
-from conary.lib import log
 from conary.lib import util
 
 from jobslave import bootloader
 from jobslave import buildtypes
 from jobslave.distro_detect import is_RH, is_SUSE, is_UBUNTU
 from jobslave.util import logCall
+
+log = logging.getLogger(__name__)
 
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
@@ -144,11 +147,25 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             os.symlink('../boot/grub/grub.conf',
                        util.joinPaths(self.image_root, 'etc', 'grub.conf'))
         if is_SUSE(self.image_root):
-            # create /etc/grub.conf as SUSE scripts expect
-            f = open(util.joinPaths(self.image_root, 'etc', 'grub.conf'), 'w')
-            f.write('setup (hd0)\n')
-            f.write('quit\n')
-            f.close()
+            self._suse_grub_stub()
+
+    def _suse_grub_stub(self):
+        self.createFile('etc/grub.conf', 'setup (hd0)\nquit\n')
+
+    def _suse_sysconfig_bootloader(self):
+        # write /etc/sysconfig/bootloader for SUSE systems
+        contents = (
+                'CYCLE_DETECTION="no"\n'
+                'CYCLE_NEXT_ENTRY="1"\n'
+                'LOADER_LOCATION=""\n'
+                'LOADER_TYPE="grub"\n'
+                )
+        if is_SUSE(self.image_root, version=11):
+            contents += (
+                'DEFAULT_APPEND="root=LABEL=root showopts"\n'
+                'FAILSAFE_APPEND="root=LABEL=root"\n'
+                )
+        self.createFile('etc/sysconfig/bootloader', contents)
 
     def writeConf(self, kernels=()):
         if os.path.exists(util.joinPaths(self.image_root, 'etc', 'issue')):
@@ -167,10 +184,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         hasInitrd = bool([x for x in bootDirFiles
             if re.match('initrd-.*.img', x)])
 
-        # TODO: RH-alikes ship a combo dom0/domU kernel so we can't distinguish
-        # by file contents alone. domU is the common case, so hard-code that
-        # for now.
-        if is_RH(self.image_root):
+        # RH-alikes ship a combo dom0/domU kernel so we have to use the image
+        # flavor to determine whether to use the dom0 bootloader configuration.
+        if is_RH(self.image_root) and self.force_domU:
            dom0 = False
 
         clock = ""
@@ -185,20 +201,8 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 kversions=kernels)
 
         cfgfile = self._get_grub_conf()
-        if cfgfile == 'menu.lst':
-            if is_SUSE(self.image_root):
-                # write /etc/sysconfig/bootloader for SUSE systems
-                util.mkdirChain(util.joinPaths(self.image_root, 'etc', 'sysconfig'))
-                f = open(
-                    util.joinPaths(self.image_root, 'etc', 'sysconfig', 'bootloader'), 'w')
-                f.write('CYCLE_DETECTION="no"\n')
-                f.write('CYCLE_NEXT_ENTRY="1"\n')
-                f.write('LOADER_LOCATION=""\n')
-                f.write('LOADER_TYPE="grub"\n')
-                if is_SUSE(self.image_root, version=11):
-                    f.write('DEFAULT_APPEND="root=LABEL=root showopts"\n')
-                    f.write('FAILSAFE_APPEND="root=LABEL=root"\n')
-                f.close()
+        if cfgfile == 'menu.lst' and is_SUSE(self.image_root):
+            self._suse_sysconfig_bootloader()
 
         f = open(util.joinPaths(self.image_root, 'boot', 'grub', cfgfile), 'w')
         f.write(conf)
@@ -289,21 +293,79 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
     def add_kernels(self):
         bootDirFiles = os.listdir(util.joinPaths(self.image_root, 'boot'))
-        kernels = [x[8:] for x in bootDirFiles if x.startswith('vmlinuz-')]
+        kernels = sorted(x[8:] for x in bootDirFiles
+                if x.startswith('vmlinuz-2.6'))
+        kernels.reverse()
         if kernels:
             log.info("Manually populating grub.conf with installed kernels")
-            self.writeConf(kernels)
-            mkinitrdArgs = [
-                '/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
-                '-f',
-                # make sure that whatever variant of the megaraid driver is
-                # present is included in the initrd, since it is required
-                # for vmware and doesn't hurt anything else
-                '--with=megaraid', '--with=mptscsih', '--allow-missing',]
-            if is_RH(self.image_root):
-                mkinitrdArgs.append('--preload=xenblk')
-            for kver in kernels:
-                verArgs = mkinitrdArgs + ['/boot/initrd-%s.img' % kver, kver]
-                logCall(verArgs)
+            if is_SUSE(self.image_root):
+                self._mkinitrd_suse(kernels)
+            else:
+                self.writeConf(kernels)
+                self._mkinitrd_redhat(kernels)
         else:
             log.error("No kernels found; this image will not be bootable.")
+
+    def _mkinitrd_redhat(self, kernels):
+        mkinitrdArgs = [
+            '/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
+            '-f',
+            # make sure that whatever variant of the megaraid driver is
+            # present is included in the initrd, since it is required
+            # for vmware and doesn't hurt anything else
+            '--with=megaraid', '--with=mptscsih', '--allow-missing',]
+        if is_RH(self.image_root):
+            mkinitrdArgs.append('--preload=xenblk')
+        for kver in kernels:
+            verArgs = mkinitrdArgs + ['/boot/initrd-%s.img' % kver, kver]
+            logCall(verArgs)
+
+    def _mkinitrd_suse(self, kernels):
+        # Extend mkinitrd config with modules for VM targets
+        kconf = self.filePath('etc/sysconfig/kernel')
+        out = open(kconf + '.tmp', 'w')
+        for line in open(kconf):
+            if line[:15] == 'INITRD_MODULES=':
+                modules = set(shlex.split(line[15:])[0].split())
+                modules.add('megaraid')
+                modules.add('mptscsih')
+                out.write('INITRD_MODULES="%s"' % (' '.join(modules)))
+            else:
+                out.write(line)
+        os.rename(kconf + '.tmp', kconf)
+
+        # Order kernels so the desired one is added last and thus the default.
+        kernels.sort()
+        kernels_xen = [x for x in kernels if x.endswith('-xen')]
+        kernels_not_xen = [x for x in kernels if not x.endswith('-xen')]
+        if self.force_domU:
+            kernels = kernels_not_xen + kernels_xen
+        else:
+            kernels = kernels_xen + kernels_not_xen
+
+        log.info("Rebuilding initrd(s)")
+        kpaths = ['vmlinuz-' + x for x in kernels]
+        ipaths = ['initrd-' + x for x in kernels]
+        logCall(['/usr/sbin/chroot', self.image_root,
+            '/sbin/mkinitrd',
+            '-k', ' '.join(kpaths),
+            '-i', ' '.join(ipaths),
+            ])
+
+        # Build grub config
+        log.info("Adding kernel entries")
+        self.createFile('boot/grub/menu.lst', contents="""\
+# GRUB configuration generated by rBuilder
+timeout 8
+##YaST - generic_mbr
+##YaST - activate
+
+""")
+        self.createFile('boot/grub/device.map', '(hd0) /dev/sda\n')
+        self._suse_sysconfig_bootloader()
+        self._suse_grub_stub()
+        for kver, kpath, ipath in zip(kernels, kpaths, ipaths):
+            flavor = kpath.split('-')[-1]
+            logCall(['/usr/sbin/chroot', self.image_root,
+                '/usr/lib/bootloader/bootloader_entry',
+                'add', flavor, kver, kpath, ipath])

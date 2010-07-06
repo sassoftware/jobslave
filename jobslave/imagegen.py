@@ -165,6 +165,10 @@ class ImageGenerator(Generator):
         self.baseFlavor = deps.ThawFlavor(
                 self.jobData['troveFlavor'].encode('utf8'))
         self.baseTup = self.baseTrove, self.baseVersion, self.baseFlavor
+        self.baseTroveObj = None
+
+        self.isDomU = self.baseFlavor.stronglySatisfies(
+                deps.parseFlavor('domU'))
 
         if 'filesystems' not in self.jobData:
             # support for legacy requests
@@ -258,20 +262,28 @@ class ImageGenerator(Generator):
         if self.productDefinition:
             return self.productDefinition
 
-        projectLabel = self.getBuildData('projectLabel')
-        if projectLabel is None:
+        proddefLabel = self.jobData.get('proddefLabel')
+        if proddefLabel is None:
             return None
 
         self.platformDefinition = proddef.ProductDefinition()
-        self.platformDefinition.setBaseLabel(projectLabel)
+        self.platformDefinition.setBaseLabel(proddefLabel)
         self.platformDefinition.loadFromRepository(self.cc)
 
         info = self.platformDefinition.getPlatformInformation()
         if info:
-            self.platformTags = set(info.platformClassifier.tags.split())
+            self.platformTags = set(info.platformClassifier.tags)
 
         return self.platformDefinition
 
     def isPlatform(self, tag):
         self.getProductDefinition()
         return tag in self.platformTags
+
+    def findImageSubtrove(self, name):
+        if self.baseTroveObj is None:
+            self.baseTroveObj = self.nc.getTrove(withFiles=False,
+                    *self.baseTup)
+
+        return set(x for x in self.baseTroveObj.iterTroveList(True, True)
+                if x[0] == name)
