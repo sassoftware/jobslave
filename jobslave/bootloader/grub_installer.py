@@ -332,6 +332,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 out.write('INITRD_MODULES="%s"' % (' '.join(modules)))
             else:
                 out.write(line)
+        out.close()
         os.rename(kconf + '.tmp', kconf)
 
         # Order kernels so the desired one is added last and thus the default.
