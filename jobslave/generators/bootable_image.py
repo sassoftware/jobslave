@@ -979,36 +979,29 @@ class BootableImage(ImageGenerator):
 
     def _loadRPMFromGroup(self):
         """Locate RPM by inspecting the contents of the group."""
+        # NOTE: This is for backwards compatibility with old RHEL platform
+        # definitions that do not have a platformInformation segment. It isn't
+        # very pretty.
+        log.info("Pre-proddef 4.1 platform or no platform available. "
+                "Using fallback RPM detection.")
         imageTrove = self.nc.getTrove(withFiles=False, *self.baseTup)
 
-        rpmVersions = set()
+        rpmLabels = set()
         for name, version, flavor in imageTrove.iterTroveList(True, True):
             if name in ('rpm:runtime', 'rpm:rpm'):
-                rpmVersions.add(version.trailingRevision().version)
+                rpmLabels.add(version.trailingLabel().asString())
 
         rpmPath = None
-        if rpmVersions:
-            rpmVersion = sorted(rpmVersions)[-1]
-            while True:
-                tryPath = os.path.join(RPM_ALTERNATES, 'rpm-' + rpmVersion)
-                if os.path.isdir(tryPath):
-                    rpmPath = tryPath
-                    break
-
-                match = RPM_DOTS.match(rpmVersion)
-                if not match:
-                    break
-                rpmVersion = match.group(1)
-
+        for label in rpmLabels:
+            if 'rhel-5' in label:
+                rpmPath = 'rpm-rhel-5'
+            elif 'rhel-4' in label:
+                rpmPath = 'rpm-rhel-4'
         if not rpmPath:
-            rpmVersions = sorted(x for x in os.listdir(RPM_ALTERNATES)
-                    if x.startswith('rpm-'))
-            if not rpmVersions:
-                log.warning("No RPM paths are available.")
-                return
-            rpmPath = os.path.join(RPM_ALTERNATES, rpmVersions[-1])
+            log.info("No RHEL RPM found in image group. "
+                    "RPM capsules will not be installable.")
 
-        sitePackages = os.path.join(rpmPath,
+        sitePackages = os.path.join(RPM_ALTERNATES, rpmPath,
                 'lib64/python%s.%s/site-packages' % sys.version_info[:2])
         if not os.path.isdir(sitePackages):
             log.warning("RPM import path %s does not exist.", sitePackages)
