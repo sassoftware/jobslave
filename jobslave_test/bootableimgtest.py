@@ -335,11 +335,14 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
         tmpDir = tempfile.mkdtemp()
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
+        chmod = os.chmod
+        os.chmod = lambda *args: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)
             self.failIf(os.listdir(tmpDir) == [],
                     "FilesystemOddsNEnds should have added content")
         finally:
+            os.chmod = chmod
             util.rmtree(tmpDir)
             bootable_image.logCall = _logCall
 
@@ -351,11 +354,14 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         self.touch(os.path.join(tmpDir, 'etc', 'inittab'))
         self.touch(os.path.join(tmpDir, 'usr', 'share', 'zoneinfo', 'UTC'))
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
+        chmod = os.chmod
+        os.chmod = lambda *args: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)
             self.failIf(os.listdir(tmpDir) == [],
                     "FilesystemOddsNEnds should have added content")
         finally:
+            os.chmod = chmod
             util.rmtree(tmpDir)
             bootable_image.logCall = _logCall
 
@@ -367,11 +373,14 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
         self.touch(os.path.join(tmpDir, 'usr', 'bin', 'xdm'))
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
+        chmod = os.chmod
+        os.chmod = lambda *args: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)
             self.failIf(os.listdir(tmpDir) == [],
                     "FilesystemOddsNEnds should have added content")
         finally:
+            os.chmod = chmod
             util.rmtree(tmpDir)
             bootable_image.logCall = _logCall
 
@@ -385,6 +394,8 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         self.bootable.filesystems = dict.fromkeys(self.bootable.mountDict.keys(),
                                                   StubFilesystem())
         self.bootable.writeConaryRc = lambda *args, **kwargs: None
+        chmod = os.chmod
+        os.chmod = lambda *args: None
         try:
             self.bootable.fileSystemOddsNEnds(tmpDir)
             self.failIf('fstab' not in os.listdir(os.path.join(tmpDir, 'etc')),
@@ -395,6 +406,7 @@ LABEL=swap\tswap\tswap\tdefaults\t0\t0
 LABEL=label\t/boot\text3\tdefaults\t1\t2
 ''')
         finally:
+            os.chmod = chmod
             util.rmtree(tmpDir)
             bootable_image.logCall = _logCall
 

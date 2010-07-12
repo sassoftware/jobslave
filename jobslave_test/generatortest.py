@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #
@@ -739,11 +739,14 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                 open(fn, 'w').write('')
             g.setModes(tmpDir)
             self.failIf(os.stat(file1)[stat.ST_MODE] != 0100600,
-                    "Incorrect file mode")
+                    "Incorrect file mode: %o != %o" % 
+                    (os.stat(file1)[stat.ST_MODE], 0100600))
             self.failIf(os.stat(file2)[stat.ST_MODE] != 0100600,
-                    "Incorrect file mode")
+                    "Incorrect file mode: %o != %o" %
+                    (os.stat(file1)[stat.ST_MODE], 0100600))
             self.failIf(os.stat(vmxFile)[stat.ST_MODE] != 0100755,
-                    "Incorrect file mode")
+                    "Incorrect file mode %o != %o" %
+                    (os.stat(file1)[stat.ST_MODE], 0100755)))
         finally:
             util.rmtree(tmpDir)
 
