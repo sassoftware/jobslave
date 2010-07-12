@@ -742,11 +742,11 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                     "Incorrect file mode: %o != %o" % 
                     (os.stat(file1)[stat.ST_MODE], 0100600))
             self.failIf(os.stat(file2)[stat.ST_MODE] != 0100600,
-                    "Incorrect file mode: %o != %o" %
+                    "Incorrect file mode: %o != %o" % 
                     (os.stat(file1)[stat.ST_MODE], 0100600))
             self.failIf(os.stat(vmxFile)[stat.ST_MODE] != 0100755,
-                    "Incorrect file mode %o != %o" %
-                    (os.stat(file1)[stat.ST_MODE], 0100755)))
+                    "Incorrect file mode %o != %o" % 
+                    (os.stat(file1)[stat.ST_MODE], 0100755))
         finally:
             util.rmtree(tmpDir)
 
