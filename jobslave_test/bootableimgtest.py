@@ -527,6 +527,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.logCall = mockLog
             bootable_image.open = mockOpen
             bootable_image.file = mockOpen
+            chmod = os.chmod
             os.chmod = lambda *args: None
             self.bootable.installFileTree(tmpDir)
             self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
@@ -540,6 +541,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
                                   'umount %s/sys' %tmpDir,
                                   'umount %s/proc' %tmpDir])
         finally:
+            os.chmod = chmod
             util.rmtree(tmpDir)
             util.rmtree(constants.tmpDir)
             constants.tmpDir = saved_tmpDir
