@@ -112,7 +112,7 @@ class VHDFooter(PackedHeader):
          ("cookie",         ">8s",  "conectix"),
          ("features",       "I",    0x00000002),
          ("fileFmtVersion", "I",    0x00010000),
-         ("dataOffset",     "Q",    0xffffffff),
+         ("dataOffset",     "Q",    0xffffffffffffffff),
          ("timeStamp",      "I",    None),
          ("creatorApp",     "4s",   "rba "),
          ("creatorVersion", "I",    0x00050000),

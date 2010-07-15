@@ -1000,7 +1000,7 @@ class BootableImage(ImageGenerator):
         if not rpmPath:
             log.info("No RHEL RPM found in image group. "
                     "RPM capsules will not be installable.")
-
+            return
         sitePackages = os.path.join(RPM_ALTERNATES, rpmPath,
                 'lib64/python%s.%s/site-packages' % sys.version_info[:2])
         if not os.path.isdir(sitePackages):
