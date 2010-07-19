@@ -455,6 +455,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.file = mockOpen
             os.mknod = lambda *args: None
             os.chmod = lambda *args: None
+            self.bootable.inspectGroup = lambda: None
             self.bootable.loadRPM = lambda: None
             self.bootable._getLabelPath = lambda *args: ''
             self.bootable.installFileTree(tmpDir)
