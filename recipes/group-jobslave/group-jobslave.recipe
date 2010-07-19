@@ -65,15 +65,13 @@ class GroupJobslave(ApplianceGroupRecipe):
                 'jobslave',
                 ]),
             ('master_label', [
+                'conary',
+                'conary-build',
+                'conary-repository',
                 'pyovf',
                 'restlib',
                 'rpath-product-definition',
                 'xobj',
-                ]),
-            ('conary_label', [
-                'conary',
-                'conary-build',
-                'conary-repository',
                 ]),
             ('contrib_label', [
                 'ec2-ami-tools',
