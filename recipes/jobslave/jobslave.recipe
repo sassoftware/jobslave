@@ -58,5 +58,6 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
 
         # This file binds the freshly built jobslave to the system that will use it.
         r.Create('/srv/rbuilder/jobmaster/config.d/05_trove.conf',
-            contents='troveVersion %(version)s', package='rbuilder-mcp')
+            contents='troveVersion %(jobslave_version)s',
+            package='rbuilder-mcp')
         r.Transient('/srv/rbuilder/jobmaster/')
