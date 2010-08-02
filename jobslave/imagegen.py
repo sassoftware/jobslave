@@ -263,7 +263,7 @@ class ImageGenerator(Generator):
             return self.productDefinition
 
         proddefLabel = self.jobData.get('proddefLabel')
-        if proddefLabel is None:
+        if not proddefLabel:
             return None
 
         self.platformDefinition = proddef.ProductDefinition()
