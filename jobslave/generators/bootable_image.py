@@ -567,9 +567,28 @@ class BootableImage(ImageGenerator):
             devnum = os.makedev(major, minor)
             os.mknod(devicePath, flags, devnum)
 
+        # Install CA certificates for system inventory registration.
+        self.installCertificates()
+
         # Finish installation of bootloader
         self.bootloader.install()
 
+    def installCertificates(self):
+        pki = self.jobData.get('pki', {})
+
+        hg_path = '/etc/conary/rpath-tools/certs'
+        hg_ca = pki.get('hg_ca')
+        if hg_ca:
+            self.createFile(hg_path + '/rbuilder-hg.crt', hg_ca)
+            logCall("chroot '%s' /usr/sbin/cacertdir_rehash '%s'" %
+                    (self.root, hg_path))
+
+        lg_path = '/etc/conary/sfcb/clients'
+        lg_ca = pki.get('lg_ca')
+        if lg_ca:
+            self.createFile(lg_path + '/rbuilder-lg.crt', lg_ca)
+            logCall("chroot '%s' /usr/sbin/cacertdir_rehash '%s'" %
+                    (self.root, lg_path))
 
     @timeMe
     def getTroveSize(self, mounts):
