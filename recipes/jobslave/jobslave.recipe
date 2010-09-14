@@ -20,7 +20,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
 
         # for tests
         'bitstream-vera-fonts:data',
-        #'conary-test:lib',
+        'conary-test:lib',
         'netpbm:runtime',
         'syslinux:runtime',
       ]
@@ -36,7 +36,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         r.addMercurialSnapshot()
 
         r.macros.conarytestpath = r.pythonPath[0]
-        #r.run_tests(environ='CONARY_TEST_PATH=%(conarytestpath)s')
+        r.run_tests(environ='CONARY_TEST_PATH=%(conarytestpath)s')
 
         r.Make()
         r.MakeInstall()
