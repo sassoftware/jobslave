@@ -573,22 +573,38 @@ class BootableImage(ImageGenerator):
         # Finish installation of bootloader
         self.bootloader.install()
 
+    def _writeCert(self, dirpath, filename, contents):
+        """Write a SSL cert to a certificate directory."""
+        relpath = os.path.join(dirpath, filename)
+        self.createFile(relpath, contents)
+
+        try:
+            f = os.popen("chroot '%s' openssl x509 -noout -hash -in '%s'" %
+                    (self.root, relpath))
+            hash = f.readline().strip()
+            f.close()
+        except:
+            log.exception("Failed to hash certificate %s:", relpath)
+            return
+        if not hash:
+            log.error("Failed to hash certificate %s", relpath)
+            return
+
+        os.symlink(filename,
+                self.filePath(os.path.join(dirpath, "%s.0" % hash)))
+
     def installCertificates(self):
         pki = self.jobData.get('pki', {})
 
         hg_path = '/etc/conary/rpath-tools/certs'
         hg_ca = pki.get('hg_ca')
         if hg_ca:
-            self.createFile(hg_path + '/rbuilder-hg.crt', hg_ca)
-            logCall("chroot '%s' /usr/sbin/cacertdir_rehash '%s'" %
-                    (self.root, hg_path))
+            self._writeCert(hg_path, 'rbuilder-hg.pem', hg_ca)
 
         lg_path = '/etc/conary/sfcb/clients'
         lg_ca = pki.get('lg_ca')
         if lg_ca:
-            self.createFile(lg_path + '/rbuilder-lg.crt', lg_ca)
-            logCall("chroot '%s' /usr/sbin/cacertdir_rehash '%s'" %
-                    (self.root, lg_path))
+            self._writeCert(lg_path, 'rbuilder-lg.pem', lg_ca)
 
     @timeMe
     def getTroveSize(self, mounts):
