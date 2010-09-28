@@ -606,6 +606,14 @@ class BootableImage(ImageGenerator):
         if lg_ca:
             self._writeCert(lg_path, 'rbuilder-lg.pem', lg_ca)
 
+        inventory_node = self.jobData.get('inventory_node')
+        cfg_dir = '/etc/conary/rpath-tools/config.d'
+        if inventory_node and self.fileExists(cfg_dir):
+            self.createFile(os.path.join(cfg_dir, 'directMethod'),
+                    'directMethod []\n'
+                    'directMethod %s\n'
+                    % (inventory_node,))
+
     @timeMe
     def getTroveSize(self, mounts):
         log.info("getting changeset for partition sizing")
