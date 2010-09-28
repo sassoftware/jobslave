@@ -608,7 +608,11 @@ class BootableImage(ImageGenerator):
 
         inventory_node = self.jobData.get('inventory_node')
         cfg_dir = '/etc/conary/rpath-tools/config.d'
-        if inventory_node and self.fileExists(cfg_dir):
+        cfg_path = os.path.join(cfg_dir, 'directMethod')
+        # Write config only if rpath-tools is installed, but not if the
+        # directMethod config file is already there.
+        if (inventory_node and self.fileExists(cfg_dir)
+                and not self.fileExists(cfg_path)):
             self.createFile(os.path.join(cfg_dir, 'directMethod'),
                     'directMethod []\n'
                     'directMethod %s\n'
