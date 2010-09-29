@@ -567,6 +567,15 @@ class BootableImage(ImageGenerator):
             devnum = os.makedev(major, minor)
             os.mknod(devicePath, flags, devnum)
 
+        # write an appropriate SLES inittab for XenServer
+        # and update /etc/securetty so that logins work.
+        if ((self.jobData['buildType'] == buildtypes.XEN_OVA) and
+            is_SUSE(self.root)):
+            cmd = r"/bin/sed -e 's/^#cons:/cons:/' -e 's/^\([1-6]\):/#\1:/' -i %s" % self.filePath('/etc/inittab')
+            logCall(cmd)
+            cmd = r"echo -e 'console\nxvc0' >> %s" % self.filePath('/etc/securetty')
+            logCall(cmd)
+
         # Finish installation of bootloader
         self.bootloader.install()
 
