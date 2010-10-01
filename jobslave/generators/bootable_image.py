@@ -578,7 +578,7 @@ class BootableImage(ImageGenerator):
             elif (self.jobData['buildType'] == buildtypes.AMI):
                 cmd = r"/bin/sed -i 's/^#\(l4\)/\1/g' %s" % self.filePath('/etc/inittab')
                 logCall(cmd)
-                cmd = r"chroot %s /sbin/chkconfig --level 345 network on" % self.root
+                cmd = r"chroot %s /sbin/chkconfig -f --level 345 network on" % self.root
                 logCall(cmd)
 
         # Finish installation of bootloader

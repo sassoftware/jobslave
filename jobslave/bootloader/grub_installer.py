@@ -320,7 +320,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             # make sure that whatever variant of the megaraid driver is
             # present is included in the initrd, since it is required
             # for vmware and doesn't hurt anything else
-            '--with=megaraid', '--with=mptscsih', '--allow-missing',]
+            '--with=megaraid', '--with=mptscsih', 
+            '--with=ata_piix', '--with=virtio_blk', '--with=virtio_pci',
+            '--with=virtio_net', '--allow-missing',]
         if is_RH(self.image_root):
             mkinitrdArgs.append('--preload=xenblk')
         for kver in kernels:
