@@ -334,6 +334,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         for line in open(kconf):
             if line[:15] == 'INITRD_MODULES=':
                 modules = set(shlex.split(line[15:])[0].split())
+                modules.add('piix')
                 modules.add('megaraid')
                 modules.add('mptscsih')
                 modules.add('mptspi')
