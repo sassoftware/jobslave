@@ -485,6 +485,16 @@ class BootableImage(ImageGenerator):
             self.createFile(path, out)
             self.deleteFile(newpath)
 
+        # Disable selinux by default
+        selinux = 'etc/selinux/config'
+        if self.fileExists(selinux):
+            contents = self.readFile(selinux)
+            contents = contents.replace('SELINUX=enforcing\n',
+                    '# NOTE: This is overridden by rBuilder. To prevent this, '
+                    'change it back using a group post-install script.\n'
+                    'SELINUX=disabled\n')
+            self.createFile(selinux, contents)
+
         # Configure the bootloader (but don't install it yet).
         self.bootloader.setup()
 
