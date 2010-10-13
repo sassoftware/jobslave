@@ -161,9 +161,12 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 'LOADER_TYPE="grub"\n'
                 )
         if is_SUSE(self.image_root, version=11):
+            consoleArgs = ''
+            if (self.jobData['buildType'] == buildtypes.validBuildTypes['XEN_OVA']):
+                consoleArgs = ' console=ttyS0 xencons=ttyS'
             contents += (
-                'DEFAULT_APPEND="root=LABEL=root showopts"\n'
-                'FAILSAFE_APPEND="root=LABEL=root"\n'
+                'DEFAULT_APPEND="root=LABEL=root showopts%s"\n' 
+                'FAILSAFE_APPEND="root=LABEL=root%s"\n' % (consoleArgs, consoleArgs)
                 )
         self.createFile('etc/sysconfig/bootloader', contents)
 
@@ -186,7 +189,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
         # RH-alikes ship a combo dom0/domU kernel so we have to use the image
         # flavor to determine whether to use the dom0 bootloader configuration.
-        if is_RH(self.image_root) and self.force_domU:
+        if self.force_domU:
            dom0 = False
 
         clock = ""
@@ -257,10 +260,14 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             rootdev_re = re.compile('root=/dev/.*? ')
             grubroot_re = re.compile('root \(.*\)')
             doubleboot_re = re.compile('/boot/boot')
+            kernel_re = re.compile('^\s+kernel')
             for line in f:
                 line = rootdev_re.sub('root=LABEL=root ', line)
                 line = grubroot_re.sub('root (hd0,0)', line)
                 line = doubleboot_re.sub('/boot', line)
+                if (kernel_re.match(line) and
+                    (self.jobData['buildType'] == buildtypes.validBuildTypes['XEN_OVA'])):
+                    line = line.replace('\n', ' console=ttyS0 xencons=ttyS\n')
                 newLines.append(line)
             contents = ''.join(newLines)
             f = open(grub_conf, 'w')
@@ -313,7 +320,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             # make sure that whatever variant of the megaraid driver is
             # present is included in the initrd, since it is required
             # for vmware and doesn't hurt anything else
-            '--with=megaraid', '--with=mptscsih', '--allow-missing',]
+            '--with=megaraid', '--with=mptscsih', 
+            '--with=ata_piix', '--with=virtio_blk', '--with=virtio_pci',
+            '--with=virtio_net', '--allow-missing',]
         if is_RH(self.image_root):
             mkinitrdArgs.append('--preload=xenblk')
         for kver in kernels:
@@ -327,6 +336,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         for line in open(kconf):
             if line[:15] == 'INITRD_MODULES=':
                 modules = set(shlex.split(line[15:])[0].split())
+                modules.add('piix')
                 modules.add('megaraid')
                 modules.add('mptscsih')
                 modules.add('mptspi')
@@ -368,6 +378,8 @@ timeout 8
         self._suse_grub_stub()
         for kver, kpath, ipath in zip(kernels, kpaths, ipaths):
             flavor = kpath.split('-')[-1]
+            if flavor == 'xen' and self.force_domU:
+                flavor = 'default'
             logCall(['/usr/sbin/chroot', self.image_root,
                 '/usr/lib/bootloader/bootloader_entry',
                 'add', flavor, kver, kpath, ipath])
