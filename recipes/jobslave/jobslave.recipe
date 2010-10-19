@@ -1,0 +1,63 @@
+#
+# Copyright (c) 2010 rPath, Inc.
+#
+# All rights reserved
+#
+
+loadSuperClass('testpackage=testbits.rb.rpath.com@rpl:1')
+class Jobslave(CPackageRecipe, TestPackageRecipe):
+    buildRequires = [
+        'chkconfig:runtime',
+        'elementtree:python',
+        'PIL:python',
+        'pyovf:python',
+        'python:devel',
+        'restlib:python',
+        'rpath-product-definition:python',
+        'simplejson:python',
+        'util-linux:runtime',
+        'zlib:devel',
+
+        # for tests
+        'bitstream-vera-fonts:data',
+        'conary-test:lib',
+        'netpbm:runtime',
+        'syslinux:runtime',
+      ]
+
+    name = 'jobslave'
+    version = '5.5'
+
+    testDir = '.'
+    codeDirs = {'jobslave': 'jobslave'}
+    pythonPath = [ '%(libdir)s/conary-test' ]
+
+    def setup(r):
+        r.addMercurialSnapshot()
+
+        r.macros.conarytestpath = r.pythonPath[0]
+        r.run_tests(environ='CONARY_TEST_PATH=%(conarytestpath)s')
+
+        r.Make()
+        r.MakeInstall()
+        r.CompilePython('%(prefix)s')
+
+        r.Create('/etc/conary/config.d/jobslave.conf',
+                contents='includeConfigFile /tmp/etc/conaryrc\n')
+
+        # Turn off startup scripts we don't care about
+        for x in ('keytable', 'iptables', 'ip6tables', 'syslog', 'amiconfig',
+                'netfs', 'ntpd', 'crond', 'distro-release', 'local', 'portmap',
+                'nfslock'):
+            r.Create('/etc/chkconfig.d/' + x, contents = '# chkconfig: - 01 01')
+
+        r.Requires('/bin/tar', '.*/generators/installable_iso\.py.*')
+        r.Requires('/usr/bin/gpg', '.*/generators/installable_iso\.py.*')
+        r.Requires('/usr/bin/isosize', '.*/generators/installable_iso\.py.*')
+        r.Requires('/usr/bin/ec2-bundle-image', '.*/generators/ami\..*')
+
+        # This file binds the freshly built jobslave to the system that will use it.
+        r.Create('/srv/rbuilder/jobmaster/config.d/05_trove.conf',
+            contents='troveVersion %(jobslave_version)s',
+            package='rbuilder-mcp')
+        r.Transient('/srv/rbuilder/jobmaster/')

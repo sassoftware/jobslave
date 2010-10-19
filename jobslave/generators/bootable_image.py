@@ -485,6 +485,16 @@ class BootableImage(ImageGenerator):
             self.createFile(path, out)
             self.deleteFile(newpath)
 
+        # Disable selinux by default
+        selinux = 'etc/selinux/config'
+        if self.fileExists(selinux):
+            contents = self.readFile(selinux)
+            contents = contents.replace('SELINUX=enforcing\n',
+                    '# NOTE: This is overridden by rBuilder. To prevent this, '
+                    'change it back using a group post-install script.\n'
+                    'SELINUX=disabled\n')
+            self.createFile(selinux, contents)
+
         # Configure the bootloader (but don't install it yet).
         self.bootloader.setup()
 
@@ -567,6 +577,9 @@ class BootableImage(ImageGenerator):
             devnum = os.makedev(major, minor)
             os.mknod(devicePath, flags, devnum)
 
+        # Install CA certificates for system inventory registration.
+        self.installCertificates()
+
         # write an appropriate SLES inittab for XenServer
         # and update /etc/securetty so that logins work.
         if is_SUSE(self.root):
@@ -584,6 +597,50 @@ class BootableImage(ImageGenerator):
         # Finish installation of bootloader
         self.bootloader.install()
 
+    def _writeCert(self, dirpath, filename, contents):
+        """Write a SSL cert to a certificate directory."""
+        relpath = os.path.join(dirpath, filename)
+        self.createFile(relpath, contents)
+
+        try:
+            f = os.popen("chroot '%s' openssl x509 -noout -hash -in '%s'" %
+                    (self.root, relpath))
+            hash = f.readline().strip()
+            f.close()
+        except:
+            log.exception("Failed to hash certificate %s:", relpath)
+            return
+        if not hash:
+            log.error("Failed to hash certificate %s", relpath)
+            return
+
+        os.symlink(filename,
+                self.filePath(os.path.join(dirpath, "%s.0" % hash)))
+
+    def installCertificates(self):
+        pki = self.jobData.get('pki', {})
+
+        hg_path = '/etc/conary/rpath-tools/certs'
+        hg_ca = pki.get('hg_ca')
+        if hg_ca:
+            self._writeCert(hg_path, 'rbuilder-hg.pem', hg_ca)
+
+        lg_path = '/etc/conary/sfcb/clients'
+        lg_ca = pki.get('lg_ca')
+        if lg_ca:
+            self._writeCert(lg_path, 'rbuilder-lg.pem', lg_ca)
+
+        inventory_node = self.jobData.get('inventory_node')
+        cfg_dir = '/etc/conary/rpath-tools/config.d'
+        cfg_path = os.path.join(cfg_dir, 'directMethod')
+        # Write config only if rpath-tools is installed, but not if the
+        # directMethod config file is already there.
+        if (inventory_node and self.fileExists(cfg_dir)
+                and not self.fileExists(cfg_path)):
+            self.createFile(os.path.join(cfg_dir, 'directMethod'),
+                    'directMethod []\n'
+                    'directMethod %s\n'
+                    % (inventory_node,))
 
     @timeMe
     def getTroveSize(self, mounts):
