@@ -42,9 +42,7 @@ class GroupJobslave(ApplianceGroupRecipe):
         r.add('tcsh')
 
         # Compatibility versions of RPM
-        r.add('rpm-rhel-4')
-        r.add('rpm-rhel-5')
-        r.add('rpm-sles-10')
+        r.add('group-rpm')
 
         # things we don't need for a jobslave instance
         r.remove('kernel')
