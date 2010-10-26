@@ -274,11 +274,6 @@ class BootableImage(ImageGenerator):
         self.bootloader = None
         self.outputFileList = []
 
-        # SLES 11 is too smart, and finds our loop device by major/minor
-        rootLoopDev = os.stat('/dev/loop0')
-        rootLoopMajor = os.major(rootLoopDev.st_rdev)
-        rootLoopMinor = os.minor(rootLoopDev.st_rdev)
-
         # List of devicePath (realative to the rootPath's /dev), device
         # type 'c' or 'b', major, and minor numbers.
         self.devices = [
@@ -295,9 +290,15 @@ class BootableImage(ImageGenerator):
             ('sda1', 'b', 8, 1),
             ('sda2', 'b', 8, 2),
 
-            # loop device, for SLES 11 
-            ('loop%d' %  rootLoopMinor, 'b', rootLoopMajor, rootLoopMinor ),
         ]
+
+        # SLES 11 is too smart, and finds our loop device by major/minor
+        if os.path.exists('/dev/loop0')
+            rootLoopDev = os.stat('/dev/loop0')
+            rootLoopMajor = os.major(rootLoopDev.st_rdev)
+            rootLoopMinor = os.minor(rootLoopDev.st_rdev)
+            self.devices.append(('loop%d' %  rootLoopMinor, 'b', 
+                                 rootLoopMajor, rootLoopMinor ))
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
