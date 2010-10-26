@@ -293,7 +293,7 @@ class BootableImage(ImageGenerator):
         ]
 
         # SLES 11 is too smart, and finds our loop device by major/minor
-        if os.path.exists('/dev/loop0')
+        if os.path.exists('/dev/loop0'):
             rootLoopDev = os.stat('/dev/loop0')
             rootLoopMajor = os.major(rootLoopDev.st_rdev)
             rootLoopMinor = os.minor(rootLoopDev.st_rdev)
