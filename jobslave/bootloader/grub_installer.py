@@ -340,6 +340,12 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 modules.add('megaraid')
                 modules.add('mptscsih')
                 modules.add('mptspi')
+                if is_SUSE(self.image_root, version=11):
+                    modules.add('pata_oldpiix')
+                    modules.add('pata_mpiix')
+                    modules.add('virtio_net')
+                    modules.add('virtio_blk')
+                    modules.add('virtio_pci')
                 out.write('INITRD_MODULES="%s"' % (' '.join(modules)))
             else:
                 out.write(line)
@@ -362,6 +368,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             '/sbin/mkinitrd',
             '-k', ' '.join(kpaths),
             '-i', ' '.join(ipaths),
+            '-d', '/dev/sda1',
             ])
 
         # Build grub config
@@ -376,6 +383,8 @@ timeout 8
         self.createFile('boot/grub/device.map', '(hd0) /dev/sda\n')
         self._suse_sysconfig_bootloader()
         self._suse_grub_stub()
+        # for SLES 11
+        os.environ['PBL_SKIP_BOOT_TEST'] = '1'
         for kver, kpath, ipath in zip(kernels, kpaths, ipaths):
             flavor = kpath.split('-')[-1]
             if flavor == 'xen' and self.force_domU:
