@@ -92,4 +92,9 @@ class GroupJobslave(ApplianceGroupRecipe):
             searchPath.append('group-os=%s[%s]'
                 % (rPLVersion, r.groupCoreFlavor))
 
+        # XXX BIG HACK TO BOOTSTRAP py26
+        if 'anaconda_label' in r.macros:
+        searchPath.append('group-os=conary.rpath.com@rpl:2[%s]'
+            % r.groupCoreFlavor)
+
         r.setSearchPath(*searchPath)
