@@ -87,7 +87,7 @@ class GroupJobslave(ApplianceGroupRecipe):
             searchPath.extend(
                     r.macros.productDefinitionSearchPath.split('\n'))
         else:
-            rPLVersion = r.macros.get('rpl_label', 'conary.rpath.com@rpl:2')
+            rPLVersion = r.macros.get('distro_label', 'conary.rpath.com@rpl:2')
             searchPath.append('group-os=%s[%s]'
                 % (rPLVersion, r.groupCoreFlavor))
 
