@@ -77,6 +77,7 @@ class GroupJobslave(ApplianceGroupRecipe):
                 'xz',
                 ]),
             ('rpm_label', ['group-rpm']),
+            ('anaconda_label', ['anaconda-utils']),
             ]:
             if macro not in r.macros:
                 continue
