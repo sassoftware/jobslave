@@ -5,7 +5,8 @@
 #
 
 loadSuperClass('testpackage=testbits.rb.rpath.com@rpl:1')
-class Jobslave(CPackageRecipe, TestPackageRecipe):
+loadInstalled('python')
+class Jobslave(CPackageRecipe, TestPackageRecipe, Python.VersionMixIn):
     buildRequires = [
         'chkconfig:runtime',
         'elementtree:python',
@@ -34,6 +35,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
 
     def setup(r):
         r.addMercurialSnapshot()
+        r.setDefaultPython()
 
         r.macros.conarytestpath = r.pythonPath[0]
         r.run_tests(environ='CONARY_TEST_PATH=%(conarytestpath)s')
