@@ -144,6 +144,10 @@ class Generator(object):
             if self.logger:
                 self.logger.flush()
 
+        if self.logger:
+            self.logger.close()
+            self.logger = None
+
     def status(self, message, status=jobstatus.RUNNING):
         log.info("Sending job status: %d %s", status, message)
         self.response.sendStatus(status, message)

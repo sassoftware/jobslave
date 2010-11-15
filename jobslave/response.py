@@ -121,6 +121,7 @@ class LogHandler(threading.Thread, logging.Handler):
         self.response = response
         self.buffer = Queue.Queue()
         self.started = self.stopped = False
+        self.daemon = True
 
     def close(self):
         self.acquire()
