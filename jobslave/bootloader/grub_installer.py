@@ -343,6 +343,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 if is_SUSE(self.image_root, version=11):
                     modules.add('pata_oldpiix')
                     modules.add('pata_mpiix')
+                    modules.add('ata_piix')
                     modules.add('virtio_net')
                     modules.add('virtio_blk')
                     modules.add('virtio_pci')
