@@ -589,7 +589,10 @@ class BootableImage(ImageGenerator):
                 logCall(cmd)
                 # This returns a non-zero exit code
                 try:
-                    cmd = r"chroot %s /sbin/chkconfig --levels 345 network on" % self.root
+                    if is_SUSE(self.root, version=10):
+                        cmd = r"chroot %s /sbin/chkconfig --levels 2345 network on" % self.root
+                    else:
+                        cmd = r"chroot %s /sbin/chkconfig -s network 2345" % self.root
                     logCall(cmd)
                 except:
                     pass
