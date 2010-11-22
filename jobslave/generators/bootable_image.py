@@ -289,7 +289,16 @@ class BootableImage(ImageGenerator):
             ('sda', 'b', 8, 0),
             ('sda1', 'b', 8, 1),
             ('sda2', 'b', 8, 2),
+
         ]
+
+        # SLES 11 is too smart, and finds our loop device by major/minor
+        if os.path.exists('/dev/loop0'):
+            rootLoopDev = os.stat('/dev/loop0')
+            rootLoopMajor = os.major(rootLoopDev.st_rdev)
+            rootLoopMinor = os.minor(rootLoopDev.st_rdev)
+            self.devices.append(('loop%d' %  rootLoopMinor, 'b', 
+                                 rootLoopMajor, rootLoopMinor ))
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
@@ -591,8 +600,12 @@ class BootableImage(ImageGenerator):
             elif (self.jobData['buildType'] == buildtypes.AMI):
                 cmd = r"/bin/sed -i 's/^#\(l4\)/\1/g' %s" % self.filePath('/etc/inittab')
                 logCall(cmd)
-                cmd = r"chroot %s /sbin/chkconfig -f --level 345 network on" % self.root
-                logCall(cmd)
+                # This returns a non-zero exit code
+                try:
+                    cmd = r"chroot %s /sbin/chkconfig --levels 345 network on" % self.root
+                    logCall(cmd)
+                except:
+                    pass
 
         # Finish installation of bootloader
         self.bootloader.install()
@@ -845,10 +858,7 @@ class BootableImage(ImageGenerator):
             # SUSE needs /dev/fd for mkinitrd (RBL-5689)
             os.symlink('/proc/self/fd', util.joinPaths(os.path.sep, dest, 'dev/fd'))
         elif is_SUSE(dest, version=11):
-            # SLES 11 won't start udev since the socket already exists, must
-            # bind mount dev instead.
             open('%s/etc/sysconfig/mkinitrd' % dest, 'w').write('OPTIONS="-A"\n')
-            logCall("mount -n -o bind /dev %s/dev" % dest)
 
         for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
             tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
@@ -872,9 +882,6 @@ class BootableImage(ImageGenerator):
                 except:
                     log.warning('error recording tag handler output')
                 raise exc, e, bt
-
-        if is_SUSE(dest, version=11):
-            logCall("umount -n %s/dev" % dest)
 
     @classmethod
     def dereferenceLink(cls, fname):
@@ -1104,13 +1111,15 @@ class BootableImage(ImageGenerator):
 
         # Search those troves for the python import root.
         targetRoot = "/python%s.%s/site-packages" % sys.version_info[:2]
-        targetPath = targetRoot + "/rpm/__init__.py"
+        targetPaths = [ targetRoot + "/rpm/__init__.py",
+                        targetRoot + '/rpmmodule.so' ]
         roots = set()
         for trove in self.cc.db.getTroves(tups, pristine=False):
             for pathId, path, fileId, fileVer in trove.iterFileList():
-                if path.endswith(targetPath):
-                    root = path[:-len(targetPath)] + targetRoot
-                    roots.add(root)
+                for targetPath in targetPaths:
+                    if path.endswith(targetPath):
+                        root = path[:-len(targetPath)] + targetRoot
+                        roots.add(root)
 
         # Insert into the search path and do a test import
         if not roots:

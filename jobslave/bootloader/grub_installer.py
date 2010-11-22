@@ -340,6 +340,13 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 modules.add('megaraid')
                 modules.add('mptscsih')
                 modules.add('mptspi')
+                if is_SUSE(self.image_root, version=11):
+                    modules.add('pata_oldpiix')
+                    modules.add('pata_mpiix')
+                    modules.add('ata_piix')
+                    modules.add('virtio_net')
+                    modules.add('virtio_blk')
+                    modules.add('virtio_pci')
                 out.write('INITRD_MODULES="%s"' % (' '.join(modules)))
             else:
                 out.write(line)
@@ -358,11 +365,21 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         log.info("Rebuilding initrd(s)")
         kpaths = ['vmlinuz-' + x for x in kernels]
         ipaths = ['initrd-' + x for x in kernels]
+
+        # More SLES 11 magic: make a temporary device node
+        # for the root fs device, and remove it after mkinitrd runs.
+        tmpRootDev = os.path.join(self.image_root, 'tmp', 'root')
+        os.mknod(tmpRootDev, 0600 | stat.S_IFBLK, 
+                 os.stat(self.image_root).st_dev)
+
         logCall(['/usr/sbin/chroot', self.image_root,
             '/sbin/mkinitrd',
             '-k', ' '.join(kpaths),
             '-i', ' '.join(ipaths),
+            '-d', '/tmp/root',
             ])
+
+        os.unlink(tmpRootDev)
 
         # Build grub config
         log.info("Adding kernel entries")
@@ -376,6 +393,8 @@ timeout 8
         self.createFile('boot/grub/device.map', '(hd0) /dev/sda\n')
         self._suse_sysconfig_bootloader()
         self._suse_grub_stub()
+        # for SLES 11
+        os.environ['PBL_SKIP_BOOT_TEST'] = '1'
         for kver, kpath, ipath in zip(kernels, kpaths, ipaths):
             flavor = kpath.split('-')[-1]
             if flavor == 'xen' and self.force_domU:
