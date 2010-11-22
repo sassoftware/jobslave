@@ -365,12 +365,21 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         log.info("Rebuilding initrd(s)")
         kpaths = ['vmlinuz-' + x for x in kernels]
         ipaths = ['initrd-' + x for x in kernels]
+
+        # More SLES 11 magic: make a temporary device node
+        # for the root fs device, and remove it after mkinitrd runs.
+        tmpRootDev = os.path.join(self.image_root, 'tmp', 'root')
+        os.mknod(tmpRootDev, 0600 | stat.S_IFBLK, 
+                 os.stat(self.image_root).st_dev)
+
         logCall(['/usr/sbin/chroot', self.image_root,
             '/sbin/mkinitrd',
             '-k', ' '.join(kpaths),
             '-i', ' '.join(ipaths),
-            '-d', '/dev/sda1',
+            '-d', '/tmp/root',
             ])
+
+        os.unlink(tmpRootDev)
 
         # Build grub config
         log.info("Adding kernel entries")
