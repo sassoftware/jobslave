@@ -375,10 +375,14 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         # More SLES 11 magic: make a temporary device node
         # for the root fs device, and remove it after mkinitrd runs.
         if is_SUSE(self.image_root, version=11):
-            tmpRootDev = os.path.join(self.image_root, 'dev', 'root')
+            if self.jobData['buildType'] == buildtypes.APPLIANCE_ISO:
+                tmpRootDev = os.path.join(self.image_root, 'dev', 'root')
+                mkinitrdCmd.extend([ '-d', '/dev/root' ])
+            else:
+                tmpRootDev = os.path.join(self.image_root, 'dev', 'loop0')
+                mkinitrdCmd.extend([ '-d', '/dev/loop0' ])
             os.mknod(tmpRootDev, 0600 | stat.S_IFBLK, 
                      os.stat(self.image_root).st_dev)
-            mkinitrdCmd.extend([ '-d', '/dev/root' ])
 
         logCall(mkinitrdCmd)
 
