@@ -1,0 +1,100 @@
+#
+# Copyright (c) 2010 rPath, Inc.
+#
+# All rights reserved.
+#
+
+loadSuperClass('group-appliance')
+class GroupJobslave(ApplianceGroupRecipe):
+    name = 'group-jobslave'
+    version = '5.5.0'
+
+    autoResolve = True
+
+    def setup(r):
+        r.setJSSearchPath()
+
+        r.addAll('group-core', flatten=True)
+        r.replace('conary')
+
+        # Application
+        r.add('jobslave')
+
+        # Application dependencies
+        # FIXME: all of these should be implicit dependencies of jobslave
+        r.add('anaconda-utils')
+        r.add('bitstream-vera-fonts')
+        r.add('dosfstools')
+        r.add('e2fsimage') # Needed for livecds
+        r.add('ethtool')
+        r.add('freetype')
+        r.add('gnupg')
+        r.add('lvm2')
+        r.add('mkisofs')
+        r.add('mtools')
+        r.add('netpbm')
+        r.add('nfs-utils')
+        r.add('PIL')
+        r.add('screen')
+        r.add('sgmlop')
+        r.add('simplejson')
+        r.add('syslinux')
+        r.add('tcsh')
+
+        # Compatibility versions of RPM
+        r.add('group-rpm')
+
+        # things we don't need for a jobslave instance
+        r.remove('kernel')
+        r.remove('kudzu')
+        r.remove('open-iscsi')
+        r.remove('rhpl')
+        if Arch.x86_64:
+            r.remove('glibc', flavor='is: x86')
+
+        # strip out components we'll never use
+        r.removeComponents([ 'devel', 'devellib', 'doc' ])
+
+    def setJSSearchPath(r):
+        searchPath = []
+        for macro, packages in [
+            # rBuilder components
+            ('buildlabel', [
+                'jobslave',
+                ]),
+            ('master_label', [
+                'conary',
+                'conary-build',
+                'conary-repository',
+                'pyovf',
+                'restlib',
+                'rpath-product-definition',
+                'xobj',
+                ]),
+            ('contrib_label', [
+                'ec2-ami-tools',
+                'e2fsimage',
+                'xz',
+                ]),
+            ('rpm_label', ['group-rpm']),
+            ('anaconda_label', ['anaconda-utils']),
+            ]:
+            if macro not in r.macros:
+                continue
+            for package in packages:
+                searchPath.append('%s=%s' % (package, r.macros[macro]))
+
+        if 'productDefinitionSearchPath' in r.macros:
+            searchPath.extend(
+                    r.macros.productDefinitionSearchPath.split('\n'))
+        else:
+            rPLVersion = r.macros.get('distro_label', 'conary.rpath.com@rpl:2')
+            searchPath.append('group-os=%s[%s]'
+                % (rPLVersion, r.groupCoreFlavor))
+
+        # XXX BIG HACK TO BOOTSTRAP py26
+        if 'anaconda_label' in r.macros:
+            searchPath.append('group-os=conary.rpath.com@rpl:2[%s]'
+                % r.groupCoreFlavor)
+
+        r.setSearchPath(*searchPath)

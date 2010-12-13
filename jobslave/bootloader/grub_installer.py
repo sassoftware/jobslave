@@ -165,9 +165,12 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 'LOADER_TYPE="grub"\n'
                 )
         if is_SUSE(self.image_root, version=11):
+            consoleArgs = ''
+            if (self.jobData['buildType'] == buildtypes.validBuildTypes['XEN_OVA']):
+                consoleArgs = ' console=ttyS0 xencons=ttyS'
             contents += (
-                'DEFAULT_APPEND="root=LABEL=root showopts"\n'
-                'FAILSAFE_APPEND="root=LABEL=root"\n'
+                'DEFAULT_APPEND="root=LABEL=root showopts%s"\n' 
+                'FAILSAFE_APPEND="root=LABEL=root%s"\n' % (consoleArgs, consoleArgs)
                 )
         self.createFile('etc/sysconfig/bootloader', contents)
 
@@ -190,7 +193,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
         # RH-alikes ship a combo dom0/domU kernel so we have to use the image
         # flavor to determine whether to use the dom0 bootloader configuration.
-        if is_RH(self.image_root) and self.force_domU:
+        if self.force_domU:
            dom0 = False
 
         clock = ""
@@ -266,6 +269,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             rootdev_re = re.compile('root=/dev/.*? ')
             grubroot_re = re.compile('root \(.*\)')
             doubleboot_re = re.compile('/boot/boot')
+            kernel_re = re.compile('^\s+kernel')
             for line in f:
                 line = rootdev_re.sub('root=LABEL=root ', line)
                 if (self.jobData['buildType'] == buildtypes.validBuildTypes['AMI']):
@@ -273,6 +277,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 else:
                     line = grubroot_re.sub('root (hd0,0)', line)
                 line = doubleboot_re.sub('/boot', line)
+                if (kernel_re.match(line) and
+                    (self.jobData['buildType'] == buildtypes.validBuildTypes['XEN_OVA'])):
+                    line = line.replace('\n', ' console=ttyS0 xencons=ttyS\n')
                 newLines.append(line)
             contents = ''.join(newLines)
             f = open(grub_conf, 'w')
@@ -329,7 +336,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             # make sure that whatever variant of the megaraid driver is
             # present is included in the initrd, since it is required
             # for vmware and doesn't hurt anything else
-            '--with=megaraid', '--with=mptscsih', '--allow-missing',]
+            '--with=megaraid', '--with=mptscsih', 
+            '--with=ata_piix', '--with=virtio_blk', '--with=virtio_pci',
+            '--with=virtio_net', '--allow-missing',]
         if is_RH(self.image_root):
             mkinitrdArgs.append('--preload=xenblk')
         if self.jobData['buildType'] == buildtypes.validBuildTypes['AMI']:
@@ -345,9 +354,17 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         for line in open(kconf):
             if line[:15] == 'INITRD_MODULES=':
                 modules = set(shlex.split(line[15:])[0].split())
+                modules.add('piix')
                 modules.add('megaraid')
                 modules.add('mptscsih')
                 modules.add('mptspi')
+                if is_SUSE(self.image_root, version=11):
+                    modules.add('pata_oldpiix')
+                    modules.add('pata_mpiix')
+                    modules.add('ata_piix')
+                    modules.add('virtio_net')
+                    modules.add('virtio_blk')
+                    modules.add('virtio_pci')
                 out.write('INITRD_MODULES="%s"' % (' '.join(modules)))
             else:
                 out.write(line)
@@ -366,11 +383,29 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         log.info("Rebuilding initrd(s)")
         kpaths = ['vmlinuz-' + x for x in kernels]
         ipaths = ['initrd-' + x for x in kernels]
-        logCall(['/usr/sbin/chroot', self.image_root,
+
+        mkinitrdCmd = ['/usr/sbin/chroot', self.image_root,
             '/sbin/mkinitrd',
             '-k', ' '.join(kpaths),
             '-i', ' '.join(ipaths),
-            ])
+            ]
+       
+        # More SLES 11 magic: make a temporary device node
+        # for the root fs device, and remove it after mkinitrd runs.
+        if is_SUSE(self.image_root, version=11):
+            if self.jobData['buildType'] == buildtypes.APPLIANCE_ISO:
+                tmpRootDev = os.path.join(self.image_root, 'dev', 'root')
+                mkinitrdCmd.extend([ '-d', '/dev/root' ])
+            else:
+                tmpRootDev = os.path.join(self.image_root, 'dev', 'loop0')
+                mkinitrdCmd.extend([ '-d', '/dev/loop0' ])
+            os.mknod(tmpRootDev, 0600 | stat.S_IFBLK, 
+                     os.stat(self.image_root).st_dev)
+
+        logCall(mkinitrdCmd)
+
+        if is_SUSE(self.image_root, version=11):
+            os.unlink(tmpRootDev)
 
         # Build grub config
         log.info("Adding kernel entries")
@@ -384,8 +419,12 @@ timeout 8
         self.createFile('boot/grub/device.map', '(hd0) /dev/sda\n')
         self._suse_sysconfig_bootloader()
         self._suse_grub_stub()
+        # for SLES 11
+        os.environ['PBL_SKIP_BOOT_TEST'] = '1'
         for kver, kpath, ipath in zip(kernels, kpaths, ipaths):
             flavor = kpath.split('-')[-1]
+            if flavor == 'xen' and self.force_domU:
+                flavor = 'default'
             logCall(['/usr/sbin/chroot', self.image_root,
                 '/usr/lib/bootloader/bootloader_entry',
                 'add', flavor, kver, kpath, ipath])

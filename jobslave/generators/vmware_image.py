@@ -245,7 +245,7 @@ class VMwareOVFImage(VMwareImage):
 
 class VMwareESXImage(VMwareImage):
     useOVF = True
-    useVMX = True
+    useVMX = False
 
     ovfClass = ovf_image.VMwareOVFImage
 

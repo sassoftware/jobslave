@@ -101,7 +101,7 @@ class ResponseProxy(object):
             ET.SubElement(file, 'title').text = description
             ET.SubElement(file, 'size').text = str(fileSize)
             ET.SubElement(file, 'sha1').text = digest
-            ET.SubElement(file, 'baseFileName').text = fileName
+            ET.SubElement(file, 'fileName').text = fileName
 
         self._post('PUT', 'files', body=ET.tostring(root))
 
@@ -121,6 +121,7 @@ class LogHandler(threading.Thread, logging.Handler):
         self.response = response
         self.buffer = Queue.Queue()
         self.started = self.stopped = False
+        self.daemon = True
 
     def close(self):
         self.acquire()
