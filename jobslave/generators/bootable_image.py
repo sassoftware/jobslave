@@ -632,7 +632,10 @@ class BootableImage(ImageGenerator):
         # Also, 'Raw HD Image' means QEMU/KVM to me, but someone else
         # might be using it with another environment.
         filePath = self.filePath('etc/modprobe.conf')
-        moduleList = [ 'mptbase', 'mptspi' ]
+        if (self.jobData['buildType'] == buildtypes.AMI):
+            moduleList = [ 'xenblk' ]
+        else:
+            moduleList = [ 'mptbase', 'mptspi' ]
 
         if is_SUSE(self.root):
            filePath = filePath + '.local'  

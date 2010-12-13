@@ -31,6 +31,10 @@ class AMIImage(raw_fs_image.RawFsImage):
 
         self.productName = buildtypes.typeNamesShort[buildtypes.AMI]
 
+        # AMIs need some special initrd modules, defined
+        # in bootable_image.py
+        self.scsiModules = True
+
         self._kernelMetadata = {}
 
         # we want one single filesystem with the freespace allocated
@@ -68,10 +72,16 @@ class AMIImage(raw_fs_image.RawFsImage):
                 (self.basefilename, self.jobData.get('buildId'))
         extraArgs = ''
 
+        # Note: the AKIs hard-coded below *only* work in US-East-1,
+        # but we currently don't allow other Availability Zones, anyway.
         if ('ec2-ari' in self._kernelMetadata and
             'ec2-aki' in self._kernelMetadata):
             extraArgs += (' --kernel "%(ec2-aki)s" --ramdisk "%(ec2-ari)s"'
                           % self._kernelMetadata)
+        elif self.amiArch == 'i386':
+            extraArgs += (' --kernel aki-407d9529')
+        else:
+            extraArgs += (' --kernel aki-427d952b')
 
         productCode = self.amiData.get('ec2ProductCode', None)
         if productCode:
