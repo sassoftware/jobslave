@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
-        includeTemplate=True, kversions=()):
+        includeTemplate=True, kversions=(), ami=False):
     xen = xen or dom0
     macros = {
         'name': name,
@@ -51,7 +51,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
             macros['timeOut'] = '0'
             macros['kernelCmd'] += ' quiet'
 
-        if self.jobData['buildType'] == buildtypes.validBuildTypes['AMI']:
+        if ami:
             macros['rootDev'] = 'hd0'
 
     header = """
@@ -200,9 +200,14 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             elif self.arch == 'x86_64':
                 clock = "notsc"
 
+        if self.jobData['buildType'] == buildtypes.AMI:
+            ami = True
+        else:
+            ami = False
+
         conf = getGrubConf(name, hasInitrd, xen, dom0, clock,
                 includeTemplate=not is_SUSE(self.image_root, version=11),
-                kversions=kernels)
+                kversions=kernels, ami=ami)
 
         cfgfile = self._get_grub_conf()
         if cfgfile == 'menu.lst' and is_SUSE(self.image_root):
