@@ -29,7 +29,6 @@ class GroupJobslave(ApplianceGroupRecipe):
         r.add('ethtool')
         r.add('freetype')
         r.add('gnupg')
-        r.add('lvm2')
         r.add('mkisofs')
         r.add('mtools')
         r.add('netpbm')
