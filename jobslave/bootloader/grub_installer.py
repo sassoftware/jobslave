@@ -293,15 +293,11 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         bytesPerCylinder = self.geometry.bytesPerCylinder
         assert not (size % bytesPerCylinder), "The size passed in here must be cylinder aligned"
         cylinders = size / bytesPerCylinder
-        rootDev = 'hd0'
-        if self.jobData['buildType'] == buildtypes.validBuildTypes['AMI']:
-            rootDev = 'hd0,0'
         grubCmds = "device (hd0) /disk.img\n" \
                    "geometry (hd0) %d %d %d\n" \
-                   "root (%s)\n" \
+                   "root (hd0,0)\n" \
                    "setup (hd0)" % (cylinders,
-                        self.geometry.heads, self.geometry.sectors,
-                        rootDev)
+                        self.geometry.heads, self.geometry.sectors)
 
         logCall('echo -e "%s" | '
                 'chroot %s sh -c "%s --no-floppy --batch"'
