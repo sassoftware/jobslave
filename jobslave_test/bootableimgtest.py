@@ -455,14 +455,16 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.file = mockOpen
             os.mknod = lambda *args: None
             os.chmod = lambda *args: None
+            self.bootable.inspectGroup = lambda: None
             self.bootable.loadRPM = lambda: None
             self.bootable._getLabelPath = lambda *args: ''
             self.bootable.installFileTree(tmpDir)
             self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
-            self.failIf('.autorelabel' not in os.listdir(tmpDir),
-                    "selinux .autorelabel not created")
+            self.failIf('SELINUX=disabled\n' not in open(
+                os.path.join(tmpDir, 'etc/selinux/config')).read(),
+                "selinux not disabled")
             self.failIf(len(self.cmds) != 11,
                     "unexpected number of external calls")
             # make sure we unmount things in the right order
