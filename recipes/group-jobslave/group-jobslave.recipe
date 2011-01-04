@@ -33,7 +33,7 @@ class GroupJobslave(ApplianceGroupRecipe):
         r.add('mtools')
         r.add('netpbm')
         r.add('nfs-utils')
-        r.add('PIL')
+        r.add('PIL:python')
         r.add('screen')
         r.add('sgmlop')
         r.add('simplejson')
