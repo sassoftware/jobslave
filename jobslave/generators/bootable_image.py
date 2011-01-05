@@ -1022,7 +1022,8 @@ class BootableImage(ImageGenerator):
             self.status('Finalizing install')
 
             if not self.bootloader:
-                if self.isDomU:
+                if (self.isDomU or 
+                    self.jobData['buildType'] == buildtypes.AMI):
                     # pygrub requires that grub-install be run
                     bootloader_override = 'grub'
                 self.bootloader = generators.get_bootloader(self, dest,
