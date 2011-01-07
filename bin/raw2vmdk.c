@@ -375,7 +375,17 @@ int writeGrainTableData(const SparseExtentHeader * header, u_int32_t * grainTabl
 
 off_t copyData(const char* infile, const off_t outsize,
              const SparseExtentHeader * header, FILE * of) {
-    FILE * in = fopen(infile, "rb");
+    FILE *in;
+    if (strcmp(infile, "-") != 0) {
+        in = fopen(infile, "rb");
+        if (in == NULL) {
+            perror("failed to open input");
+            return -1;
+        }
+    } else {
+        in = stdin;
+    }
+
     /* Always have 512 entries per grain table */
     u_int32_t limit = numGTs(outsize) * 512;
     u_int32_t * grainTable = (u_int32_t*)malloc(limit * sizeof(u_int32_t));
@@ -443,14 +453,15 @@ off_t copyData(const char* infile, const off_t outsize,
 static void usage(char * name)
 {
     printf("%s - Version %s\n", name, VER);
-    printf("%s -C cylinders [-H heads] [-S sectors] [-A adapter] [ -s ] "
+    printf("%s -C cylinders [-H heads] [-S sectors] [-A adapter] [-l size] [ -s ] "
 	    "infile.img outfile.vmdk\n\n"
             "-C  Number of cylinders in infile.img\n"
             "-H  Number of heads in infile.img\n"
             "-S  Number of sectors in infile.img\n"
             "-A  Adapter: legal values are ide, lsilogic or buslogic\n"
+            "-l  Size of the input image (optional if input is a file)\n"
             "-s  Use streamOptimized format rather than monolithicSparse\n"
-            "infile.img    RAW disk image\n"
+            "infile.img    RAW disk image, or - for standard input\n"
             "outfile.vmdk  VMware virtual disk\n\n",
             name);
 }
@@ -465,27 +476,27 @@ int zeropad(off_t numbytes, FILE * file)
 }
 
 int main(int argc, char ** argv) {
-    struct stat istat;
     SparseExtentHeader header;
     int c;
+    long long fileSize = -1;
     u_int8_t heads = 0x10, sectors = 0x3f;
     u_int32_t cylinders = 0x0;
     char adapter[256];
     memset(adapter, 0, 256);
     strncpy(adapter, "ide", 3);
 
-    memset(&istat, 0, sizeof(struct stat));
     memset(zerograin, 0, GRAINSIZE);
 
     // Parse command line options
     do {
-        c = getopt(argc, argv, "C:H:S:A:vs");
+        c = getopt(argc, argv, "C:H:S:A:l:vs");
         switch (c) {
             case 'C': cylinders = atoi(optarg); break;
             case 'H': heads = atoi(optarg); break;
             case 'S': sectors = atoi(optarg); break;
             case 'v': verbose = 1; break;
             case 'A': strncpy(adapter, optarg, 255); break;
+            case 'l': fileSize = atoll(optarg); break;
             case 's': vmdkType = STREAM_OPTIMIZED; break;
         }
     } while (c >= 0);
@@ -505,13 +516,23 @@ int main(int argc, char ** argv) {
     char * outfile = argv[optind+1];
     VPRINT("Writing to %s\n", outfile);
 
-    // Figure out how big the extent needs to be
-    int ret = stat(infile, &istat);
-    if (ret) return errno;
-    VPRINT("Source file is %llu bytes\n", (unsigned long long)istat.st_size);
-    off_t padding = SECTORSIZE - (istat.st_size % SECTORSIZE);
-    VPRINT("Padding %llu bytes\n", (unsigned long long)padding);
-    off_t outsize = istat.st_size + (padding == SECTORSIZE ? 0: padding);
+    if (fileSize == -1) {
+        /* Figure out how big the extent needs to be. */
+        struct stat istat;
+        if (strcmp(infile, "-") == 0) {
+            fprintf(stderr, "error: -l is required when using standard input\n");
+            return 1;
+        }
+        if (stat(infile, &istat)) {
+            perror("error reading input");
+            return 1;
+        }
+        fileSize = istat.st_size;
+    }
+    VPRINT("Source file is %llu bytes\n", fileSize);
+    off_t padding = SECTORSIZE - (fileSize % SECTORSIZE);
+    off_t outsize = fileSize + (padding == SECTORSIZE ? 0: padding);
+    VPRINT("Padding %llu bytes\n", (unsigned long long)(outsize - fileSize));
     VPRINT("Total size of the destination image: %llu\n",
             (unsigned long long)outsize);
     size_t numgts = numGTs(outsize);
@@ -548,9 +569,20 @@ int main(int argc, char ** argv) {
             zeropad((padding == GRAINSIZE ? 0: padding), of);
             // Write the grains
             VPRINT("Copying the data\n");
-            copyData(infile, outsize, &header, of);
+            if (copyData(infile, outsize, &header, of) < 0) {
+                return 1;
+            }
         } else {
-            FILE * in = fopen(infile, "rb");
+            FILE *in;
+            if (strcmp(infile, "-") != 0) {
+                in = fopen(infile, "rb");
+                if (in == NULL) {
+                    perror("failed to open input");
+                    return 1;
+                }
+            } else {
+                in = stdin;
+            }
             // Write grains in loops
             VPRINT("Padding to 64k\n");
             off_t pos = ftello(of);
