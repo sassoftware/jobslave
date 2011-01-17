@@ -234,13 +234,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 and "-64" or ""
         return platform + suffix
 
-class VMwareOVFImage(VMwareImage):
-    useOVF = True
-    useVMX = False
-
-    @bootable_image.timeMe
-    def createVMDK(self, hdImage, outfile, size):
-        self.createOvfVMDK(hdImage, outfile, size)
 
 class VMwareESXImage(VMwareImage):
     useOVF = True

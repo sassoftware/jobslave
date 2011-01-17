@@ -9,11 +9,11 @@ import sys
 validBuildTypes = {
     'BOOTABLE_IMAGE'   : 0,
     'INSTALLABLE_ISO'  : 1,
-    'STUB_IMAGE'       : 2,
+    'STUB_IMAGE'       : 2,  # unused
     'RAW_FS_IMAGE'     : 3,
-    'NETBOOT_IMAGE'    : 4,
+    'NETBOOT_IMAGE'    : 4,  # unused
     'TARBALL'          : 5,
-    'LIVE_ISO'         : 6,
+    'LIVE_ISO'         : 6,  # unused
     'RAW_HD_IMAGE'     : 7,
     'VMWARE_IMAGE'     : 8,
     'VMWARE_ESX_IMAGE' : 9,
@@ -25,7 +25,7 @@ validBuildTypes = {
     'UPDATE_ISO'       : 15,
     'APPLIANCE_ISO'    : 16,
     'IMAGELESS'        : 17,
-    'VMWARE_OVF_IMAGE' : 18,
+    'VMWARE_OVF_IMAGE' : 18,  # unused
     }
 
 TYPES = validBuildTypes.values()
