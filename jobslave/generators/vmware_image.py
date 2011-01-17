@@ -66,6 +66,10 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     ovfClass = ovf_image.VMwareOVFImage
 
+    templateName = 'vmwareplayer.vmx'
+    productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
+    suffix = '.vmware.tar.gz'
+
     platforms = {'' : 'other26xlinux',
                  'Red Hat Enterprise Linux AS 4' : 'rhel4',
                  'Red Hat Enterprise Linux Server 5' : 'rhel5',
@@ -211,9 +215,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.adapter = self.getBuildData('diskAdapter')
         self.vmSnapshots = self.getBuildData('vmSnapshots')
         self.vmMemory = self.getBuildData('vmMemory')
-        self.templateName = 'vmwareplayer.vmx'
-        self.productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
-        self.suffix = '.vmware.tar.gz'
         self.vmdkSize = 0
         self.capacity = 0
 
@@ -247,14 +248,15 @@ class VMwareESXImage(VMwareImage):
 
     ovfClass = ovf_image.VMwareOVFImage
 
+    createType = 'vmfs'
+    templateName = 'vmwareesx.vmx'
+    productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
+    suffix = '.esx.tar.gz'
+
     def __init__(self, *args, **kwargs):
         VMwareImage.__init__(self, *args, **kwargs)
         self.adapter = 'lsilogic'
         self.vmSnapshots = False
-        self.createType = 'vmfs'
-        self.templateName = 'vmwareesx.vmx'
-        self.productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
-        self.suffix = '.esx.tar.gz'
         self.scsiModules = True
 
     @bootable_image.timeMe
