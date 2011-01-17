@@ -1,7 +1,5 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved.
+# Copyright (c) 2011 rPath, Inc.
 #
 
 import logging
@@ -19,6 +17,7 @@ from conary.lib import util, log as conaryLog
 from jobslave import jobstatus
 from jobslave import response
 from jobslave.generators import constants, ovf_image
+from jobslave.job_data import JobData
 from jobslave.response import LogHandler
 from jobslave.util import getFileSize
 
@@ -34,7 +33,7 @@ class Generator(object):
 
     def __init__(self, cfg, jobData):
         self.cfg = cfg
-        self.jobData = jobData
+        self.jobData = JobData(jobData)
 
         self.response = response.ResponseProxy(cfg.masterUrl, self.jobData)
         self.UUID = self.jobData['UUID'].encode('ascii')
@@ -71,42 +70,7 @@ class Generator(object):
         return ccfg
 
     def getBuildData(self, key):
-        val = self.jobData.get('data', {}).get(key)
-        if val is None:
-            protocolVersion = self.jobData.get('protocolVersion')
-            if protocolVersion == 1:
-                defaults = {
-                        'autoResolve': False,
-                        'maxIsoSize': '681574400',
-                        'bugsUrl': 'http://issues.rpath.com/',
-                        'natNetworking': False,
-                        'vhdDiskType': 'dynamic',
-                        'anacondaCustomTrove': '',
-                        'stringArg': '',
-                        'mediaTemplateTrove': '',
-                        'baseFileName': '',
-                        'vmSnapshots': False,
-                        'swapSize': 128,
-                        'betaNag': False,
-                        'anacondaTemplatesTrove': '',
-                        'enumArg': '2',
-                        'vmMemory': 256,
-                        'installLabelPath': '',
-                        'intArg': 0,
-                        'freespace': 250,
-                        'boolArg': False,
-                        'mirrorUrl': '',
-                        'zisofs': True,
-                        'diskAdapter': 'lsilogic',
-                        'unionfs': False,
-                        'showMediaCheck': False,
-                        'amiHugeDiskMountpoint': '',
-                        'platformName': '',
-                        }
-            else:
-                defaults = {}
-            val = defaults.get(key)
-        return val
+        return self.jobData.getBuildData(key)
 
     def write(self):
         raise NotImplementedError
