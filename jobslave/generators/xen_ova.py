@@ -66,7 +66,7 @@ class XenOVA(raw_hd_image.RawHdImage):
         # Build the filesystem images
         #totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         image_path = os.path.join(self.workDir, 'hdimage')
-        size = self.makeHDImage(image_path)
+        disk = self.makeHDImage(image_path)
 
         # Open a manifest for tar so that it writes out files in the optimal
         # order.
@@ -76,7 +76,7 @@ class XenOVA(raw_hd_image.RawHdImage):
         # Write the ova.xml file
         ovaName = 'ova.xml'
         ovaPath = os.path.join(topDir, ovaName)
-        self.createXVA(ovaPath, size)
+        self.createXVA(ovaPath, disk.totalSize)
         print >>manifest, ovaName
 
         # Split the HD image into 1GB (not GiB) chunks

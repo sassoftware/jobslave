@@ -1,7 +1,5 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All Rights Reserved
+# Copyright (c) 2011 rPath, Inc.
 #
 
 import os
@@ -151,7 +149,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
                                       self.basefilename + '.vmdk.gz')
         ovfOutputFile = outputFile.replace(self.suffix, '-ovf.tar.gz')
 
-        totalSize = self.makeHDImage(image)
+        disk = self.makeHDImage(image)
         self.status('Creating %s Image' % self.productName)
 
         util.mkdirChain(self.workingDir)
@@ -199,7 +197,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             self.ovaPath = self.createOvf(self.basefilename,
                 self.jobData['description'], constants.VMDK, 
                 self.vmdkGzOutputFile,
-                totalSize, True, self.workingDir,
+                disk.totalSize, True, self.workingDir,
                 self.outputDir)
             self.outputFileList.append((self.ovaPath,
                 self.productName + ' %s' % constants.OVFIMAGETAG))

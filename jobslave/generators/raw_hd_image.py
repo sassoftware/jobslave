@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) 2011 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -17,19 +17,23 @@ from conary.lib import util
 log = logging.getLogger(__name__)
 
 
-class HDDContainer:
-    def __init__(self, image, totalSize, geometry):
-        self.totalSize = totalSize
+class HDDContainer(object):
+
+    def __init__(self, image, geometry, totalSize=None):
         self.image = image
         self.geometry = geometry
+        if totalSize is None:
+            totalSize = os.stat(image).st_size
+        self.totalSize = totalSize
 
+    def create(self):
         # create the raw file
         # NB: blocksize is unrelated to the one in constants.py, and is
         # completely arbitrary.
         blocksize = 512
-        seek = (totalSize - 1) / blocksize
+        seek = (self.totalSize - 1) / blocksize
         logCall('dd if=/dev/zero of=%s count=1 seek=%d bs=%d' % (
-            image, max(seek, 0), blocksize))
+            self.image, max(seek, 0), blocksize))
 
     def partition(self, partitions):
         # Extended partitions are not supported since we're either using a
@@ -93,6 +97,7 @@ class RawHdImage(bootable_image.BootableImage):
 
         totalSize = rootEnd + lvmSize
         container = HDDContainer(image, totalSize, self.geometry)
+        container.create()
 
         # Calculate the offsets and sizes of the root and LVM partitions.
         # Note that the Start/Blocks variables are measured in blocks.
@@ -160,12 +165,13 @@ class RawHdImage(bootable_image.BootableImage):
         except Exception, e:
             log.warning("Error tearing down LVM setup: %s" % str(e))
 
-        return totalSize
+        return container
 
     def write(self):
         self.productName = 'Raw Hard Disk'
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
-        self.capacity = self.makeHDImage(image)
+        disk = self.makeHDImage(image)
+        self.capacity = disk.totalSize
 
         finalImage = os.path.join(self.outputDir, self.basefilename + '.hdd.gz')
 
