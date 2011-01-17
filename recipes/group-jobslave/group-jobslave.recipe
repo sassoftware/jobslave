@@ -59,6 +59,7 @@ class GroupJobslave(ApplianceGroupRecipe):
             # rBuilder components
             ('buildlabel', [
                 'jobslave',
+                'jobslave-runtime',
                 ]),
             ('master_label', [
                 'conary',
