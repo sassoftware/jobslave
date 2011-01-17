@@ -96,7 +96,7 @@ class RawHdImage(bootable_image.BootableImage):
         lvmSize = align(lvmSize)
 
         totalSize = rootEnd + lvmSize
-        container = HDDContainer(image, totalSize, self.geometry)
+        container = HDDContainer(image, self.geometry, totalSize)
         container.create()
 
         # Calculate the offsets and sizes of the root and LVM partitions.
