@@ -66,6 +66,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     templateName = 'vmwareplayer.vmx'
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
+    raw2vmdk = '/usr/bin/raw2vmdk'
 
     platforms = {'' : 'other26xlinux',
                  'Red Hat Enterprise Linux AS 4' : 'rhel4',
@@ -77,7 +78,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     def _createVMDK(self, hdImage, outfile, size, streaming=False):
         args = [
-                os.path.join(self.cfg.binPath, 'raw2vmdk'),
+                self.raw2vmdk,
                 '-C', str(self.geometry.cylindersRequired(size)),
                 '-H', str(self.geometry.heads),
                 '-S', str(self.geometry.sectors),
