@@ -165,10 +165,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 '.vmware.tar.gz')
         self.capacity = disk.totalSize
         self.createVMDK(disk.image, vmdkPath, self.capacity)
-        try:
-            self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
-        except OSError:
-            pass
+        self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
 
         self.createVMX(vmxPath)
@@ -237,12 +234,9 @@ class VMwareESXImage(VMwareImage):
         vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
         ovfOutputFile = os.path.join(self.outputDir, self.basefilename +
                 '-ovf.tar.gz')
+        self.capacity = disk.totalSize
         self.createOvfVMDK(disk.image, vmdkPath, disk.totalSize)
-        try:
-            self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
-        except OSError:
-            # this should only happen in the test suite
-            pass
+        self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
 
         self.createVMX(ovfPath, type='ovf')
