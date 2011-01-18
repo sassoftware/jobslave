@@ -190,11 +190,14 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
+        self.configure()
+
+    def configure(self):
         self.adapter = self.getBuildData('diskAdapter')
         self.vmSnapshots = self.getBuildData('vmSnapshots')
         self.vmMemory = self.getBuildData('vmMemory')
-        self.vmdkSize = 0
-        self.capacity = 0
+        self.vmdkSize = None
+        self.capacity = None
 
     def getGuestOS(self):
         platformName = self.getBuildData('platformName')
@@ -215,8 +218,8 @@ class VMwareESXImage(VMwareImage):
     createType = 'vmfs'
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
 
-    def __init__(self, *args, **kwargs):
-        VMwareImage.__init__(self, *args, **kwargs)
+    def configure(self):
+        VMwareImage.configure(self)
         self.adapter = 'lsilogic'
         self.vmSnapshots = False
 
