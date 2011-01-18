@@ -1,11 +1,9 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All Rights Reserved
+# Copyright (c) 2011 rPath, Inc.
 #
 
+import hashlib
 import os
-import sha
 
 from jobslave.generators import constants
 from jobslave.util import logCall
@@ -186,8 +184,8 @@ class OvfImage(object):
 
         mfFile = open(self.manifestPath, 'w')
 
-        ovfSha1 = sha.new(open(self.ovfPath).read()).hexdigest()
-        diskSha1 = sha.new(open(self.diskFilePath).read()).hexdigest()
+        ovfSha1 = hashlib.sha1(open(self.ovfPath).read()).hexdigest()
+        diskSha1 = hashlib.sha1(open(self.diskFilePath).read()).hexdigest()
 
         mfFile.write(sha1Line % (self.ovfFileName, ovfSha1))
         mfFile.write(sha1Line % (self.diskFileName, diskSha1))
