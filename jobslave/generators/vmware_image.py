@@ -61,14 +61,11 @@ def substitute(template, variables):
 
 
 class VMwareImage(raw_hd_image.RawHdImage):
-    useOVF = False
-    useVMX = True
 
     ovfClass = ovf_image.VMwareOVFImage
 
     templateName = 'vmwareplayer.vmx'
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
-    suffix = '.vmware.tar.gz'
 
     platforms = {'' : 'other26xlinux',
                  'Red Hat Enterprise Linux AS 4' : 'rhel4',
@@ -95,10 +92,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
         self._createVMDK(hdImage, outfile, size, False)
-
-    @bootable_image.timeMe
-    def createOvfVMDK(self, hdImage, outfile, size):
-        self._createVMDK(hdImage, outfile, size, True)
 
     @bootable_image.timeMe
     def createVMX(self, outfile, type='vmx'):
@@ -148,67 +141,54 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     def write(self):
         image = os.path.join(self.workDir, self.basefilename + '.hdd')
-        outputFile = os.path.join(self.outputDir, self.basefilename + self.suffix)
-        self.vmdkGzOutputFile = os.path.join(self.outputDir, 
-                                      self.basefilename + '.vmdk.gz')
-        ovfOutputFile = outputFile.replace(self.suffix, '-ovf.tar.gz')
 
         disk = self.makeHDImage(image)
         self.status('Creating %s Image' % self.productName)
 
         util.mkdirChain(self.workingDir)
-        vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
-        vmxPath = os.path.join(self.workingDir, self.basefilename + '.vmx')
-        ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
+        vmdkPath = self.writeMachine(disk)
+        if self.buildOVF10:
+            self.writeVmwareOvf(disk.totalSize, vmdkPath)
 
-        self.capacity = os.stat(image)[stat.ST_SIZE]
-        self.createVMDK(image, vmdkPath, self.capacity)
+        self.postOutput(self.outputFileList)
+
+    def writeMachine(self, disk):
+        """Create VMX tarball for VMware Workstation deployments.
+
+        A standard format VMDK will be created. The path to it will be returned
+        for use in the OVF 1.0 generator.
+        """
+        vmxPath = os.path.join(self.workingDir, self.basefilename + '.vmx')
+        vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
+        outputPath = os.path.join(self.outputDir, self.basefilename +
+                '.vmware.tar.gz')
+        self.capacity = disk.totalSize
+        self.createVMDK(disk.image, vmdkPath, self.capacity)
         try:
             self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         except OSError:
             pass
+        disk.destroy()
 
-        if self.useVMX:
-            self.createVMX(vmxPath)
-            self.setModes(self.workingDir)
-            self.gzip(self.workingDir, outputFile)
-            self.outputFileList.append(
-                (outputFile, self.productName + ' Image'))
+        self.createVMX(vmxPath)
+        self.setModes(self.workingDir)
+        self.gzip(self.workingDir, outputPath)
+        self.outputFileList.append(
+            (outputPath, self.productName + ' Image'))
+        return vmdkPath
 
-        # now create OVF in addition, if applicable
-        # For building OVF 0.9
-        if self.useOVF:
-            util.remove(vmxPath)
-            util.remove(vmdkPath)
-            self.createOvfVMDK(vmdkPath.replace('.vmdk', '-flat.vmdk'),
-                            vmdkPath,
-                            self.capacity)
-            try:
-                self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
-            except OSError:
-                # this should only happen in the test suite
-                pass
-            self.createVMX(ovfPath, type='ovf')
-            util.remove(vmdkPath.replace('.vmdk', '-flat.vmdk'))
-            self.setModes(self.workingDir)
-            self.gzip(self.workingDir, ovfOutputFile)
-            self.outputFileList.append(
-                (ovfOutputFile, self.productName + ' OVF 0.9 Image'))
+    def writeVmwareOvf(self, capacity, vmdkPath):
+        """Create OVF 1.0 output for general purpose usage."""
+        vmdkGzOutputFile = os.path.join(self.outputDir, self.basefilename +
+                '.vmdk.gz')
+        self.gzip(vmdkPath, vmdkGzOutputFile)
+        util.remove(vmdkPath)
 
-        if self.buildOVF10:
-            self.gzip(vmdkPath, self.vmdkGzOutputFile)
-
-            self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.VMDK, 
-                self.vmdkGzOutputFile,
-                disk.totalSize, True, self.workingDir,
-                self.outputDir)
-            self.outputFileList.append((self.ovaPath,
-                self.productName + ' %s' % constants.OVFIMAGETAG))
-
-            os.unlink(self.vmdkGzOutputFile)
-
-        self.postOutput(self.outputFileList)
+        self.ovaPath = self.createOvf(self.basefilename,
+                self.jobData['description'], constants.VMDK, vmdkGzOutputFile,
+                capacity, True, self.workingDir, self.outputDir)
+        self.outputFileList.append((self.ovaPath,
+            self.productName + ' %s' % constants.OVFIMAGETAG))
 
     def __init__(self, *args, **kwargs):
         raw_hd_image.RawHdImage.__init__(self, *args, **kwargs)
@@ -217,9 +197,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.vmMemory = self.getBuildData('vmMemory')
         self.vmdkSize = 0
         self.capacity = 0
-
-        if self.adapter == 'lsilogic':
-            self.scsiModules = True
 
     def getGuestOS(self):
         platformName = self.getBuildData('platformName')
@@ -236,50 +213,40 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
 
 class VMwareESXImage(VMwareImage):
-    useOVF = True
-    useVMX = False
-
-    ovfClass = ovf_image.VMwareOVFImage
 
     createType = 'vmfs'
-    templateName = 'vmwareesx.vmx'
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
-    suffix = '.esx.tar.gz'
 
     def __init__(self, *args, **kwargs):
         VMwareImage.__init__(self, *args, **kwargs)
         self.adapter = 'lsilogic'
         self.vmSnapshots = False
-        self.scsiModules = True
 
     @bootable_image.timeMe
-    def createVMDK(self, hdImage, outfile, size):
-        # (re)round to next cylinder
-        cylinders = self.geometry.cylindersRequired(size)
-        size = cylinders * self.geometry.bytesPerCylinder
-        extents = raw_hd_image.divCeil(size, 512)
+    def createOvfVMDK(self, hdImage, outfile, size):
+        self._createVMDK(hdImage, outfile, size, True)
 
-        # Generate the VMDK from template.
-        infile = open(os.path.join(constants.templateDir, 'vmdisk.vmdk'), 'rb')
-        filecontents = infile.read()
-        infile.close()
+    def writeMachine(self, disk):
+        """Create OVF 0.9 tarball for ESX deployments.
 
-        filecontents = substitute(filecontents, {
-            'CREATE_TYPE': self.createType,
-            'FILENAME': self.basefilename,
-            'ADAPTER': self.adapter,
-            'EXTENTS': extents,
+        A streaming format VMDK will be created. The path to it will be
+        returned for use in the OVF 1.0 generator.
+        """
+        ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
+        vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
+        ovfOutputFile = os.path.join(self.outputDir, self.basefilename +
+                '-ovf.tar.gz')
+        self.createOvfVMDK(disk.image, vmdkPath, disk.totalSize)
+        try:
+            self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
+        except OSError:
+            # this should only happen in the test suite
+            pass
+        disk.destroy()
 
-            'CYLINDERS': cylinders,
-            'HEADS': self.geometry.heads,
-            'SECTORS': self.geometry.sectors,
-
-            'EXT_TYPE': self.createType == 'vmfs' and 'VMFS' or 'FLAT',
-          })
-
-        ofile = open(outfile, 'wb')
-        ofile.write(filecontents)
-        ofile.close()
-
-        # Move the raw HD image into place.
-        os.rename(hdImage, outfile.replace('.vmdk', '-flat.vmdk'))
+        self.createVMX(ovfPath, type='ovf')
+        self.setModes(self.workingDir)
+        self.gzip(self.workingDir, ovfOutputFile)
+        self.outputFileList.append(
+            (ovfOutputFile, self.productName + ' OVF 0.9 Image'))
+        return vmdkPath

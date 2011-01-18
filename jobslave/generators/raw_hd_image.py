@@ -35,6 +35,11 @@ class HDDContainer(object):
         logCall('dd if=/dev/zero of=%s count=1 seek=%d bs=%d' % (
             self.image, max(seek, 0), blocksize))
 
+    def destroy(self):
+        if self.image:
+            util.remove(self.image)
+            self.image = None
+
     def partition(self, partitions):
         # Extended partitions are not supported since we're either using a
         # single partition for non-LVM or two for LVM (/boot + one PV)
