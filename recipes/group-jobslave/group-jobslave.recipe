@@ -1,7 +1,5 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved.
+# Copyright (c) 2011 rPath, Inc.
 #
 
 loadSuperClass('group-appliance')
@@ -19,6 +17,7 @@ class GroupJobslave(ApplianceGroupRecipe):
 
         # Application
         r.add('jobslave')
+        r.add('jobslave-runtime')
 
         # Application dependencies
         # FIXME: all of these should be implicit dependencies of jobslave
@@ -60,6 +59,7 @@ class GroupJobslave(ApplianceGroupRecipe):
             # rBuilder components
             ('buildlabel', [
                 'jobslave',
+                'jobslave-runtime',
                 ]),
             ('master_label', [
                 'conary',

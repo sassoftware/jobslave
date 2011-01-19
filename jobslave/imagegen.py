@@ -1,24 +1,25 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved.
+# Copyright (c) 2011 rPath, Inc.
 #
 
 import logging
 import os
 import re
 import StringIO
+import sys
 import urllib
 
 from conary import conarycfg
 from conary import conaryclient
 from conary import versions
 from conary.deps import deps
+from conary.lib import formattrace
 from conary.lib import util, log as conaryLog
 
 from jobslave import jobstatus
 from jobslave import response
 from jobslave.generators import constants, ovf_image
+from jobslave.job_data import JobData
 from jobslave.response import LogHandler
 from jobslave.util import getFileSize
 
@@ -34,7 +35,7 @@ class Generator(object):
 
     def __init__(self, cfg, jobData):
         self.cfg = cfg
-        self.jobData = jobData
+        self.jobData = JobData(jobData)
 
         self.response = response.ResponseProxy(cfg.masterUrl, self.jobData)
         self.UUID = self.jobData['UUID'].encode('ascii')
@@ -71,42 +72,7 @@ class Generator(object):
         return ccfg
 
     def getBuildData(self, key):
-        val = self.jobData.get('data', {}).get(key)
-        if val is None:
-            protocolVersion = self.jobData.get('protocolVersion')
-            if protocolVersion == 1:
-                defaults = {
-                        'autoResolve': False,
-                        'maxIsoSize': '681574400',
-                        'bugsUrl': 'http://issues.rpath.com/',
-                        'natNetworking': False,
-                        'vhdDiskType': 'dynamic',
-                        'anacondaCustomTrove': '',
-                        'stringArg': '',
-                        'mediaTemplateTrove': '',
-                        'baseFileName': '',
-                        'vmSnapshots': False,
-                        'swapSize': 128,
-                        'betaNag': False,
-                        'anacondaTemplatesTrove': '',
-                        'enumArg': '2',
-                        'vmMemory': 256,
-                        'installLabelPath': '',
-                        'intArg': 0,
-                        'freespace': 250,
-                        'boolArg': False,
-                        'mirrorUrl': '',
-                        'zisofs': True,
-                        'diskAdapter': 'lsilogic',
-                        'unionfs': False,
-                        'showMediaCheck': False,
-                        'amiHugeDiskMountpoint': '',
-                        'platformName': '',
-                        }
-            else:
-                defaults = {}
-            val = defaults.get(key)
-        return val
+        return self.jobData.getBuildData(key)
 
     def write(self):
         raise NotImplementedError
@@ -134,12 +100,17 @@ class Generator(object):
             self.status('Job Finished', status=jobstatus.FINISHED)
             self.logger.flush()
 
-        except Exception, err:
+        except:
+            e_type, e_value, e_tb = sys.exc_info()
             log.exception("Unhandled exception in generator:")
 
+            try:
+                self._sendStackTrace(e_type, e_value, e_tb)
+            except:
+                log.exception("Failed to upload full stack trace:")
+
             message = 'Job failed (%s: %s)' % (
-                    err.__class__.__name__,
-                    str(err).replace('\n', ' '))
+                    e_type.__name__, str(e_value).replace('\n', ' '))
             self.status(message, status=jobstatus.FAILED)
             if self.logger:
                 self.logger.flush()
@@ -154,6 +125,26 @@ class Generator(object):
 
     def postOutput(self, fileList):
         self.response.postOutput(fileList)
+
+    def _sendStackTrace(self, e_type, e_value, e_tb):
+        # Scrub the most likely place for user passwords to appear.
+        try:
+            self.jobData['project']['conaryCfg'] = '<scrubbed>'
+        except:
+            pass
+
+        path = '/tmp/trace.txt'
+        f = open(path, 'w')
+        formattrace.formatTrace(e_type, e_value, e_tb, stream=f,
+                withLocals=False)
+        f.write("\nFull stack:\n")
+        formattrace.formatTrace(e_type, e_value, e_tb, stream=f,
+                withLocals=True)
+        f.close()
+
+        # Upload the trace but don't update the image file listing, that way it
+        # will be hidden.
+        self.response.postOutput([ (path, '') ], withMetadata=False)
 
 
 class ImageGenerator(Generator):

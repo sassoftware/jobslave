@@ -45,21 +45,22 @@ class Jobslave(CPackageRecipe, TestPackageRecipe, Python.VersionMixIn):
         r.CompilePython('%(prefix)s')
 
         r.Create('/etc/conary/config.d/jobslave.conf',
-                contents='includeConfigFile /tmp/etc/conaryrc\n')
-
-        # Turn off startup scripts we don't care about
-        for x in ('keytable', 'iptables', 'ip6tables', 'syslog', 'amiconfig',
-                'netfs', 'ntpd', 'crond', 'distro-release', 'local', 'portmap',
-                'nfslock'):
-            r.Create('/etc/chkconfig.d/' + x, contents = '# chkconfig: - 01 01')
+                contents='includeConfigFile /tmp/etc/conaryrc\n',
+                package='jobslave-runtime')
 
         r.Requires('/bin/tar', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/gpg', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/isosize', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/ec2-bundle-image', '.*/generators/ami\..*')
+        r.Requires('/usr/bin/raw2vmdk', '.*/generators/vmware_image\.py.*')
 
         # This file binds the freshly built jobslave to the system that will use it.
         r.Create('/srv/rbuilder/jobmaster/config.d/05_trove.conf',
             contents='troveVersion %(jobslave_version)s',
             package='rbuilder-mcp')
         r.Transient('/srv/rbuilder/jobmaster/')
+
+        r.PackageSpec('jobslave-runtime',
+            '%(bindir)s/jobslave',
+            '/etc/conary/config.d/',
+            )

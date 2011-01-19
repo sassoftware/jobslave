@@ -1,15 +1,15 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved
+# Copyright (c) 2011 rPath, Inc.
 #
 
 import testsuite
 testsuite.setup()
 
+from jobslave.job_data import JobData
 from jobslave.generators import vmware_image
 from conary.deps import deps
+
 
 class VMwareTest(testsuite.TestCase):
     def testNoVmEscape(self):
@@ -63,7 +63,7 @@ class VMwareTest(testsuite.TestCase):
         class DummyImage(base):
             def __init__(xself):
                 xself.baseFlavor = deps.parseFlavor(flavor)
-                xself.jobData = {'platformName': platform}
+                xself.jobData = JobData(platformName=platform)
         self.assertEquals(DummyImage().getGuestOS(), expected)
 
     def testGuestOS(self):
