@@ -153,21 +153,27 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         self.postOutput(self.outputFileList)
 
-    def writeMachine(self, disk):
+    def writeMachine(self, disk, callback=None):
         """Create VMX tarball for VMware Workstation deployments.
 
         A standard format VMDK will be created. The path to it will be returned
         for use in the OVF 1.0 generator.
         """
+        if not callback:
+            callback = VMwareCallback()
         vmxPath = os.path.join(self.workingDir, self.basefilename + '.vmx')
         vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
         outputPath = os.path.join(self.outputDir, self.basefilename +
                 '.vmware.tar.gz')
         self.capacity = disk.totalSize
+        # TODO: Add progress to raw2vmdk and pass it to creatingDisk()
+        callback.creatingDisk(None, None)
         self.createVMDK(disk.image, vmdkPath, self.capacity)
         self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
 
+        # TODO: Add progress to self.gzip() and pass it to creatingArchive()
+        callback.creatingArchive(None, None)
         self.createVMX(vmxPath)
         self.setModes(self.workingDir)
         self.gzip(self.workingDir, outputPath)
@@ -227,24 +233,39 @@ class VMwareESXImage(VMwareImage):
     def createOvfVMDK(self, hdImage, outfile, size):
         self._createVMDK(hdImage, outfile, size, True)
 
-    def writeMachine(self, disk):
+    def writeMachine(self, disk, callback=None):
         """Create OVF 0.9 tarball for ESX deployments.
 
         A streaming format VMDK will be created. The path to it will be
         returned for use in the OVF 1.0 generator.
         """
+        if not callback:
+            callback = VMwareCallback()
         ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
         vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
         ovfOutputFile = os.path.join(self.outputDir, self.basefilename +
                 '-ovf.tar.gz')
         self.capacity = disk.totalSize
+        # TODO: Add progress to raw2vmdk and pass it to creatingDisk()
+        callback.creatingDisk(None, None)
         self.createOvfVMDK(disk.image, vmdkPath, disk.totalSize)
         self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
 
+        # TODO: Add progress to self.gzip() and pass it to creatingArchive()
+        callback.creatingArchive(None, None)
         self.createVMX(ovfPath, type='ovf')
         self.setModes(self.workingDir)
         self.gzip(self.workingDir, ovfOutputFile)
         self.outputFileList.append(
             (ovfOutputFile, self.productName + ' OVF 0.9 Image'))
         return vmdkPath
+
+
+class VMwareCallback(object):
+
+    def creatingDisk(self, completed, total):
+        pass
+
+    def creatingArchive(self, completed, total):
+        pass
