@@ -300,9 +300,12 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         bytesPerCylinder = self.geometry.bytesPerCylinder
         assert not (size % bytesPerCylinder), "The size passed in here must be cylinder aligned"
         cylinders = size / bytesPerCylinder
+
+        # IMPORTANT: Use "rootnoverify" here, since some versions of grub
+        # have trouble test-mounting the partition inside disk1.img (RBL-8193)
         grubCmds = "device (hd0) /disk.img\n" \
                    "geometry (hd0) %d %d %d\n" \
-                   "root (hd0,0)\n" \
+                   "rootnoverify (hd0,0)\n" \
                    "setup (hd0)" % (cylinders,
                         self.geometry.heads, self.geometry.sectors)
 
