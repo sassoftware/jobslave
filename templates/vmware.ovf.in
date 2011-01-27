@@ -15,20 +15,7 @@
   </Section>
   <Content ovf:id="@NAME@" xsi:type="ovf:VirtualSystem_Type">
     <Info>A virtual machine</Info>
-<!-- if @GUESTOS@ == other26xlinux 
-    <Section ovf:id="36" xsi:type="ovf:OperatingSystemSection_Type">
--->
-<!-- if @GUESTOS@ == linux
-    <Section ovf:id="36" xsi:type="ovf:OperatingSystemSection_Type">
--->
-<!-- if @GUESTOS@ == other26xlinux-64 
-    <Section ovf:id="107" xsi:type="ovf:OperatingSystemSection_Type">
--->
-<!-- if @GUESTOS@ == otherlinux-64
-    <Section ovf:id="107" xsi:type="ovf:OperatingSystemSection_Type">
--->
-      <Info>The kind of installed guest operating system</Info>
-    </Section>
+     @OS_SECTION@
     <Section xsi:type="ovf:VirtualHardwareSection_Type">
       <Info>Virtual hardware requirements for a virtual machine</Info>
       <System>

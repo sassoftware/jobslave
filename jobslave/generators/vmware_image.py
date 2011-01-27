@@ -119,7 +119,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         #Read in the stub file
         if type == 'ovf':
             template = 'vmware.ovf.in'
-            variables['GUESTOS'] = self.getGuestOS(ovf=True)
+            variables['OS_SECTION'] = self.getGuestSection()
         else:
             template = self.templateName
         infile = open(os.path.join(constants.templateDir, template),
@@ -205,17 +205,43 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.vmdkSize = None
         self.capacity = None
 
-    def getGuestOS(self, ovf=False):
+    def getGuestOS(self):
         if 'vmwareOS' in self.jobData:
             return self.jobData['vmwareOS']
-        if ovf:
-            platform = 'other26xlinux'
         else:
             platformName = self.getBuildData('platformName')
             platform = self.platforms.get(platformName, 'other26xlinux')
-        suffix = self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')) \
-                and "-64" or ""
-        return platform + suffix
+            if self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')):
+                platform += '-64'
+            return platform
+
+    def getGuestSection(self):
+        platform = self.getGuestOS()
+        if platform.startswith('winNet'):
+            # Windows 2003
+            if platform.endswith('-64'):
+                ovfId = 70
+                osType = 'winNetStandard64Guest'
+            else:
+                ovfId = 69
+                osType = 'winNetStandardGuest'
+        elif platform.startswith('win'):
+            # Assume Windows 2008
+            ovfId = 1
+            osType = 'windows7Server64Guest'
+        else:
+            # Assume Linux
+            if platform.endswith('-64'):
+                ovfId = 107
+                osType = 'other26xLinux64Guest'
+            else:
+                ovfId = 36
+                osType = 'other26xLinuxGuest'
+        osSection = ('<Section ovf:id="%s" '
+            'xsi:type="ovf:OperatingSystemSection_Type" vmw:osType="%s">'
+            '<Info>The kind of installed guest operating system</Info>'
+            '</Section>') % (ovfId, osType)
+        return osSection
 
 
 class VMwareESXImage(VMwareImage):
