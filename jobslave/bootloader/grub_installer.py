@@ -337,6 +337,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             # for vmware and doesn't hurt anything else
             '--with=megaraid', '--with=mptscsih', 
             '--with=ata_piix', '--with=virtio_blk', '--with=virtio_pci',
+            '--with=scsi_transport_spi', '--with=mptspi',
             '--with=virtio_net', '--allow-missing',]
         if is_RH(self.image_root):
             mkinitrdArgs.append('--preload=xenblk')
