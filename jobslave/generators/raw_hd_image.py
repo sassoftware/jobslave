@@ -100,7 +100,10 @@ class RawHdImage(bootable_image.BootableImage):
         lvmSize += int(lvmSize * 0.10)
         lvmSize = align(lvmSize)
 
-        totalSize = rootEnd + lvmSize
+        # Add one cylinder to the disk to work around grub/VMware/BIOS bugs
+        # and/or a misunderstanding by this developer of how partition table
+        # sizes are calculated, see RBL-8292.
+        totalSize = align(rootEnd + lvmSize + 1)
         container = HDDContainer(image, self.geometry, totalSize)
         container.create()
 
