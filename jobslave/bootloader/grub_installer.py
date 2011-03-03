@@ -358,6 +358,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 modules.add('megaraid')
                 modules.add('mptscsih')
                 modules.add('mptspi')
+                modules.add('sd_mod')
                 if is_SUSE(self.image_root, version=11):
                     modules.add('pata_oldpiix')
                     modules.add('pata_mpiix')
