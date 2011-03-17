@@ -19,6 +19,6 @@ class MTPL(PackageRecipe):
 
         # Create and install jobslave preload
         label = r.macros.get('master_label', '')
-        r.Run('%(pregen)s jspreload group-jobslave=' + label)
+        r.Run('%(pregen)s jspreload group-jobslave=%(master_label)s/%(jobslave_version)s')
         r.Move('jspreload', '%(disc1)s/rPath/base/')
         r.Move('jspreload.*', '%(disc1)s/rPath/tarballs/')
