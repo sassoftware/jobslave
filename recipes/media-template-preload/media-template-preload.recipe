@@ -1,0 +1,24 @@
+class MTPL(PackageRecipe):
+    name = 'media-template-preload'
+    version = '4'
+
+    buildRequires = [
+        'conary-testenv',
+        'media-template',
+        'jobmaster:python',
+        ]
+
+    def setup(r):
+        r.macros.disc1 = '/usr/lib/media-template/disc1'
+        r.macros.pregen = ('python /usr/lib64/python*/site-packages/'
+                'jobmaster/preload_generator.py')
+
+        # Copy existing media-template content
+        r.MakeDirs('%(disc1)s')
+        r.Run('cp -rv %(disc1)s/* %(destdir)s%(disc1)s/')
+
+        # Create and install jobslave preload
+        label = r.macros.get('master_label', '')
+        r.Run('%(pregen)s jspreload group-jobslave=' + label)
+        r.Move('jspreload', '%(disc1)s/rPath/base/')
+        r.Move('jspreload.*', '%(disc1)s/rPath/tarballs/')
