@@ -544,6 +544,7 @@ class BootableImage(ImageGenerator):
             lines.append('')
             f = open(fn, 'w')
             f.write('\n'.join(lines))
+            f.close()
 
         # Unlock the root account by blanking its password, unless a valid
         # password is already set.
