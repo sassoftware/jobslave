@@ -4,7 +4,7 @@
 # All rights reserved.
 #
 
-SUBDIRS = bootloader generators
+SUBDIRS = bootloader generators mkinitrd
 override DIR=jobslave
 
 python_files = $(wildcard *.py)

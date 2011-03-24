@@ -5,10 +5,11 @@
 #
 
 import os
-
+import shlex
 from conary.lib import util
 
 from jobslave import bootloader
+from jobslave.mkinitrd import redhat as rh_initrd
 from jobslave.util import logCall
 
 
@@ -17,6 +18,8 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
         # Create extlinux configs
         bootloader.writeBootmanConfigs(self)
         logCall('chroot "%s" /sbin/bootman' % self.image_root)
+
+        self.mkinitrd()
 
         if not self.do_install:
             return
@@ -41,3 +44,18 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
             raise RuntimeError('syslinux MBR not found at "%s"'
                 % mbr_path)
         logCall('dd if="%s" of="%s" conv=notrunc' % (mbr_path, mbr_device))
+
+    def mkinitrd(self):
+        kernels = []
+        bootconfig = os.path.join(self.image_root, 'etc/bootloader.conf')
+        for line in open(bootconfig):
+            if not line.startswith('linux '):
+                continue
+            args = shlex.split(line)
+            if len(args) < 5:
+                continue
+            kver = args[1]
+            rdpath = args[4]
+            kernels.append((kver, rdpath))
+        irg = rh_initrd.RedhatGenerator(self.image_root)
+        irg.generate(kernels)

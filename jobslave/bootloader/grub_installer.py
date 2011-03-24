@@ -1,7 +1,5 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved
+# Copyright (c) 2011 rPath, Inc.
 #
 
 import logging
@@ -14,7 +12,8 @@ from conary.lib import util
 
 from jobslave import bootloader
 from jobslave import buildtypes
-from jobslave.distro_detect import is_RH, is_SUSE, is_UBUNTU
+from jobslave.mkinitrd import redhat as rh_initrd
+from jobslave.distro_detect import is_SUSE, is_UBUNTU
 from jobslave.util import logCall
 
 log = logging.getLogger(__name__)
@@ -324,28 +323,12 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 self._mkinitrd_suse(kernels)
             else:
                 self.writeConf(kernels)
-                self._mkinitrd_redhat(kernels)
+                irg = rh_initrd.RedhatGenerator(self.image_root)
+                irg.generate([
+                    (kver, '/boot/initrd-%s.img' % kver)
+                    for kver in kernels])
         else:
             log.error("No kernels found; this image will not be bootable.")
-
-    def _mkinitrd_redhat(self, kernels):
-        mkinitrdArgs = [
-            '/usr/sbin/chroot', self.image_root, '/sbin/mkinitrd',
-            '-f',
-            # make sure that whatever variant of the megaraid driver is
-            # present is included in the initrd, since it is required
-            # for vmware and doesn't hurt anything else
-            '--with=megaraid', '--with=mptscsih', 
-            '--with=ata_piix', '--with=virtio_blk', '--with=virtio_pci',
-            '--with=scsi_transport_spi', '--with=mptspi',
-            '--with=virtio_net', '--allow-missing',]
-        if is_RH(self.image_root):
-            mkinitrdArgs.append('--preload=xenblk')
-        if self.jobData['buildType'] == buildtypes.validBuildTypes['AMI']:
-            mkinitrdArgs.append('--with=xenblk')
-        for kver in kernels:
-            verArgs = mkinitrdArgs + ['/boot/initrd-%s.img' % kver, kver]
-            logCall(verArgs)
 
     def _mkinitrd_suse(self, kernels):
         # Extend mkinitrd config with modules for VM targets
