@@ -31,6 +31,7 @@ from jobslave.util import logCall
 
 # conary imports
 from conary import conaryclient
+from conary import display
 from conary.callbacks import UpdateCallback
 from conary.conaryclient.cmdline import parseTroveSpec
 from conary.deps import deps
@@ -117,6 +118,12 @@ class InstallCallback(UpdateCallback):
         self.updateHunk = (num, total)
         self.restored = 0
 
+    def setUpdateJob(self, jobs):
+        log.info("Applying update job %d of %d:" % self.updateHunk)
+        self.formatter.prepareJobs(jobs)
+        for line in self.formatter.formatJobTups(jobs, indent='    '):
+            log.info(line)
+
     def update(self, msg):
         curTime = time.time()
         # only push an update into the database if it differs from the
@@ -140,6 +147,9 @@ class InstallCallback(UpdateCallback):
         self.changeset = ''
         self.prefix = 'BDI:'
         self.timeStamp = 0
+        self.formatter = display.JobTupFormatter()
+        self.formatter.dcfg.setTroveDisplay(fullVersions=True,
+                fullFlavors=True, showComponents=True)
 
         UpdateCallback.__init__(self)
 
