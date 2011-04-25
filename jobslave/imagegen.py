@@ -266,7 +266,8 @@ class ImageGenerator(Generator):
         self.platformDefinition.loadFromRepository(self.cc)
 
         info = self.platformDefinition.getPlatformInformation()
-        if info:
+        if (info and hasattr(info, 'platformClassifier')
+            and hasattr(info.platformClassifier, 'tags')):
             self.platformTags = set(info.platformClassifier.tags)
 
         return self.platformDefinition
