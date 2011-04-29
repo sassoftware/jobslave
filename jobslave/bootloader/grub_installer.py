@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
-        includeTemplate=True, kversions=(), ami=False):
+        includeTemplate=True, kversions=(), ami=False, rdPrefix='initrd'):
     xen = xen or dom0
     macros = {
         'name': name,
@@ -36,9 +36,11 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
 
     if hasInitrd:
         if dom0:
-            macros['initrdCmd'] = 'module /boot/initrd-%(kversion)s.img'
+            module = 'module'
         else:
-            macros['initrdCmd'] = 'initrd /boot/initrd-%(kversion)s.img'
+            module = 'initrd'
+        macros['initrdCmd'] = '%s /boot/%s-%%(kversion)s.img' % (
+                module, rdPrefix)
 
     if xen:
         if dom0:
@@ -187,8 +189,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             if re.match('vmlinuz-.*xen.*', x)])
         dom0 = bool([x for x in bootDirFiles
             if re.match('xen.gz-.*', x)])
-        hasInitrd = bool([x for x in bootDirFiles
-            if re.match('initrd-.*.img', x)])
+        initrds = sorted([x for x in bootDirFiles
+            if re.match('init(rd|ramfs)-.*.img', x)])
+        hasInitrd = bool(initrds)
 
         # RH-alikes ship a combo dom0/domU kernel so we have to use the image
         # flavor to determine whether to use the dom0 bootloader configuration.
@@ -206,10 +209,15 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             ami = True
         else:
             ami = False
+        if initrds:
+            # initrds are called initramfs on e.g. RHEL 6, stay consistent.
+            rdPrefix = initrds[0].split('-')[0]
+        else:
+            rdPrefix = 'initrd'
 
         conf = getGrubConf(name, hasInitrd, xen, dom0, clock,
                 includeTemplate=not is_SUSE(self.image_root, version=11),
-                kversions=kernels, ami=ami)
+                kversions=kernels, ami=ami, rdPrefix=rdPrefix)
 
         cfgfile = self._get_grub_conf()
         if cfgfile == 'menu.lst' and is_SUSE(self.image_root):
@@ -316,6 +324,13 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         bootDirFiles = os.listdir(util.joinPaths(self.image_root, 'boot'))
         kernels = sorted(x[8:] for x in bootDirFiles
                 if x.startswith('vmlinuz-2.6'))
+        initrds = sorted([x for x in bootDirFiles
+            if re.match('init(rd|ramfs)-.*.img', x)])
+        if initrds:
+            # initrds are called initramfs on e.g. RHEL 6, stay consistent.
+            rdPrefix = initrds[0].split('-')[0]
+        else:
+            rdPrefix = 'initrd'
         kernels.reverse()
         if kernels:
             log.info("Manually populating grub.conf with installed kernels")
@@ -325,7 +340,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 self.writeConf(kernels)
                 irg = rh_initrd.RedhatGenerator(self.image_root)
                 irg.generate([
-                    (kver, '/boot/initrd-%s.img' % kver)
+                    (kver, '/boot/%s-%s.img' % (rdPrefix, kver))
                     for kver in kernels])
         else:
             log.error("No kernels found; this image will not be bootable.")
