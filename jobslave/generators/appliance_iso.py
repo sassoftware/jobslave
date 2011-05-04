@@ -34,7 +34,7 @@ class TarSplit(object):
         self.tarfh.seek(0)
 
     def _formatFileName(self):
-        return '%s%s' % (self.prefix, self.count)
+        return '%s%03d' % (self.prefix, self.count)
 
     def _getChunk(self):
         pos = self.tarfh.tell()
