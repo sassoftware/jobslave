@@ -1,10 +1,9 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved.
+# Copyright (c) rPath, Inc.
 #
 
 import base64
+import ConfigParser
 import cPickle
 import logging
 import os
@@ -188,12 +187,36 @@ class InstallableIso(ImageGenerator):
         bsFile.close()
 
     def writeProductImage(self, topdir, arch):
-        # write the product.img cramfs
+        """write the product.img cramfs"""
         baseDir = os.path.join(topdir, self.productDir, 'base')
-        productPath = os.path.join(baseDir, "product.img")
         tmpPath = tempfile.mkdtemp(dir=constants.tmpDir)
-
         self.writeBuildStamp(tmpPath)
+
+        # RHEL 6 anaconda looks for product.img in a different location than
+        # rPL 1 or rPL 2. To aid in detection, the path to product.img is
+        # stashed in .treeinfo.
+        treeInfo = os.path.join(topdir, '.treeinfo')
+        productPath = os.path.join(baseDir, "product.img")
+        stage2 = None
+        if os.path.exists(treeInfo):
+            try:
+                parser = ConfigParser.SafeConfigParser()
+                parser.read(treeInfo)
+                # Look for an images-ARCH section, which may include a
+                # path to product.img
+                for section in parser.sections():
+                    if not section.startswith('images-'):
+                        continue
+                    if parser.has_option(section, 'product.img'):
+                        productPath = os.path.normpath(os.path.join(topdir,
+                            parser.get(section, 'product.img')))
+                # There may also be a pointer to the stage2
+                if parser.has_option('stage2', 'mainimage'):
+                    stage2 = parser.get('stage2', 'mainimage')
+            except:
+                log.exception("Failed to parse .treeinfo; "
+                        "using default paths.")
+        log.info("Target path for product.img is %s", productPath)
 
         # extract anaconda-images from repository, if exists
         tmpRoot = tempfile.mkdtemp(dir=constants.tmpDir)
@@ -252,23 +275,29 @@ class InstallableIso(ImageGenerator):
 
         # extract constants.py from the stage2.img template and override the BETANAG flag
         # this would be better if constants.py could load a secondary constants.py
-        for path in ('/images/stage2.img', '/rPath/base/stage2.img'):
-            if os.path.exists(topdir + path):
-                log.info('Copying constants.py from %s', path)
+        for path in (stage2, 'images/stage2.img', 'rPath/base/stage2.img'):
+            if not path:
+                # stage2 is None if .treeinfo was not found
+                continue
+            fullpath = os.path.join(topdir, path)
+            if not os.path.exists(fullpath):
+                continue
+            betaNag = int(self.getBuildData('betaNag'))
+            log.info('Copying constants.py from %s and setting beta nag to %s',
+                    path, betaNag)
 
-                stage2Path = tempfile.mkdtemp(dir=constants.tmpDir)
-                logCall(['/sbin/fsck.cramfs', topdir + path,
-                    '-x', stage2Path + '/stage2/'])
-                logCall(['/bin/cp',
-                    stage2Path + '/stage2/usr/lib/anaconda/constants.py',
-                    tmpPath])
-
-                betaNag = self.getBuildData('betaNag')
-                logCall(['/bin/sed',
-                    '-i', 's/BETANAG = 1/BETANAG = %d/' % int(betaNag),
-                    tmpPath + '/constants.py'])
-                util.rmtree(stage2Path, ignore_errors = True)
-                break
+            stage2Path = tempfile.mkdtemp(dir=constants.tmpDir)
+            logCall(['/bin/mount', '-o', 'loop,ro', fullpath, stage2Path])
+            out = open(tmpPath + '/constants.py', 'w')
+            for line in open(os.path.join(stage2Path
+                    + '/usr/lib/anaconda/constants.py')):
+                if line.startswith('BETANAG ='):
+                    line = 'BETANAG = %d\n' % betaNag
+                out.write(line)
+            out.close()
+            logCall(['/bin/umount', '-d', stage2Path])
+            os.rmdir(stage2Path)
+            break
         else:
             log.info('Could not find stage2.img; not changing beta nag')
 
