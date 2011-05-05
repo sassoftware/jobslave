@@ -164,6 +164,34 @@ class InstallableIso(ImageGenerator):
             call('cp', '--remove-destination', tmpPath + '/pixmaps/splash.lss', splashTarget)
             # FIXME: regenerate boot.iso here
 
+        # Locate splash for isolinux vesamenu background.
+        for name in ('vesamenu-splash.jpg', 'vesamenu-splash.png'):
+            sourcePath = os.path.join(tmpPath, 'pixmaps', name)
+            if os.path.exists(sourcePath):
+                ext = name.split('.')[-1]
+                name = 'splash.%s' % ext
+                util.copyfile(sourcePath,
+                        os.path.join(topdir, 'isolinux', name))
+
+                # Rewrite isolinux.cfg to point to the background image.
+                isolinux = os.path.join(topdir, 'isolinux', 'isolinux.cfg')
+                lines = open(isolinux).readlines()
+                for n, line in enumerate(lines):
+                    if line.startswith('menu background '):
+                        lines[n] = 'menu background %s\n' % name
+                open(isolinux, 'w').write(''.join(lines))
+
+                break
+
+    def changeIsolinuxMenuTitle(self, topdir):
+        title = self.jobData['name']
+        isolinux = os.path.join(topdir, 'isolinux', 'isolinux.cfg')
+        lines = open(isolinux).readlines()
+        for n, line in enumerate(lines):
+            if line.startswith('menu title '):
+                lines[n] = 'menu title %s\n' % title
+        open(isolinux, 'w').write(''.join(lines))
+
     def writeBuildStamp(self, tmpPath):
         isDep = deps.InstructionSetDependency
         archFlv = getArchFlavor(self.baseFlavor)
@@ -271,6 +299,7 @@ class InstallableIso(ImageGenerator):
             os.unlink(tmpTar)
 
         self.convertSplash(topdir, tmpPath)
+        self.changeIsolinuxMenuTitle(topdir)
         self.writeConaryRc(os.path.join(tmpPath, 'conaryrc'), cclient)
 
         # extract constants.py from the stage2.img template and override the BETANAG flag
