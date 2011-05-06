@@ -231,6 +231,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
         unlink = os.unlink
         try:
             self.touch(os.path.join(topdir, 'isolinux', 'test.msg'))
+            self.touch(os.path.join(topdir, 'isolinux', 'isolinux.cfg'))
             os.unlink = lambda *args, **kwargs: None
             installable_iso.AnacondaImages = DummyImages
             g = self.getHandler(buildtypes.INSTALLABLE_ISO)
