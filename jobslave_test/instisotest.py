@@ -101,7 +101,9 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
 
         files = set(['first-lowres.png', 'anaconda_header.png',
             'progress_first.png', 'syslinux-splash.png',
-            'first.png', 'splash.png', 'progress_first-375.png'])
+            'first.png', 'splash.png', 'progress_first-375.png',
+            'vesamenu-splash.png',
+            ])
         self.failUnlessEqual(files, set(os.listdir(tmpDir)))
 
     def testLinkRecurse(self):
