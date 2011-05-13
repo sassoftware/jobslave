@@ -261,6 +261,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             bootloader.writeBootmanConfigs(self)
             logCall('chroot "%s" /sbin/bootman' % self.image_root)
 
+            irg = rh_initrd.RedhatGenerator(self.image_root)
+            irg.generateFromBootman()
+
         # Workaround for RPL-2423
         if os.path.exists(grub_conf):
             contents = open(grub_conf).read()

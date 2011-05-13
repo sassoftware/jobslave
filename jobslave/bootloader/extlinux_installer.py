@@ -1,11 +1,8 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved
+# Copyright (c) 2011 rPath, Inc.
 #
 
 import os
-import shlex
 from conary.lib import util
 
 from jobslave import bootloader
@@ -46,16 +43,5 @@ class ExtLinuxInstaller(bootloader.BootloaderInstaller):
         logCall('dd if="%s" of="%s" conv=notrunc' % (mbr_path, mbr_device))
 
     def mkinitrd(self):
-        kernels = []
-        bootconfig = os.path.join(self.image_root, 'etc/bootloader.conf')
-        for line in open(bootconfig):
-            if not line.startswith('linux '):
-                continue
-            args = shlex.split(line)
-            if len(args) < 5:
-                continue
-            kver = args[1]
-            rdpath = args[4]
-            kernels.append((kver, rdpath))
         irg = rh_initrd.RedhatGenerator(self.image_root)
-        irg.generate(kernels)
+        irg.generateFromBootman()
