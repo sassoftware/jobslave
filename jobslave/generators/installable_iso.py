@@ -380,6 +380,14 @@ class InstallableIso(ImageGenerator):
                 call("mkisofs", "-o", outputDir + "/" + outputIsoName,
                      "-R", "-J", "-V", volumeId, "-T", ".")
 
+            # mkisofs will happily ignore out of space conditions and produce a
+            # truncated ISO file, so assume that if there's less than 1MB of
+            # free space afterwards that it failed.
+            fst = os.statvfs(outputDir)
+            if fst.f_bsize * fst.f_bfree < 1000000:
+                raise RuntimeError(
+                        "Not enough scratch space while running mkisofs")
+
             isoList.append((outputIsoName, "%s Disc %s" % (self.jobData['project']['name'], discNum)))
 
         isoList = [ (os.path.join(outputDir, iso[0]), iso[1]) for iso in isoList ]
