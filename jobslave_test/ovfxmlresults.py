@@ -322,7 +322,7 @@ vpcOvfXml = """\
           <rasd:ElementName>some mem size</rasd:ElementName>
           <rasd:InstanceID>2</rasd:InstanceID>
           <rasd:ResourceType>4</rasd:ResourceType>
-          <rasd:VirtualQuantity>256</rasd:VirtualQuantity>
+          <rasd:VirtualQuantity>0</rasd:VirtualQuantity>
         </ovf:Item>
         <ovf:Item>
           <rasd:AllocationUnits>Interface</rasd:AllocationUnits>
