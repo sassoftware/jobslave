@@ -1,11 +1,16 @@
 #
-# Copyright (c) 2008 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 from conary.lib import util
 import os.path
+
+
+def is_RH(image_root):
+    return os.path.exists(util.joinPaths(image_root, 'etc/redhat-release'))
+
 
 def is_SUSE(image_root, version=None):
     versionFile = util.joinPaths(image_root, 'etc', 'SuSE-release')

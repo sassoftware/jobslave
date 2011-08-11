@@ -1,11 +1,10 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #
 
-import os
 import testsuite
 testsuite.setup()
 
@@ -27,11 +26,6 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
         handler = self.suppressOutput(self.getHandler,
                                      buildtypes.TARBALL)
         assert handler, "Failed to get Tarball"
-
-    def testGetLiveISO(self):
-        handler = self.suppressOutput(self.getHandler,
-                                     buildtypes.LIVE_ISO)
-        assert handler, "Failed to get Live ISO"
 
     def testGetRawHdImage(self):
         handler = self.suppressOutput(self.getHandler,

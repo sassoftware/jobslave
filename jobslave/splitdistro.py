@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- python -*-
 #
-# Copyright (c) 2004-2006 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 # All rights reserved
 #
 
@@ -13,10 +13,9 @@ import subprocess
 from jobslave.gencslist import _linkOrCopyFile
 from jobslave.generators import constants
 
-import conary
 from conary.lib import util
-import conary.trove
-import conary.repository.changeset
+from conary.repository import changeset
+from conary.trove import Trove
 
 commonfiles = ('README', 'LICENSE')
 basicminimal = ('group-core', 'group-base')
@@ -125,9 +124,9 @@ def reorderChangesets(f, csPath, initialSizes, maxisosize, isoblocksize,
         trvNames = set()
         for trvLine in reservedTroves:
             trvNames.add(trvLine.split()[1])
-            cs = conary.repository.changeset.ChangeSetFromFile( \
+            cs = changeset.ChangeSetFromFile( \
                 join(csPath, trvLine.split()[0]))
-            trv = conary.trove.Trove([x for x in cs.iterNewTroveList()][0])
+            trv = Trove([x for x in cs.iterNewTroveList()][0])
             for includedTrv in [x[0].split(':')[0] for x in \
                                 trv.iterTroveList(strongRefs = True,
                                                   weakRefs = True)]:

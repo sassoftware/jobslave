@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- mode: python -*-
 #
-# Copyright (c) 2004-2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 
 import sys
@@ -9,20 +9,19 @@ import unittest
 from jobslave_test import bootstrap
 from testrunner import pathManager
 
-EXCLUDED_PATHS = ['dist/', '/build/', 'test', 'setup.py', 'trovebucket.py', 'gencslist.py']
+EXCLUDED_PATHS = ['dist/', '/build/', 'test', 'setup.py', 'trovebucket.py',
+        'gencslist.py', 'scripts', 'pylint']
 
 
 def setup():
-    jsPath = pathManager.addExecPath('JOB_SLAVE_PATH', isTestRoot=True)
-    conaryTestPath = pathManager.addExecPath('CONARY_TEST_PATH')
-
-    pathManager.addExecPath('MCP_PATH')
     pathManager.addExecPath('PYOVF_PATH')
+    pathManager.addExecPath('RESTLIB_PATH')
+    pathManager.addExecPath('PRODUCT_DEFINITION_PATH')
     pathManager.addExecPath('CONARY_PATH')
-    pathManager.addExecPath('STOMP_PATH')
-    pathManager.addExecPath('BOTO_PATH')
     pathManager.addExecPath('XOBJ_PATH')
 
+    conaryTestPath = pathManager.addExecPath('CONARY_TEST_PATH')
+    jsPath = pathManager.addExecPath('JOB_SLAVE_PATH', isTestRoot=True)
     pathManager.addResourcePath('JOB_SLAVE_ARCHIVE_PATH',
             path=jsPath + '/jobslave_test/archive')
     pathManager.addResourcePath('CONARY_ARCHIVE_PATH',
@@ -42,9 +41,6 @@ def setup():
     sys.modules[__name__].SkipTestException = SkipTestException
 
     # MCP specific tweaks
-    from jobslave_test import jobslave_helper
-    import stomp
-    stomp.Connection = jobslave_helper.DummyConnection
     from jobslave.generators import bootable_image
     bootable_image.BootableImage._orig_status = \
             bootable_image.BootableImage.status

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- python -*-
 #
-# Copyright (c) 2004-2006 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 # All rights reserved
 #
 
@@ -10,8 +10,7 @@ import errno
 import shutil
 import tempfile
 
-from jobslave.generators import constants
-from jobslave.trovebucket import TroveBucket, Node, log
+from jobslave.trovebucket import TroveBucket, log
 
 from conary.deps import deps
 from conary.lib import sha1helper
@@ -380,11 +379,11 @@ if __name__ == '__main__':
     cfg.flavor = deps.parseFlavor('')
 
     if not trvList:
-        print >> sys.stderr, "no match for", groupName
-        raise RuntimeException
+        print >> sys.stderr, "no match for", topGroup
+        raise RuntimeError
     elif len(trvList) > 1:
-        print >> sys.stderr, "multiple matches for", groupName
-        raise RuntimeException
+        print >> sys.stderr, "multiple matches for", topGroup
+        raise RuntimeError
 
     tg = TreeGenerator(cfg, client, trvList[0], cacheDir=cacheDir)
     tg.parsePackageData()

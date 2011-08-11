@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -11,13 +11,12 @@ from jobslave import imagegen
 from jobslave.generators import constants
 from jobslave.generators import bootable_image, raw_hd_image, ovf_image
 from jobslave.generators import vhd
+from jobslave.geometry import GEOMETRY_VHD
 
 from conary.lib import util
 
 class VirtualPCImage(raw_hd_image.RawHdImage):
-    heads = constants.VHDheads
-    sectors = constants.VHDsectors
-    bytesPerCylinder = heads * sectors * constants.sectorSize
+    geometry = GEOMETRY_VHD
 
     @bootable_image.timeMe
     def createVHD(self, hdImage, filebase):

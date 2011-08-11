@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #
@@ -211,10 +211,6 @@ class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
         self.failIf(not self.detachCalled,
                 "ext3 format did not reach completion")
 
-class MockJobSlave(object):
-    def __init__(self):
-        self.response = jobslave_helper.DummyResponse()
-        self.cfg = slave.SlaveConfig()
 
 class StubFilesystem(object):
     def __init__(self):
@@ -226,17 +222,14 @@ class StubFilesystem(object):
     def umount(self, *args, **kwargs):
         pass
 
+
 class BootableImageTest(jobslave_helper.JobSlaveHelper):
     def setUp(self):
         jobslave_helper.JobSlaveHelper.setUp(self)
 
-        fp = os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'),'jobdata.txt')
-        data = simplejson.loads( open(fp).read())
-        self.mockJobSlave = MockJobSlave()
-        from jobslave.generators import constants
         constants.finishedDir = "/tmp"
         bootable_image.BootableImage.status = lambda *args, **kwargs: None
-        self.bootable = bootable_image.BootableImage(data, self.mockJobSlave)
+        self.bootable = bootable_image.BootableImage(self.slaveCfg, self.data)
         self.bootable.swapSize = 40960
 
     def tearDown(self):
@@ -272,26 +265,19 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
             util.rmtree(tmpDir)
 
     def testAddMissingScsiModules(self):
-        tmpDir = tempfile.mkdtemp()
-        util.mkdirChain(tmpDir + "/etc/")
-        try:
-            self.bootable.scsiModules = True
-            self.bootable.addScsiModules(tmpDir)
-        finally:
-            util.rmtree(tmpDir)
+        modpath = self.bootable.filePath('etc/modprobe.conf')
+        self.touch(modpath, 'dummy line')
+        self.bootable.scsiModules = True
+        self.bootable.addScsiModules()
 
     def testAddScsiModules(self):
-        tmpDir = tempfile.mkdtemp()
-        try:
-            self.touch(os.path.join(tmpDir, 'etc', 'modprobe.conf'),
-                    'dummy line')
-            self.bootable.scsiModules = True
-            self.bootable.addScsiModules(tmpDir)
-            data = open(os.path.join(tmpDir, 'etc', 'modprobe.conf')).read()
-            self.failIf('scsi_hostadapter' not in data,
-                        "scsi modules not added to modprobe.conf")
-        finally:
-            util.rmtree(tmpDir)
+        modpath = self.bootable.filePath('etc/modprobe.conf')
+        self.touch(modpath, 'dummy line')
+        self.bootable.scsiModules = True
+        self.bootable.addScsiModules()
+        data = open(modpath).read()
+        self.failIf('scsi_hostadapter' not in data,
+                    "scsi modules not added to modprobe.conf")
 
     def testGetKernelFlavor(self):
         self.failIf('!kernel.smp' not in self.bootable.getKernelFlavor(),
@@ -329,101 +315,25 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                 "Expected real sizes of {'/boot': 24129024, '/var': 40960} but got %s" % \
                 str(realSizes))
 
-    def testFSOddsNEnds(self):
-        # deliberately run fsoddsnends with a blank chroot to ensure it
-        # won't backtrace
-        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
-        tmpDir = tempfile.mkdtemp()
-        self.bootable.writeConaryRc = lambda *args, **kwargs: None
-        chmod = os.chmod
-        os.chmod = lambda *args: None
-        try:
-            self.bootable.fileSystemOddsNEnds(tmpDir)
-            self.failIf(os.listdir(tmpDir) == [],
-                    "FilesystemOddsNEnds should have added content")
-        finally:
-            os.chmod = chmod
-            util.rmtree(tmpDir)
-            bootable_image.logCall = _logCall
-
-    def testFSOddsNEnds2(self):
-        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
-        tmpDir = tempfile.mkdtemp()
-        self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
-        self.touch(os.path.join(tmpDir, 'usr', 'bin', 'xdm'))
-        self.touch(os.path.join(tmpDir, 'etc', 'inittab'))
-        self.touch(os.path.join(tmpDir, 'usr', 'share', 'zoneinfo', 'UTC'))
-        self.bootable.writeConaryRc = lambda *args, **kwargs: None
-        chmod = os.chmod
-        os.chmod = lambda *args: None
-        try:
-            self.bootable.fileSystemOddsNEnds(tmpDir)
-            self.failIf(os.listdir(tmpDir) == [],
-                    "FilesystemOddsNEnds should have added content")
-        finally:
-            os.chmod = chmod
-            util.rmtree(tmpDir)
-            bootable_image.logCall = _logCall
-
-    def testFSOddsNEnds3(self):
-        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
-        tmpDir = tempfile.mkdtemp()
-        # trigger runlevel five, but leave out /etc/inittab just to see
-        # what happens.
-        self.touch(os.path.join(tmpDir, 'etc', 'init.d', 'xdm'))
-        self.touch(os.path.join(tmpDir, 'usr', 'bin', 'xdm'))
-        self.bootable.writeConaryRc = lambda *args, **kwargs: None
-        chmod = os.chmod
-        os.chmod = lambda *args: None
-        try:
-            self.bootable.fileSystemOddsNEnds(tmpDir)
-            self.failIf(os.listdir(tmpDir) == [],
-                    "FilesystemOddsNEnds should have added content")
-        finally:
-            os.chmod = chmod
-            util.rmtree(tmpDir)
-            bootable_image.logCall = _logCall
-
-    def testFSOddsNEnds4(self):
-        _logCall, bootable_image.logCall = bootable_image.logCall, lambda *P, **K: None
-        tmpDir = tempfile.mkdtemp()
-        # set filesystems, but no /etc/fstab
-        self.bootable.mountDict = {'/' : (0, 100, 'ext3'),
-                                     '/boot': (0, 100, 'ext3'),
-                                     'swap' : (0, 100, 'swap')}
-        self.bootable.filesystems = dict.fromkeys(self.bootable.mountDict.keys(),
-                                                  StubFilesystem())
-        self.bootable.writeConaryRc = lambda *args, **kwargs: None
-        chmod = os.chmod
-        os.chmod = lambda *args: None
-        try:
-            self.bootable.fileSystemOddsNEnds(tmpDir)
-            self.failIf('fstab' not in os.listdir(os.path.join(tmpDir, 'etc')),
-                    "FilesystemOddsNEnds should have added /etc/fstab")
-            f = open(os.path.join(tmpDir, 'etc', 'fstab'))
-            self.failUnlessEqual(f.read(), '''LABEL=label\t/\text3\tdefaults\t1\t1
-LABEL=swap\tswap\tswap\tdefaults\t0\t0
-LABEL=label\t/boot\text3\tdefaults\t1\t2
-''')
-        finally:
-            os.chmod = chmod
-            util.rmtree(tmpDir)
-            bootable_image.logCall = _logCall
 
     def testAddFilesystem(self):
         self.bootable.addFilesystem('/', 'ext3')
         self.failIf(self.bootable.filesystems != {'/': 'ext3'},
             "addFilesystem did not operate correcly")
 
-    def testCreateTempRoot(self):
-        tmpDir = tempfile.mkdtemp()
-        try:
-            self.bootable.createTemporaryRoot(tmpDir)
-            self.failUnlessEqual(set(os.listdir(tmpDir)),
-                    set(['etc', 'boot', 'tmp', 'proc', 'sys', 'root', 'var']),
-                    "unexpected results from createTemporaryRoot")
-        finally:
-            util.rmtree(tmpDir)
+    def testPreInstallScripts(self):
+        self.bootable.preInstallScripts()
+        self.failUnlessEqual(set(os.listdir(self.bootable.root)),
+                set(['root', 'tmp', 'var', 'boot', 'etc', 'dev']))
+        self.failUnlessEqual(open(self.bootable.filePath('etc/fstab')).read(),
+        '''\
+LABEL=root\t/\text3\tdefaults\t1\t1
+devpts                  /dev/pts                devpts  gid=5,mode=620  0 0
+tmpfs                   /dev/shm                tmpfs   defaults        0 0
+proc                    /proc                   proc    defaults        0 0
+sysfs                   /sys                    sysfs   defaults        0 0
+/var/swap\tswap\tswap\tdefaults\t0\t0
+''')
 
     def testGetTroveSize(self):
         calculatePartitionSizes = filesystems.calculatePartitionSizes
@@ -489,6 +399,8 @@ LABEL=label\t/boot\text3\tdefaults\t1\t2
         saved_tmpDir = constants.tmpDir
         constants.tmpDir = tempfile.mkdtemp()
         logCall = bootable_image.logCall
+        mknod = os.mknod
+        chmod = os.chmod
         try:
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script.in'))
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
@@ -510,6 +422,20 @@ auth	required	pam_env.so
 auth	required	pam_unix2.so
 """)
             f.close()
+
+            self.touch(os.path.join(tmpDir, 'etc/selinux/config'), '''\
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+# enforcing - SELinux security policy is enforced.
+# permissive - SELinux prints warnings instead of enforcing.
+# disabled - SELinux is fully disabled.
+SELINUX=enforcing
+# SELINUXTYPE= type of policy in use. Possible values are:
+# targeted - Only targeted network daemons are protected.
+# strict - Full SELinux protection.
+SELINUXTYPE=targeted
+''')
+
             self.bootable.updateKernelChangeSet = \
                     self.bootable.updateGroupChangeSet = \
                     self.bootable.fileSystemOddsNEnds = \
@@ -527,27 +453,32 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             bootable_image.logCall = mockLog
             bootable_image.open = mockOpen
             bootable_image.file = mockOpen
-            chmod = os.chmod
+            os.mknod = lambda *args: None
             os.chmod = lambda *args: None
+            self.bootable.loadRPM = lambda: None
+            self.bootable._getLabelPath = lambda *args: ''
             self.bootable.installFileTree(tmpDir)
             self.failUnless('pam_unix2.so nullok' in file(common_auth).read())
             self.failIf('etc' not in os.listdir(tmpDir),
                     "installFileTree did not run to completion")
-            self.failIf(len(self.cmds) != 9,
+            self.failIf('.autorelabel' not in os.listdir(tmpDir),
+                    "selinux .autorelabel not created")
+            self.failIf(len(self.cmds) != 11,
                     "unexpected number of external calls")
             # make sure we unmount things in the right order
-            self.failUnlessEqual(self.cmds[3:6],
-                                 ['umount %s/sys/bar' %tmpDir,
-                                  'umount %s/sys' %tmpDir,
-                                  'umount %s/proc' %tmpDir])
+            self.failUnlessEqual(self.cmds[-3:],
+                                 ['umount -n %s/sys/bar' %tmpDir,
+                                  'umount -n %s/sys' %tmpDir,
+                                  'umount -n %s/proc' %tmpDir])
         finally:
-            os.chmod = chmod
             util.rmtree(tmpDir)
             util.rmtree(constants.tmpDir)
             constants.tmpDir = saved_tmpDir
             bootable_image.logCall = logCall
             bootable_image.open = open
             bootable_image.file = file
+            os.mknod = mknod
+            os.chmod = chmod
 
     def _getStubCClient(self, isKernel):
         data = self.bootable.jobData
@@ -557,7 +488,7 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             flavor = deps.parseFlavor(self.bootable.getKernelFlavor())
         else:
             name = data['troveName']
-            version = versions.ThawVersion(data['troveVersion']).asString()
+            version = versions.ThawVersion(data['troveVersion'])
             flavor = deps.ThawFlavor(data['troveFlavor'])
         expectedItems = [(name, (None, None), (version, flavor), True)]
 
@@ -589,24 +520,6 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
         cclient = self._getStubCClient(True)
         self.bootable.updateKernelChangeSet(cclient)
         cclient.failUnlessRun()
-
-    def testPostAMIOutput(self):
-        class DummyProxy(object):
-            def setBuildAMIDataSafe(*args, **kwargs):
-                return False, True
-            def __init__(*args, **kwargs):
-                pass
-        ServerProxy = slave.xmlrpclib.ServerProxy
-        try:
-            xmlrpclib.ServerProxy = DummyProxy
-            self.jobSlave.postAMIOutput('test.rpath.local-build-4-3',
-                    'buildId', 'desturl', 'outputToken', 'amiId',
-                    'amiManifestName')
-        finally:
-            slave.xmlrpclib.ServerProxy = ServerProxy
-        self.failIf('Job Finished' not in \
-                self.jobSlave.response.response.connection.sent[0][1],
-                "post AMI output did not succeed")
 
 
 if __name__ == "__main__":

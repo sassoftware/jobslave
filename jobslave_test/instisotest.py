@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2006-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved
 #
@@ -10,17 +10,12 @@ testsuite.setup()
 
 import httplib
 import os
-import re
 import tempfile
 import time
-import simplejson
 import StringIO
-
-import image_stubs
 
 from conary.lib import util, sha1helper
 from conary.deps import deps
-from conary import errors as conary_errors
 from conary import versions
 
 
@@ -95,10 +90,13 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
             util.rmtree(destDir)
 
     def testAnacondaImages(self):
+        fontPath = '/usr/share/fonts/bitstream-vera/Vera.ttf'
+        if not os.path.exists(fontPath):
+            raise testsuite.SkipTestException("Vera.ttf is missing")
         tmpDir = tempfile.mkdtemp()
         ai = anaconda_images.AnacondaImages("Mint Test Suite",
-            os.path.join(pathManager.getPath("JOB_SLAVE_PATH"),"pixmaps"), tmpDir,
-            "/usr/share/fonts/bitstream-vera/Vera.ttf")
+            os.path.join(pathManager.getPath("JOB_SLAVE_PATH"),"pixmaps"),
+            tmpDir, fontPath)
         ai.processImages()
 
         files = set(['first-lowres.png', 'anaconda_header.png',
@@ -126,13 +124,13 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
         d = tempfile.mkdtemp()
 
         ii.writeBuildStamp(d)
-        x = open(d + "/.buildstamp").read()
-        self.failUnless('Test Project' in x)
-        self.failUnless('group-core /conary.rpath.com@rpl:1/0:1.0.1-1-1 1#x86' in x)
+        lines = open(d + "/.buildstamp").readlines()
+        self.failUnlessEqual(lines[1], 'Test Project\n')
+        self.failUnlessEqual(lines[5],
+                'group-core /conary.rpath.com@rpl:1/0.000:1.0.1-1-1 1#x86\n')
 
     def testConaryClient(self):
         ii = self.getHandler(buildtypes.INSTALLABLE_ISO)
-        ii._setupTrove()
 
         # check the returned conary client cfg for sanity
         cc = ii.getConaryClient('/', '1#x86')
@@ -142,6 +140,8 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
         assert(sha1helper.sha1ToString(sha1helper.sha1FileBin(fileName)) == sum)
 
     def testConvertSplash(self):
+        if not os.path.exists('/usr/bin/pngtopnm'):
+            raise testsuite.SkipTestException("pngtopnm is not installed")
         ii = self.getHandler(buildtypes.INSTALLABLE_ISO)
 
         d1 = tempfile.mkdtemp()
@@ -175,26 +175,6 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
         constants.tmpDir = tempfile.mkdtemp()
         jobslave_helper.ExecuteLoggerTest.setUp(self)
 
-        self.bases['LiveISO'] = installable_iso.InstallableIso.__bases__
-        installable_iso.InstallableIso.__bases__ = \
-                (image_stubs.ImageGeneratorStub,)
-
-    def tearDown(self):
-        installable_iso.InstallableIso.__bases__ = self.bases['LiveISO']
-        jobslave_helper.ExecuteLoggerTest.tearDown(self)
-
-    def testGetMasterIPAddress(self):
-        g = installable_iso.InstallableIso({}, [])
-        getSlaveRuntimeConfig = installable_iso.getSlaveRuntimeConfig
-        try:
-            installable_iso.getSlaveRuntimeConfig = lambda: \
-                    {'MASTER_IP': 'junk'}
-            res = g._getMasterIPAddress()
-            ref = 'junk'
-            self.failIf(ref != res, "Master IP was not honored")
-        finally:
-            installable_iso.getSlaveRuntimeConfig = getSlaveRuntimeConfig
-
     def testGetUpdateJob(self):
         troveName = 'test'
         troveFlavor = deps.parseFlavor('is: x86')
@@ -208,7 +188,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             self.failUnlessEqual(field, 'anaconda-custom')
             return '%s=%s[%s]' % (troveName, troveVersionString, troveFlavor)
         cclient = DummyClient()
-        g = installable_iso.InstallableIso({}, [])
+        g = self.getHandler(buildtypes.INSTALLABLE_ISO)
         g.callback = installable_iso.Callback(self.status)
         g.getBuildData = getBuildData
 
@@ -229,7 +209,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
     def testGetNVF(self):
         class DummyUJob(object):
             getPrimaryJobs = lambda *args, **kwargs: [('1', '2', '34')]
-        g = installable_iso.InstallableIso({}, [])
+        g = self.getHandler(buildtypes.INSTALLABLE_ISO)
         res = g._getNVF(DummyUJob())
         ref = ('1', '3', '4')
         self.failIf(ref != res, "_getNVF returned incorrect results")
@@ -253,13 +233,14 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             self.touch(os.path.join(topdir, 'isolinux', 'test.msg'))
             os.unlink = lambda *args, **kwargs: None
             installable_iso.AnacondaImages = DummyImages
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             g.callback = installable_iso.Callback(self.status)
             g.jobData['name'] = 'test build'
             g.baseTrove = 'baseTrove'
             g.baseFlavor = deps.Flavor()
             g.getConaryClient = lambda *args, **kwargs: FakeClient()
             g._getUpdateJob = lambda *args, **kwargs: True
+            g._getLabelPath = lambda *args, **kwargs: ""
             g.writeProductImage(topdir, 'x86')
             self.failUnlessEqual([x[0] for x in self.callLog],
                     ['sed', 'tar', 'tar', 'tar', 'tar', '/usr/bin/mkcramfs'])
@@ -284,7 +265,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             disc2 = os.path.join(basedir, 'disc2')
             self.touch(os.path.join(disc2, 'isolinux', 'isolinux.bin'))
             util.mkdirChain(os.path.join(basedir, 'junk'))
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             g.basefilename = 'testcase'
             g.jobData['name'] = 'test build'
             g.jobData['project'] = {}
@@ -310,7 +291,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             self.touch(os.path.join(topdir, 'images', 'boot.iso'))
             disc1 = os.path.join(basedir, 'disc1')
             util.mkdirChain(disc1)
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             g.basefilename = ''
             g.jobData['name'] = 'test build'
             g.jobData['project'] = {}
@@ -324,7 +305,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             util.rmtree(basedir)
 
     def testSetupKickstart(self):
-        g = installable_iso.InstallableIso({}, [])
+        g = self.getHandler(buildtypes.INSTALLABLE_ISO)
         ilcContents = """default linux
 prompt 1
 timeout 600
@@ -389,65 +370,12 @@ label kscdrom
         ilcNewContents = g.addKsBootLabel( [ x + "\n" for x in ilcContents.splitlines() ] )
         self.failIf("".join(ilcNewContents) != ilcValidContents, "kscdrom boot entry addition failed")
 
-    def testRetrieveTemplates(self):
-        self.count = 0
-        self.returnCodes = [202, 303, 200, 200]
-        class FakeResponse(object):
-            fp = 0
-            def __init__(x, status):
-                x.status = status
-            read = lambda *args: 'bogus status'
-            def getheader(x, hdr):
-                if hdr == 'Content-Type':
-                   return (self.count == 3) \
-                           and 'text/plain' or 'application/x-tar'
-                elif hdr == 'Location':
-                    return 'http://127.0.0.1:8003?stuff'
-
-        class DummyConnection(object):
-            close = lambda *args, **kwargs: None
-            connect = lambda *args, **kwargs: None
-            request = lambda *args, **kwargs: None
-            def getresponse(x):
-                self.count += 1
-                return FakeResponse(self.returnCodes[self.count - 1])
-
-        class FakeClient(object):
-            def __init__(x):
-                x.cfg = x
-                x.installLabelPath = [versions.Label('test.rpath.local@rpl:1')]
-
-        class FakeUJob(object):
-            getPrimaryJobs = lambda *args, **kwargs: []
-
-        HTTPConnection = httplib.HTTPConnection
-        sleep = time.sleep
-        try:
-            time.sleep = lambda x: None
-            httplib.HTTPConnection = lambda *args, **kwargs: DummyConnection()
-            g = installable_iso.InstallableIso({}, [])
-            g.baseFlavor = deps.parseFlavor('is: x86')
-            g.getConaryClient = lambda *args, **kwargs: FakeClient()
-            g.callback = installable_iso.Callback(self.status)
-            g._getUpdateJob = lambda *args, **kwargs: FakeUJob()
-            g._getNVF = lambda *args, **kwargs: ('test',
-                    versions.VersionFromString( \
-                            '/test.rpath.local@rpl:1/1-1-1'),
-                    deps.parseFlavor('is: x86'))
-            g._getMasterIPAddress = lambda *args, **kwargs: '127.0.0.1'
-            res = g.retrieveTemplates()
-            self.failIf(not res[0].endswith('unified'),
-                    "expected unified tree")
-        finally:
-            time.sleep = sleep
-            httplib.HTTPConnection = HTTPConnection
-
     def testPrepareTemplates(self):
         topdir = tempfile.mkdtemp()
         templateDir = tempfile.mkdtemp()
         try:
             self.touch(os.path.join(templateDir, 'isolinux', 'test.msg'))
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             res = g.prepareTemplates(topdir, templateDir)
             ref = os.path.join(topdir, 'rPath', 'changesets')
             self.failIf(ref != res, "expected %s but got %s" % (ref, res))
@@ -468,7 +396,7 @@ label kscdrom
 
         topdir = tempfile.mkdtemp()
         try:
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             g.baseFlavor = deps.parseFlavor('is: x86')
             g.getConaryClient = lambda root, *args, **kwargs: FakeClient(root)
             g.callback = installable_iso.Callback(self.status)
@@ -488,7 +416,7 @@ label kscdrom
 
         topdir = tempfile.mkdtemp()
         try:
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             g.baseFlavor = deps.parseFlavor('is: x86')
             g.getConaryClient = lambda root, *args, **kwargs: FakeClient(root)
             g.callback = installable_iso.Callback(self.status)
@@ -520,7 +448,7 @@ label kscdrom
                     FakeTreeGenerator()
 
             installable_iso.getArchFlavor = lambda x: deps.Flavor()
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             g.baseFlavor = deps.Flavor()
             g.troveFlavor = deps.Flavor()
             g.getConaryClient = lambda root, *args, **kwargs: FakeClient(root)
@@ -546,7 +474,7 @@ label kscdrom
             splitdistro.splitDistro = lambda *args, **kwargs: None
             installable_iso.getArchFlavor = lambda *args, **kwargs: \
                     deps.Flavor()
-            g = installable_iso.InstallableIso({}, [])
+            g = self.getHandler(buildtypes.INSTALLABLE_ISO)
             g._setupTrove = lambda *args, **kwargs: None
             g.extractChangeSets = lambda *args, **kwargs: FakeTreeGenerator()
             g.retrieveTemplates = lambda *args, **kwargs: (tmpDir, 38)

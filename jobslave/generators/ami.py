@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
@@ -7,35 +7,19 @@
 import os
 import logging
 import tempfile
-import urlparse
-import urllib
-
-import boto
 
 from conary.lib import util, log as conary_log
 from conary.deps import deps
 from conary import conaryclient
 
 from jobslave import buildtypes
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 from jobslave.generators import constants
 from jobslave.generators import raw_fs_image
 
 log = logging.getLogger(__name__)
 
-
-class AMIBundleError(Exception):
-    def __str__(self):
-        return "Failed to create the AMI bundle"
-
-class AMIUploadError(Exception):
-    def __str__(self):
-        return "Failed to upload the image to the Amazon EC2 Service"
-
-class AMIRegistrationError(Exception):
-    def __str__(self):
-        return "Failed to register the image with the Amazon EC2 Service"
 
 class AMIImage(raw_fs_image.RawFsImage):
     def __init__(self, *args, **kwargs):
@@ -46,18 +30,12 @@ class AMIImage(raw_fs_image.RawFsImage):
                                 'configuration information!'
 
         self.productName = buildtypes.typeNamesShort[buildtypes.AMI]
-        self.__dict__.update(**self.amiData)
+
+        # AMIs need some special initrd modules, defined
+        # in bootable_image.py
+        self.scsiModules = True
 
         self._kernelMetadata = {}
-
-        # write out X.509 certificate data
-        fd, self.ec2CertPath = tempfile.mkstemp(dir=constants.tmpDir)
-        os.write(fd, self.ec2Certificate)
-        os.close(fd)
-
-        fd, self.ec2CertKeyPath = tempfile.mkstemp(dir=constants.tmpDir)
-        os.write(fd, self.ec2CertificateKey)
-        os.close(fd)
 
         # we want one single filesystem with the freespace allocated
         # no swap is necessary, because EC2 provides us with all we
@@ -92,90 +70,41 @@ class AMIImage(raw_fs_image.RawFsImage):
         # actually call out to create the AMI bundle
         ec2ImagePrefix = "%s_%s.img" % \
                 (self.basefilename, self.jobData.get('buildId'))
-        try:
-            extraArgs = ''
+        extraArgs = ''
 
-            if ('ec2-ari' in self._kernelMetadata and
-                'ec2-aki' in self._kernelMetadata):
-                extraArgs += (' --kernel "%(ec2-aki)s" --ramdisk "%(ec2-ari)s"'
-                              % self._kernelMetadata)
-
-            productCode = self.amiData.get('ec2ProductCode', None)
-            if productCode:
-                extraArgs += ' --productcodes "%s"' % productCode
-
-            logCall('ec2-bundle-image'
-                + ' -i "%s"' % inputFSImage
-                + ' -u "%s"' % self.ec2AccountId
-                + ' -c "%s"' % self.ec2CertPath
-                + ' -k "%s"' % self.ec2CertKeyPath
-                + ' -d "%s"' % bundlePath
-                + ' -p "%s"' % ec2ImagePrefix
-                + ' -r "%s"' % self.amiArch
-                + extraArgs,
-                logCmd=False
-                )
-            bundles = [x for x in os.listdir(bundlePath) if x.endswith('.xml')]
-            return bundles and bundles[0] or None
-        except RuntimeError:
-            # all errors are translated one level higher
-            pass
-
-    def uploadAMIBundle(self, pathToManifest):
-        try:
-            env = None
-            proxy = self.jobData.get('proxy')
-            if proxy:
-                env = {'http_proxy': proxy.get('http', ''),
-                       'https_proxy': proxy.get('https', ''),
-                      }
-            logCall('ec2-upload-bundle -m %s -b %s -a %s -s %s' % \
-                    (pathToManifest, self.ec2S3Bucket,
-                     self.ec2PublicKey, self.ec2PrivateKey), logCmd=False,
-                     env=env)
-        except RuntimeError:
-            # all errors are translated to upload errors one level higher.
-            return False
-        return True
-
-    @classmethod
-    def splitProxyUrl(self, proxyUrl):
-        if proxyUrl:
-            scheme, netloc, path, query, fragment = urlparse.urlsplit(proxyUrl)
-            userpass, hostport = urllib.splituser(netloc)
-            host, port = urllib.splitnport(hostport, None)
-            if userpass:
-                user, passwd = urllib.splitpasswd(userpass)
-            else:
-                user, passwd = None, None
-            splitUrl = scheme, user, passwd, host, port, path, \
-                query or None, fragment or None
+        # Note: the AKIs hard-coded below *only* work in US-East-1,
+        # but we currently don't allow other Availability Zones, anyway.
+        if ('ec2-ari' in self._kernelMetadata and
+            'ec2-aki' in self._kernelMetadata):
+            extraArgs += (' --kernel "%(ec2-aki)s" --ramdisk "%(ec2-ari)s"'
+                          % self._kernelMetadata)
+        elif self.amiArch == 'i386':
+            extraArgs += (' --kernel aki-407d9529')
         else:
-            splitUrl = [ None ] * 7
-        kwargs = {}
-        kwargs['proxy_user'], kwargs['proxy_pass'], \
-            kwargs['proxy'], kwargs['proxy_port'] = splitUrl[1:5]
-        return kwargs
+            extraArgs += (' --kernel aki-427d952b')
 
-    def registerAMI(self, pathToManifest):
-        amiId = None
-        amiS3ManifestName = '%s/%s' % (self.ec2S3Bucket,
-                os.path.basename(pathToManifest))
-        try:
-            kwargs = self.splitProxyUrl(self.jobData.get('proxy', {}).get('https'))
-            c = boto.connect_ec2(self.ec2PublicKey, self.ec2PrivateKey, **kwargs)
-            amiId = str(c.register_image(amiS3ManifestName))
-            if self.ec2LaunchGroups:
-                c.modify_image_attribute(amiId, attribute='launchPermission',
-                    operation='add', groups=self.ec2LaunchGroups)
-            if self.ec2LaunchUsers:
-                c.modify_image_attribute(amiId, attribute='launchPermission',
-                    operation='add', user_ids=self.ec2LaunchUsers)
-        except:
-            # errors will be trapped one level higher
-            pass
+        productCode = self.amiData.get('ec2ProductCode', None)
+        if productCode:
+            extraArgs += ' --productcodes "%s"' % productCode
 
-        return amiId, amiS3ManifestName
+        certFile = tempfile.NamedTemporaryFile()
+        certFile.write(self.amiData['ec2Certificate'])
+        certFile.flush()
+        certKey = tempfile.NamedTemporaryFile()
+        certKey.write(self.amiData['ec2CertificateKey'])
+        certKey.flush()
+
+        logCall('ec2-bundle-image'
+            + ' -i "%s"' % inputFSImage
+            + ' -u "%s"' % self.amiData['ec2AccountId']
+            + ' -c "%s"' % certFile.name
+            + ' -k "%s"' % certKey.name
+            + ' -d "%s"' % bundlePath
+            + ' -p "%s"' % ec2ImagePrefix
+            + ' -r "%s"' % self.amiArch
+            + extraArgs)
+        bundles = [x for x in os.listdir(bundlePath) if x.endswith('.xml')]
+        return bundles and bundles[0] or None
 
     def updateKernelChangeSet(self, cclient):
         # AMIs don't need a kernel
@@ -271,7 +200,7 @@ class AMIImage(raw_fs_image.RawFsImage):
         self._findKernelMetadata()
 
     def write(self):
-        totalSize, sizes = self.getImageSize(realign = 0, partitionOffset = 0)
+        totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         images = self.makeFSImage(sizes)
 
         if self.buildOVF10:
@@ -283,19 +212,14 @@ class AMIImage(raw_fs_image.RawFsImage):
                 '%s %s' % (self.productName, constants.OVFIMAGETAG)))
 
 
-        tmpBundlePath = tempfile.mkdtemp(prefix='amibundle',
-                dir=constants.tmpDir)
         self.status("Creating the AMI bundle")
-        manifestPath = self.createAMIBundle(images['/'], tmpBundlePath)
-        if not manifestPath:
-            raise AMIBundleError
-        self.status("Uploading the AMI bundle to Amazon EC2")
-        if not self.uploadAMIBundle(os.path.join(tmpBundlePath, manifestPath)):
-            raise AMIUploadError
-        self.status("Registering AMI")
-        amiId, amiManifestName = self.registerAMI(manifestPath)
-        if not (amiId and amiManifestName):
-            raise AMIRegistrationError
+        bundleRoot = tempfile.mkdtemp(prefix='amibundle')
+        bundleDir = os.path.join(bundleRoot, self.basefilename + '.ami')
+        util.mkdirChain(bundleDir)
+        self.createAMIBundle(images['/'], bundleDir)
 
-        self.postAMI(amiId, amiManifestName)
+        self.status("Creating bundle archive")
+        bundleBall = self.gzip(bundleDir)
+        self.outputFileList.append((bundleBall, 'AMI Bundle Archive'))
+
         self.postOutput(self.outputFileList)

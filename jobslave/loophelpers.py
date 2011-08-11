@@ -1,12 +1,11 @@
 #
-# Copyright (c) 2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 import os
-from conary.lib import util
-from jobslave.imagegen import logCall
+from jobslave.util import logCall
 
 def loopAttach(image, offset = 0):
     p = os.popen('losetup -f')

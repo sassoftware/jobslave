@@ -1,4 +1,4 @@
-/* Copyright (C) 2006, 2009 rPath, Inc.
+/* Copyright (c) 2010 rPath, Inc.
  * All rights reserved.
  */
 
@@ -65,6 +65,8 @@ u_int8_t zerograin[GRAINSIZE];
 
 typedef u_int64_t  SectorType;
 typedef u_int8_t   Bool;
+
+int zeropad(off_t numbytes, FILE * file);
 
 #pragma pack(1)
 
@@ -190,21 +192,28 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
                         const char * adapter) {
     size_t len = strlen(outfile);
     char * cpoutfile = (char*)malloc(sizeof(char)*(len + 1));
+    const char *extentType;
     strncpy(cpoutfile, outfile, strlen(outfile));
     cpoutfile[len] = '\0';
     int returner = 0;
-    returner += fprintf(of, "# Disk DescriptorFile\n"
-        "version=1\n"
-        "CID=fffffffe\n"
-        "parentCID=ffffffff\n");
-    returner += fprintf(of, "createType=\"%s\"\n"
-        "\n"
-        "# Extent description\n", VMDKTYPE(vmdkType));
-        if (vmdkType == MONOLITHIC_SPARSE) {
-            returner += fprintf(of, "RW %lld SPARSE \"%s\"\n", SECTORS(outsize), basename(cpoutfile));
-        } else {
-            returner += fprintf(of, "RO %11d SPARSE \"%s\"\n", SECTORS(outsize), basename(cpoutfile));
-        }
+
+    if (vmdkType == MONOLITHIC_SPARSE) {
+        extentType = "RW";
+    } else {
+        extentType = "RO";
+    }
+
+    returner += fprintf(of,
+            "# Disk DescriptorFile\n"
+            "version=1\n"
+            "CID=fffffffe\n"
+            "parentCID=ffffffff\n"
+            "createType=\"%s\"\n"
+            "\n"
+            "# Extent description\n"
+            "%s %lld SPARSE \"%s\"\n",
+            VMDKTYPE(vmdkType), extentType,
+            (long long)SECTORS(outsize), basename(cpoutfile));
 
     returner += fprintf(of, "\n"
         "# The Disk Data Base \n"
@@ -262,7 +271,7 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
 
     fread((void *)&buf, GRAINSIZE*sizeof(u_int8_t), 1, infile);
     if (! memcmp(&buf, &zerograin, GRAINSIZE*sizeof(u_int8_t))) {
-        VPRINT("grain at LBA %d is zero. skipping.\n", lba);
+        VPRINT("grain at LBA %lld is zero. skipping.\n", (long long)lba);
         return 0;
     }
 
@@ -294,7 +303,7 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     gm.size = compressedBytes;
     bytesWritten = _fwrite((void *)&gm, sizeof(GrainMarker), 1, of);
     bytesWritten += _fwrite((void *)&outbuf, sizeof(u_int8_t), compressedBytes, of);
-    VPRINT("Wrote a compressed grain of %d bytes\n", bytesWritten);
+    VPRINT("Wrote a compressed grain of %lld bytes\n", (long long)bytesWritten);
     off_t padding = bytesWritten % SECTORSIZE;
     if (padding) {
         bytesWritten += zeropad(SECTORSIZE - padding, of);
@@ -403,7 +412,8 @@ off_t copyData(const char* infile, const off_t outsize,
 
         /* Pad the file to be grain aligned (RBL-3487) */
         if (read < GRAINSIZE) {
-            VPRINT("\nPadding end of file to align to grain by %d bytes.", GRAINSIZE-read);
+            VPRINT("\nPadding end of file to align to grain by %lld bytes.",
+                    (long long)(GRAINSIZE-read));
             for (i=read; i<GRAINSIZE; i+=sizeof(u_int64_t))
                 buf[i] = zero;
             read = GRAINSIZE;
@@ -425,7 +435,7 @@ off_t copyData(const char* infile, const off_t outsize,
     /* Write the grainTable to the two offsets */
     writeGrainTableData(header, grainTable, limit, of);
     free(grainTable);
-    VPRINT("wrote %lld bytes\n", returner);
+    VPRINT("wrote %lld bytes\n", (long long)returner);
     return returner * sizeof(u_int8_t);
 }
 
@@ -498,11 +508,12 @@ int main(int argc, char ** argv) {
     // Figure out how big the extent needs to be
     int ret = stat(infile, &istat);
     if (ret) return errno;
-    VPRINT("Source file is %lld bytes\n", istat.st_size);
+    VPRINT("Source file is %llu bytes\n", (unsigned long long)istat.st_size);
     off_t padding = SECTORSIZE - (istat.st_size % SECTORSIZE);
-    VPRINT("Padding %lld bytes\n", padding);
+    VPRINT("Padding %llu bytes\n", (unsigned long long)padding);
     off_t outsize = istat.st_size + (padding == SECTORSIZE ? 0: padding);
-    VPRINT("Total size of the destination image: %lld\n", outsize);
+    VPRINT("Total size of the destination image: %llu\n",
+            (unsigned long long)outsize);
     size_t numgts = numGTs(outsize);
 
     VPRINT("Creating the sparse extent header\n");
@@ -580,3 +591,4 @@ int main(int argc, char ** argv) {
     return 0;
 }
 
+/* vim: set sts=4 sw=4 expandtab : */

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All rights reserved.
 #
@@ -20,8 +20,16 @@ class GeometryTest(testsuite.TestCase):
         g = geometry.Geometry(64, 32)
         self.assertEquals(g.heads, 64)
         self.assertEquals(g.sectors, 32)
-        self.assertEquals(g.sectorSize, 512)
+        self.assertEquals(g.offsetBytes, 65536)
         self.assertEquals(g.bytesPerCylinder, 1048576)
+
+        # Test edge cases - one under and over a cylinder boundary
+        self.assertEquals(g.cylindersRequired(34027339775), 32451)
+        self.assertEquals(g.cylindersRequired(34027339776), 32451)
+        self.assertEquals(g.cylindersRequired(34027339777), 32452)
+        self.assertEquals(g.roundToCylinder(34027339775), 34027339776)
+        self.assertEquals(g.roundToCylinder(34027339776), 34027339776)
+        self.assertEquals(g.roundToCylinder(34027339777), 34028388352)
 
         self.assertEquals(g.toCHS(1), (0, 0, 2))
         self.assertEquals(g.toCHS(32), (0, 1, 1))
@@ -36,8 +44,16 @@ class GeometryTest(testsuite.TestCase):
         g = geometry.Geometry(16, 63)
         self.assertEquals(g.heads, 16)
         self.assertEquals(g.sectors, 63)
-        self.assertEquals(g.sectorSize, 512)
+        self.assertEquals(g.offsetBytes, 65536)
         self.assertEquals(g.bytesPerCylinder, 516096)
+
+        # Test edge cases - one under and over a cylinder boundary
+        self.assertEquals(g.cylindersRequired(34027241471), 65932)
+        self.assertEquals(g.cylindersRequired(34027241472), 65932)
+        self.assertEquals(g.cylindersRequired(34027241473), 65933)
+        self.assertEquals(g.roundToCylinder(34027241471), 34027241472)
+        self.assertEquals(g.roundToCylinder(34027241472), 34027241472)
+        self.assertEquals(g.roundToCylinder(34027241473), 34027757568)
 
         self.assertEquals(g.toCHS(1), (0, 0, 2))
         self.assertEquals(g.toCHS(63), (0, 1, 1))

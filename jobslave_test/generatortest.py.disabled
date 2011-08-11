@@ -21,7 +21,6 @@ from conary.deps import deps
 from conary import conaryclient
 
 import jobslave_helper
-import image_stubs
 import bootableimgtest
 import logging
 from ovfxmlresults import *
@@ -47,6 +46,7 @@ from jobslave.generators import update_iso
 from jobslave.generators import ovf_image
 
 from testrunner import pathManager
+from testutils import mock
 
 import simplejson
 
@@ -91,28 +91,12 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
         self.savedTmpDir = constants.tmpDir
         constants.tmpDir = tempfile.mkdtemp()
         jobslave_helper.ExecuteLoggerTest.setUp(self)
-        self.bases['RawFsImage'] = raw_fs_image.RawFsImage.__bases__
-        raw_fs_image.RawFsImage.__bases__ = (image_stubs.BootableImageStub,)
-
-        self.bases['RawHdImage'] = raw_hd_image.RawHdImage.__bases__
-        raw_hd_image.RawHdImage.__bases__ = (image_stubs.BootableImageStub,)
-
-        self.bases['Tarball'] = tarball.Tarball.__bases__
-        tarball.Tarball.__bases__ = (image_stubs.BootableImageStub,)
-
-        self.bases['UpdateISO'] = update_iso.UpdateIso.__bases__
-        update_iso.UpdateIso.__bases__ = (image_stubs.InstallableIsoStub,)
 
         constants.templateDir = os.path.join(os.path.dirname( \
                 os.path.dirname(os.path.abspath(__file__))), 'templates')
 
 
     def tearDown(self):
-        raw_fs_image.RawFsImage.__bases__ = self.bases['RawFsImage']
-        raw_hd_image.RawHdImage.__bases__ = self.bases['RawHdImage']
-        tarball.Tarball.__bases__ = self.bases['Tarball']
-        update_iso.UpdateIso.__bases__ = self.bases['UpdateISO']
-
         util.rmtree(constants.tmpDir, ignore_errors = True)
         constants.tmpDir = self.savedTmpDir
         jobslave_helper.ExecuteLoggerTest.tearDown(self)
@@ -630,7 +614,7 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
 
     def testVMwareImage(self):
         self.injectPopen("")
-        g = vmware_image.VMwareImage({}, [])
+        g = self.getHandler(buildtypes.VMWARE_IMAGE)
 
         g.jobData['description'] = 'test vmware image description'
 
@@ -742,11 +726,11 @@ class GeneratorsTest(jobslave_helper.ExecuteLoggerTest):
                     "Incorrect file mode: %o != %o" % 
                     (os.stat(file1)[stat.ST_MODE], 0100600))
             self.failIf(os.stat(file2)[stat.ST_MODE] != 0100600,
-                    "Incorrect file mode: %o != %o" % 
+                    "Incorrect file mode: %o != %o" %
                     (os.stat(file1)[stat.ST_MODE], 0100600))
             self.failIf(os.stat(vmxFile)[stat.ST_MODE] != 0100755,
-                    "Incorrect file mode %o != %o" % 
-                    (os.stat(file1)[stat.ST_MODE], 0100755))
+                    "Incorrect file mode %o != %o" %
+                    (os.stat(file1)[stat.ST_MODE], 0100755)))
         finally:
             util.rmtree(tmpDir)
 
@@ -841,27 +825,6 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
         self.savedTmpDir = constants.tmpDir
         constants.tmpDir = tempfile.mkdtemp()
         jobslave_helper.ExecuteLoggerTest.setUp(self)
-        self.bases['RawFsImage'] = raw_fs_image.RawFsImage.__bases__
-        raw_fs_image.RawFsImage.__bases__ = (image_stubs.BootableImageStub,)
-
-        self.bases['RawHdImage'] = raw_hd_image.RawHdImage.__bases__
-        raw_hd_image.RawHdImage.__bases__ = (image_stubs.BootableImageStub,)
-
-        self.bases['Tarball'] = tarball.Tarball.__bases__
-        tarball.Tarball.__bases__ = (image_stubs.BootableImageStub,)
-
-        self.bases['UpdateISO'] = update_iso.UpdateIso.__bases__
-        update_iso.UpdateIso.__bases__ = (image_stubs.InstallableIsoStub,)
-
-        self.bases['ApplianceISO'] = \
-            appliance_iso.ApplianceInstaller.__bases__
-        appliance_iso.ApplianceInstaller.__bases__ = \
-            (image_stubs.ApplianceInstallerStub,)
-
-        self.bases['InstallableISO'] = \
-            installable_iso.InstallableIso.__bases__
-        installable_iso.InstallableIso.__bases__ = \
-            (image_stubs.InstallableIsoStub,)
 
         constants.templateDir = os.path.join(os.path.dirname( \
                 os.path.dirname(os.path.abspath(__file__))), 'templates')
@@ -869,15 +832,6 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
         self.rmtree = util.rmtree
 
     def tearDown(self):
-        raw_fs_image.RawFsImage.__bases__ = self.bases['RawFsImage']
-        raw_hd_image.RawHdImage.__bases__ = self.bases['RawHdImage']
-        tarball.Tarball.__bases__ = self.bases['Tarball']
-        update_iso.UpdateIso.__bases__ = self.bases['UpdateISO']
-        appliance_iso.ApplianceInstaller.__bases__ = \
-            self.bases['ApplianceISO']
-        installable_iso.InstallableIso.__bases__ = \
-            self.bases['InstallableISO']
-
         util.rmtree(constants.tmpDir, ignore_errors = True)
         constants.tmpDir = self.savedTmpDir
         jobslave_helper.ExecuteLoggerTest.tearDown(self)
@@ -982,7 +936,10 @@ class GeneratorsOvfTest(jobslave_helper.ExecuteLoggerTest):
     def testRawFsOvf1Dot0(self):
         self.injectPopen("")
 
-        g = raw_fs_image.RawFsImage({}, [])
+        #g = raw_fs_image.RawFsImage({}, [])
+        g = self.getHandler(buildtypes.RAW_FS_IMAGE)
+        mock.mockMethod(g.getImageSize)._mock.setDefaultReturn(
+                (1000000, {'/': 1000000}))
         g.buildOVF10 = True
         g.jobData['description'] = 'Test Description'
 

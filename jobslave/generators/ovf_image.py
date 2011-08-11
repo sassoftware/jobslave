@@ -1,18 +1,16 @@
 #
-# Copyright (c) 2009 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 
 import os
-import os.path
 import sha
-import sys
 
-from jobslave import buildtypes
 from jobslave.generators import constants
+from jobslave.util import logCall
 
-from pyovf import helper, ovf, item
+from pyovf import helper, ovf
 
 class Cpu(ovf.Item):
     rasd_Caption = 'Virtual CPU'
@@ -124,7 +122,7 @@ class OvfImage(object):
         network = Network()
         network.Connection = self.ovf.NetworkSection.Network[0].name
         VirtualHardware.addItem(network)
-        hd = Harddisk()
+        hd = Harddisk(AddressOnParent=0)
         hd.HostResource = 'ovf:/disk/%s' % self.diskId
         VirtualHardware.addItem(hd)
         VirtualHardware.addItem(ScsiController())
@@ -202,8 +200,6 @@ class OvfImage(object):
 
         The ova is a tar consisting of the ovf and the disk file(s).
         """
-        from jobslave.imagegen import logCall
-
         self.ovaFileName = self.imageName + '.' + constants.OVA_EXTENSION
         self.ovaPath = os.path.join(self.outputDir, self.ovaFileName)
 

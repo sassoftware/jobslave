@@ -1,10 +1,9 @@
 #
-# Copyright (c) 2005-2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 import os
-from jobslave.imagegen import ImageGenerator
 from jobslave.generators import installable_iso
 
 from conary.lib import util

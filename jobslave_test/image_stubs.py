@@ -1,16 +1,14 @@
 #
-# Copyright (c) 2007 rPath, Inc.
+# Copyright (c) 2010 rPath, Inc.
 #
 # All Rights Reserved
 #
 import os
-import sys
 from conary import versions
 from conary.deps import deps
 from conary.lib import util
 
 from jobslave import bootloader
-from jobslave.generators import constants
 
 
 class GeneratorStub(object):
@@ -80,8 +78,6 @@ class ImageGeneratorStub(GeneratorStub):
 
 class BootableImageStub(ImageGeneratorStub):
     jobId = "test.rpath.local-build-2-4"
-    sectors = constants.sectors
-    heads = constants.heads
 
     def __init__(self, jobData, parent, *args, **kwargs):
         self.filesystems = {}
@@ -153,6 +149,9 @@ class InstallableIsoStub(ImageGeneratorStub):
     jobId = "test.rpath.local-build-4-3"
     UUID = "abcd"
     productDir = 'rPath'
+
+    def __init__(self, jobData, parent, *args, **kwargs):
+        ImageGeneratorStub.__init__(self, jobData, parent, *args, **kwargs)
 
     def retrieveTemplates(self):
         return None, None
