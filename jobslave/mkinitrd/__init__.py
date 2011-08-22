@@ -31,3 +31,35 @@ class InitrdGenerator(object):
             rdpath = args[4]
             kernels.append((kver, rdpath))
         self.generate(kernels)
+
+    def generateFromGrub(self, confName):
+        paths = []
+        path = os.path.join(self.image_root, 'boot/grub', confName)
+        kernel = initrd = None
+        for line in open(path):
+            line = line.strip()
+            if line.startswith('kernel '):
+                if kernel:
+                    paths.append((kernel, initrd))
+                    kernel = initrd = None
+                kernel = line.split()[1]
+            elif line.startswith('initrd '):
+                if initrd:
+                    paths.append((kernel, initrd))
+                    kernel = initrd = None
+                initrd = line.split()[1]
+            elif line.startswith('title '):
+                if kernel or initrd:
+                    paths.append((kernel, initrd))
+                    kernel = initrd = None
+        if kernel or initrd:
+            paths.append((kernel, initrd))
+
+        kernels = []
+        for kpath, ipath in paths:
+            # /boot/vmlinuz-1.2.3 -> 1.2.3
+            kver = os.path.basename(kpath)[8:]
+            if kver == 'template':
+                continue
+            kernels.append((kver, ipath))
+        self.generate(kernels)
