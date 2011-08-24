@@ -185,7 +185,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     def compressDiskImage(self, vmdkPath):
         if not self.WithCompressedDisks:
-            return vmdkPath
+            # Need to add the file to the final directory
+            destf = util.AtomicFile(os.path.join(self.outputDir, self.basefilename + '.vmdk'))
+            util.copyfileobj(file(vmdkPath), destf)
+            destf.commit()
+            return destf.finalPath
         vmdkGzOutputFile = os.path.join(self.outputDir, self.basefilename +
                 '.vmdk.gz')
         self.gzip(vmdkPath, vmdkGzOutputFile)
