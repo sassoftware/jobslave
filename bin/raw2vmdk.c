@@ -222,7 +222,8 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
         "ddb.geometry.sectors = \"%d\"\n"
         "ddb.geometry.heads = \"%d\"\n"
         "ddb.geometry.cylinders = \"%d\"\n"
-        "ddb.virtualHWVersion = \"4\"\n", adapter, sectors, heads, cylinders);
+        "ddb.toolsVersion = \"8193\"\n"
+        "ddb.virtualHWVersion = \"7\"\n", adapter, sectors, heads, cylinders);
 
     free(cpoutfile);
     return returner;
