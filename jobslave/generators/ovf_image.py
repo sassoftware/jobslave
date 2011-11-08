@@ -131,10 +131,12 @@ class OvfImage(object):
 
         self.addHardwareDefaults(vhws)                
 
-        # vhws.System = ovf.System()
-        # vhws.System.ElementName = self.imageName
-        # vhws.System.InstanceID = self._getInstanceId()
-        # vhws.System.VirtualSystemType = 'Virtual System Type'
+        vhws.System = ovf.System()
+        # not in schema
+        # vhws.System.VirtualSystemIdentifier = self.imageName
+        vhws.System.ElementName = 'Virtual Hardware Family'
+        vhws.System.InstanceID = self._getInstanceId()
+        vhws.System.VirtualSystemType = 'vmx-07'
 
         virtualSystem.addVirtualHardwareSection(vhws)
 
@@ -295,6 +297,20 @@ class VMwareOVFImage(OvfImage):
         # Add virtual system to ovf with a virutal hardware section.
         virtSystem = ovf.VirtualSystem(id=self.imageName)
         virtSystem.Info = self.imageDescription
+
+        # We get osInfo from the vmware image generator.
+        osInfo = self.osInfo
+
+        osSection = virtSystem.ovf_OperatingSystemSection(
+            id=osInfo.ovfId, version=osInfo.version)
+        osSection.Description = osInfo.description
+        osSection.Info  = "The kind of installed guest operating system"
+        # This attribute is specified in included schemas, but in testing
+        # xmlns:vmw="http://www.vmware.com/schema/ovf" was required.
+        # Manually set object because the prefix is different
+        object.__setattr__(osSection, 'vmw_osType', osInfo.osType)
+
+        virtSystem.ovf_OperatingSystemSection = osSection
         self.addVirtualHardware(virtSystem)
         self.ovf.ovf_VirtualSystem = virtSystem
 
