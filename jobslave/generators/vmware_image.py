@@ -78,7 +78,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
                  'Red Hat Enterprise Linux Server 5': ('rhel5', '5'),
                  'Red Hat Enterprise Linux Desktop Workstation 5':
                     ('rhel5', '5'),
-                 'Red Hat Enterprise Linux Server 6': 'rhel6',
+                 'Red Hat Enterprise Linux Server 6': ('rhel6', '6'),
                  'SLES 11 Delivered by rPath': ('sles11', '11'),
                  'SLES 10 Delivered by rPath': ('sles10', '10'),
                  'SuSE Linux Enterprise Server 10 SP3': ('sles10', '10'),
