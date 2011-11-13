@@ -1,6 +1,6 @@
 #!/usr/bin/vmplayer
 config.version = "8"
-virtualHW.version = "4"
+virtualHW.version = "7"
 
 displayName = "@NAME@"
 annotation = "@DESCRIPTION@"

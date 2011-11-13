@@ -10,7 +10,7 @@ RW @EXTENTS@ @EXT_TYPE@ "@FILENAME@-flat.vmdk" 0
 # The Disk Data Base
 #DDB
 
-ddb.virtualHWVersion = "4"
+ddb.virtualHWVersion = "7"
 ddb.geometry.cylinders = "@CYLINDERS@"
 ddb.geometry.heads = "@HEADS@"
 ddb.geometry.sectors = "@SECTORS@"
