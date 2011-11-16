@@ -91,6 +91,33 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     WithCompressedDisks = True
 
+    def _getPLatformAndVerison(self):
+        platformName = self.getBuildData('platformName')
+        return self.platforms.get(platformName, ('other26xlinux', ''))
+
+    def getPlatformAndVersion(self):
+        pd = self.getProductDefinition()
+        if not pd:
+            return self._getPlatformAndVersion()
+
+        info = pd.getPlatformInformation()
+        if not info or not hasattr(info, 'platformClassifier'):
+            return self._getPlatformAndVersion()
+
+        cls = info.platformClassifier
+
+        # Map centos 5 -> rhel 5 for now since VCD doesn't currently
+        # support centos 5.
+        if cls.name == 'centos':
+            name = 'rhel'
+        else:
+            name = cls.name
+
+        name = '%s%s' % (name, cls.version)
+        version = cls.version
+
+        return (name, version)
+
     def _createVMDK(self, hdImage, outfile, size, streaming=False):
         args = [
                 self.raw2vmdk,
@@ -241,8 +268,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         # for all linux builds, we send a paltform name
         else:
-            platformName = self.getBuildData('platformName')
-            platform, version = self.platforms.get(platformName, ('other26xlinux', ''))
+            platform, version = self.getPlatformAndVersion()
             if self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')):
                 platform += '-64'
             return platform
@@ -267,7 +293,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             osType = 'windows7Server64Guest'
         elif not platform.startswith('other'):
             platformName = self.getBuildData('platformName')
-            _, version = self.platforms.get(platformName, (None, ''))
+            _, version = self.getPlatformAndVersion()
             is64 = platform.endswith('-64')
             if platform.startswith('rhel'):
                 ovfId = is64 and 80 or 79
