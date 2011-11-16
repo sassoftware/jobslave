@@ -295,11 +295,14 @@ class VMwareImage(raw_hd_image.RawHdImage):
             platformName = self.getBuildData('platformName')
             _, version = self.getPlatformAndVersion()
             is64 = platform.endswith('-64')
+            osType = platform.replace('-', '_') + 'Guest'
             if platform.startswith('rhel'):
                 ovfId = is64 and 80 or 79
             elif platform.startswith('sles'):
                 ovfId = is64 and 85 or 84
-            osType = platform.replace('-', '_') + 'Guest'
+            else:
+                osType = is64 and 'other26xLinux64Guest' or 'other26xLinuxGuest'
+                ovfId = is64 and 107 or 36
         else:
             # Assume Linux
             version = '26'
