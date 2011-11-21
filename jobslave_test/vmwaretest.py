@@ -64,6 +64,8 @@ class VMwareTest(testsuite.TestCase):
             def __init__(xself):
                 xself.baseFlavor = deps.parseFlavor(flavor)
                 xself.jobData = JobData(platformName=platform)
+            def getPlatformAndVersion(self):
+                return 'other26xlinux', '26'
         self.assertEquals(DummyImage().getGuestOS(), expected)
 
     def testGuestOS(self):
