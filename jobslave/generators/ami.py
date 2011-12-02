@@ -203,15 +203,6 @@ class AMIImage(raw_fs_image.RawFsImage):
         totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         images = self.makeFSImage(sizes)
 
-        if self.buildOVF10:
-            self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.RAWFS, images['/'],
-                totalSize, True, self.workingDir,
-                self.outputDir)
-            self.outputFileList.append((self.ovaPath,
-                '%s %s' % (self.productName, constants.OVFIMAGETAG)))
-
-
         self.status("Creating the AMI bundle")
         bundleRoot = tempfile.mkdtemp(prefix='amibundle')
         bundleDir = os.path.join(bundleRoot, self.basefilename + '.ami')
