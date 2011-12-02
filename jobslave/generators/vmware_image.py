@@ -336,6 +336,7 @@ class VMwareESXImage(VMwareImage):
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
     # Mingle #393
     WithCompressedDisks = False
+    alwaysOvf10 = True
 
     def configure(self):
         VMwareImage.configure(self)
@@ -347,11 +348,7 @@ class VMwareESXImage(VMwareImage):
         self._createVMDK(hdImage, outfile, size, True)
 
     def writeMachine(self, disk, callback=None):
-        """Create OVF 0.9 tarball for ESX deployments.
-
-        A streaming format VMDK will be created. The path to it will be
-        returned for use in the OVF 1.0 generator.
-        """
+        """Create VMDK for the OVF processor, but no actual output images."""
         if not callback:
             callback = VMwareCallback()
         ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
@@ -364,14 +361,6 @@ class VMwareESXImage(VMwareImage):
         self.createOvfVMDK(disk.image, vmdkPath, disk.totalSize)
         self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
-
-        # TODO: Add progress to self.gzip() and pass it to creatingArchive()
-        callback.creatingArchive(None, None)
-        self.createVMX(ovfPath, type='ovf')
-        self.setModes(self.workingDir)
-        self.gzip(self.workingDir, ovfOutputFile)
-        self.outputFileList.append(
-            (ovfOutputFile, self.productName + ' OVF 0.9 Image'))
         return vmdkPath
 
 
