@@ -110,10 +110,6 @@ class AMIImage(raw_fs_image.RawFsImage):
         # AMIs don't need a kernel
         pass
 
-    def runGrubby(self, dest):
-        # AMI's don't have a kernel
-        pass
-
     def _findKernelMetadata(self):
         """
         Figure out if the kernel in the chroot has ec2 related metadata set.
