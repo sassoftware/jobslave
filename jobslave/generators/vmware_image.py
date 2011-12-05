@@ -91,7 +91,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     WithCompressedDisks = True
 
-    def _getPlatformAndVerison(self):
+    def _getPlatformAndVersion(self):
         platformName = self.getBuildData('platformName')
         return self.platforms.get(platformName, ('other26xlinux', '')), '26'
 
