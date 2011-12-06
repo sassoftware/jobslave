@@ -1,19 +1,14 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved
+# Copyright (c) 2011 rPath, Inc.
 #
 
 import testsuite
 testsuite.setup()
 
 import os
-import re
 import tempfile
 import time
-import simplejson
-import xmlrpclib
 from StringIO import StringIO
 
 from conary import versions
@@ -23,13 +18,12 @@ from conary.deps import deps
 import jobslave_helper
 from jobslave import filesystems
 from jobslave import helperfuncs
-from jobslave import slave
 from jobslave.generators import constants
 from jobslave.generators import bootable_image
-from jobslave.generators import ami
 import jobslave.loophelpers
 
-from testrunner import pathManager
+from testutils import mock
+
 
 class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
     def testCopyFile(self):
@@ -322,6 +316,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
             "addFilesystem did not operate correcly")
 
     def testPreInstallScripts(self):
+        mock.mock(os, 'mknod')
         self.bootable.preInstallScripts()
         self.failUnlessEqual(set(os.listdir(self.bootable.root)),
                 set(['root', 'tmp', 'var', 'boot', 'etc', 'dev']))
@@ -334,6 +329,7 @@ proc                    /proc                   proc    defaults        0 0
 sysfs                   /sys                    sysfs   defaults        0 0
 /var/swap\tswap\tswap\tdefaults\t0\t0
 ''')
+        os.mknod._mock.assertCalled(self.bootable.filePath('dev/null'), 8192, 259)
 
     def testGetTroveSize(self):
         calculatePartitionSizes = filesystems.calculatePartitionSizes
