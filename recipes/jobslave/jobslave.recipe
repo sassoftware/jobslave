@@ -36,7 +36,6 @@ class Jobslave(CPackageRecipe, TestPackageRecipe, Python.VersionMixIn):
         r.addMercurialSnapshot()
         r.setDefaultPython()
 
-        r.macros.conarytestpath = r.pythonPath[0]
         r.run_tests()
 
         r.Make()
