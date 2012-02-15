@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 
-from rephelp import RepositoryHelper as TestCase
+from conary_test.rephelp import RepositoryHelper as TestCase
 
 from conary.lib import util
 from conary.lib import log as conary_log

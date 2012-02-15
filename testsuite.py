@@ -17,15 +17,11 @@ def setup():
     pathManager.addExecPath('PYOVF_PATH')
     pathManager.addExecPath('RESTLIB_PATH')
     pathManager.addExecPath('PRODUCT_DEFINITION_PATH')
-    pathManager.addExecPath('CONARY_PATH')
     pathManager.addExecPath('XOBJ_PATH')
 
-    conaryTestPath = pathManager.addExecPath('CONARY_TEST_PATH')
     jsPath = pathManager.addExecPath('JOB_SLAVE_PATH', isTestRoot=True)
     pathManager.addResourcePath('JOB_SLAVE_ARCHIVE_PATH',
             path=jsPath + '/jobslave_test/archive')
-    pathManager.addResourcePath('CONARY_ARCHIVE_PATH',
-            path=conaryTestPath + '/archive')
 
     from conary.lib import util
     sys.excepthook = util.genExcepthook(True)
