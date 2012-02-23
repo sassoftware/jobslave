@@ -27,8 +27,7 @@ log = logging.getLogger(__name__)
 
 class ResponseProxy(object):
     def __init__(self, masterUrl, jobData):
-        self.imageBase = '%sapi/products/%s/images/%d/' % (masterUrl,
-                jobData['project']['hostname'], jobData['buildId'])
+        self.imageBase = '%sapi/v1/images/%d' % (masterUrl, jobData['buildId'])
         self.uploadBase = '%suploadBuild/%d/' % (masterUrl, jobData['buildId'])
         self.outputToken = jobData['outputToken']
 
@@ -42,7 +41,10 @@ class ResponseProxy(object):
                 'Content-Type': contentType,
                 'X-rBuilder-OutputToken': self.outputToken,
                 }
-        url = self.imageBase + path
+        if path is None:
+            url = self.imageBase
+        else:
+            url = "%s/%s" % (self.imageBase.rstrip('/'), path)
 
         client = restlib.client.Client(url, headers)
         client.connect()
@@ -60,11 +62,11 @@ class ResponseProxy(object):
         return client.putFile(method, filePath, digest)
 
     def sendStatus(self, code, message):
-        root = ET.Element('imageStatus')
-        ET.SubElement(root, "code").text = str(code)
-        ET.SubElement(root, "message").text = message
+        root = ET.Element('image')
+        ET.SubElement(root, "status").text = str(code)
+        ET.SubElement(root, "status_message").text = message
         try:
-            self._post('PUT', 'status', body=ET.tostring(root))
+            self._post('PUT', path=None, body=ET.tostring(root))
         except:
             if code >= jobstatus.FINISHED:
                 # Don't eat errors from sending a final status.
@@ -74,7 +76,7 @@ class ResponseProxy(object):
     def sendLog(self, data):
         try:
             try:
-                self._post('POST', 'buildLog', contentType='text/plain', body=data)
+                self._post('POST', 'build_log', contentType='text/plain', body=data)
             except restlib.client.ResponseError, err:
                 if err.status != 204: # No Content
                     raise
@@ -101,7 +103,7 @@ class ResponseProxy(object):
             ET.SubElement(file, 'title').text = description
             ET.SubElement(file, 'size').text = str(fileSize)
             ET.SubElement(file, 'sha1').text = digest
-            ET.SubElement(file, 'fileName').text = fileName
+            ET.SubElement(file, 'file_name').text = fileName
 
         if withMetadata:
             self._post('PUT', 'files', body=ET.tostring(root))
