@@ -106,7 +106,7 @@ class ResponseProxy(object):
             ET.SubElement(file, 'file_name').text = fileName
 
         if withMetadata:
-            self._post('PUT', 'files', body=ET.tostring(root))
+            self._post('PUT', 'build_files', body=ET.tostring(root))
 
 
 class LogHandler(threading.Thread, logging.Handler):
