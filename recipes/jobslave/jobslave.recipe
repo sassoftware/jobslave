@@ -21,7 +21,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe, Python.VersionMixIn):
 
         # for tests
         'bitstream-vera-fonts:data',
-        'conary-test:lib',
+        'conary-test:python',
         'netpbm:runtime',
         'syslinux:runtime',
       ]
@@ -31,14 +31,12 @@ class Jobslave(CPackageRecipe, TestPackageRecipe, Python.VersionMixIn):
 
     testDir = '.'
     codeDirs = {'jobslave': 'jobslave'}
-    pythonPath = [ '%(libdir)s/conary-test' ]
 
     def setup(r):
         r.addMercurialSnapshot()
         r.setDefaultPython()
 
-        r.macros.conarytestpath = r.pythonPath[0]
-        r.run_tests(environ='CONARY_TEST_PATH=%(conarytestpath)s')
+        r.run_tests()
 
         r.Make()
         r.MakeInstall()
