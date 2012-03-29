@@ -71,6 +71,7 @@ class GroupJobslave(ApplianceGroupRecipe):
                 'xobj',
                 ]),
             ('contrib_label', [
+                'cdrkit',
                 'ec2-ami-tools',
                 'e2fsimage',
                 'xz',
