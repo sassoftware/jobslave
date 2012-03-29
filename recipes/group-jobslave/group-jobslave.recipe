@@ -28,7 +28,7 @@ class GroupJobslave(ApplianceGroupRecipe):
         r.add('ethtool')
         r.add('freetype')
         r.add('gnupg')
-        r.add('mkisofs')
+        r.add('cdrkit')
         r.add('mtools')
         r.add('netpbm')
         r.add('nfs-utils')
