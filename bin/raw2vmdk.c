@@ -550,6 +550,14 @@ int main(int argc, char ** argv) {
 
     FILE * of = fopen(outfile, "wb");
     if(of) {
+        // Write descriptor file, to compute its length (it is cheap)
+        FILE *devnull = fopen("/dev/null", "wb");
+        if (devnull) {
+            int descriptorSize =  writeDescriptorFile(devnull, outsize, outfile, cylinders, heads, sectors, adapter);
+            fclose(devnull);
+            header.descriptorSize = SECTORS(descriptorSize) + 1;
+        }
+
         // Write the header
         VPRINT("Writing the header\n");
         fwrite((void*)&header, sizeof(SparseExtentHeader), 1, of);
