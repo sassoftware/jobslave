@@ -138,6 +138,13 @@ int GT0Offset(off_t numgts) {
     return ceil((double)(numgts * 4) / SECTORSIZE);
 }
 
+int gdSize(int numgts) {
+    /*
+     * We need a multiple of GRAINSECTORS (128)
+     * */
+    return GRAINSECTORS * ceil((double)numgts / GRAINSECTORS);
+}
+
 void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     memset(hd, 0, sizeof(SparseExtentHeader));
     size_t numgts = numGTs(outsize);
@@ -229,16 +236,16 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
     return returner;
 }
 
-int writeCompressedGrainDirectory(u_int32_t numGTs, u_int32_t * gd, FILE * of) {
+int writeCompressedGrainDirectory(u_int32_t * gd, int gdsize, FILE * of) {
     off_t bytesWritten;
     MetaDataMarker gdm;
     memset(&gdm, 0, sizeof(MetaDataMarker));
-    gdm.numSectors = 1;  /* this needs to be determined by number of GTs */
+    gdm.numSectors = gdsize / GRAINSECTORS;  /* this needs to be determined by number of GTs */
     gdm.type       = MARKER_GD;
     bytesWritten = _fwrite((void *)&gdm, sizeof(MetaDataMarker), 1, of);
 
     VPRINT("Writing Grain Directory\n");
-    bytesWritten += _fwrite((void *) gd, sizeof(u_int32_t), numGTs, of);
+    bytesWritten += _fwrite((void *) gd, sizeof(u_int32_t), gdsize, of);
     /* pad to a sector boundary */
     off_t padding = SECTORSIZE - bytesWritten % SECTORSIZE;
     if (padding != SECTORSIZE) {
@@ -589,8 +596,10 @@ int main(int argc, char ** argv) {
             off_t pos = ftello(of);
             SectorType lba = 0;
             zeropad(GRAINSIZE - pos, of);
-            u_int32_t gd[numgts];
-            memset(gd, 0, numgts*sizeof(u_int32_t));
+
+            int gdsize = gdSize(numgts);
+            u_int32_t *gd = (u_int32_t *)alloca(sizeof(u_int32_t) * gdsize);
+            memset(gd, 0, gdsize * sizeof(u_int32_t));
             u_int32_t gt[GTEPERGT];
             pos = GRAINSIZE;
             int gtNum;
@@ -613,7 +622,7 @@ int main(int argc, char ** argv) {
             }
             pos = ftello(of);
             header.gdOffset = SECTORS(pos) + 1;
-            writeCompressedGrainDirectory(gtNum, gd, of);
+            writeCompressedGrainDirectory(gd, gdsize, of);
             writeFooter(&header, of);
             writeEndOfStream(of);
         }

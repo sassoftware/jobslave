@@ -17,7 +17,7 @@ clean: default-clean
 
 
 raw2vmdk: raw2vmdk.c
-	$(CC) $(CFLAGS) -Wall -lm -lz $< -o $@
+	$(CC) $(CFLAGS) -Wall -Wvla -lm -lz $< -o $@
 
 
 include ../Make.rules
