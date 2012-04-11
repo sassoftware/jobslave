@@ -184,7 +184,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
 size_t _fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     /* call fwrite and bail on errors */
     if (fwrite(ptr, size, nmemb, stream) != nmemb) {
-       VPRINT("Write failed. Exiting");
+       VPRINT("Write failed. Exiting\n");
        exit(1);
     } else {
        return (size * nmemb);
@@ -272,12 +272,18 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     int ret;
     int compressedBytes = 0;
     off_t bytesWritten = 0;
+    size_t bytesRead = 0;
     u_int8_t buf[GRAINSIZE];
     u_int8_t outbuf[2*GRAINSIZE];
     memset(buf, 0, GRAINSIZE*sizeof(u_int8_t));
     memset(outbuf, 0, GRAINSIZE*sizeof(u_int8_t));
 
-    fread((void *)&buf, GRAINSIZE*sizeof(u_int8_t), 1, infile);
+    bytesRead = fread((void *)&buf, 1, GRAINSIZE*sizeof(u_int8_t), infile);
+    if (bytesRead == 0) {
+        VPRINT("End of file reached.\n");
+        return 0;
+    }
+
     if (! memcmp(&buf, &zerograin, GRAINSIZE*sizeof(u_int8_t))) {
         VPRINT("grain at LBA %lld is zero. skipping.\n", (long long)lba);
         return 0;
@@ -291,7 +297,7 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     if (ret != Z_OK)
         exit(2);
 
-    strm.avail_in = GRAINSIZE;
+    strm.avail_in = bytesRead;
     strm.next_in = buf;
     strm.next_out = outbuf;
     strm.avail_out = 2*GRAINSIZE;
