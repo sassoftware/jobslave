@@ -110,6 +110,7 @@ class VMDK(object):
     def inspect(self):
         headerData = self._fobj.read(self._SECT)
         self.header = self._HEADER(*struct.unpack("<4sIIQQQQIQQQBccccI431s", headerData))
+        self.assertEquals(self.header.magicNumber, 'KDMV')
         print self.header
         # skip to descriptor
         self._fobj.read(self._SECT * (self.header.descriptorOffset - 1))
@@ -155,7 +156,7 @@ class VMDK(object):
         assert offset % self._SECT == 0
         offset /= self._SECT
         markerData = self._fobj.read(16)
-        marker = self._MARKER(*struct.unpack("<QI4s", markerData))
+        marker, markerType = self._readMarkerFromData(markerData)
         if marker.size:
             if withData:
                 grainData = marker.data + self._fobj.read(marker.size - 4)
@@ -165,8 +166,6 @@ class VMDK(object):
                 self._fobj.seek(marker.size - 4, 1)
             marker = self._GRAIN_MARKER(marker.val, marker.size, grainData, offset)
         else:
-            markerType = self.Marker.DecodeType(marker.data)
-            assert 0 <= markerType < len(self.Marker._StringRepr)
             # Realign to read the metadata
             self._align()
             metadata = self._fobj.read(marker.val * self._SECT)
@@ -180,6 +179,18 @@ class VMDK(object):
             marker = self._METADATA_MARKER(marker.val, marker.size, markerType,
                 self.Marker.Pad, metadata, offset)
         return marker
+
+    @classmethod
+    def _readMarkerFromData(cls, markerData, checkMarkerType=True):
+        marker = cls._MARKER(*struct.unpack("<QI4s", markerData[:16]))
+        if marker.size:
+            # Compressed grain. Type not needed
+            markerType = -1
+        else:
+            markerType = cls.Marker.DecodeType(marker.data)
+            if checkMarkerType:
+                assert 0 <= markerType < len(cls.Marker._StringRepr)
+        return marker, markerType
 
     def _align(self):
         "Align to 512 byte boundary"
