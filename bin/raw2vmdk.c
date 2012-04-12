@@ -33,15 +33,15 @@
 #define NELC                ' '
 #define DELC1               '\r'
 #define DELC2               '\n'
-#define GRAINSIZE           0x00010000 /*bytes in a grain*/
 #define GRAINSECTORS        0x00000080 /*sectors in a grain*/
 #define COMPRESSION_NONE    0          /* no compression (for monolithicSparse) */
 #define COMPRESSION_DEFLATE 1          /* compression algorithm for streamOptimized */
-// #define GD_AT_END           0xffffffff    /* signify that grain dir is at the end */
+#define GD_AT_END           0xffffffffffffffff /* signify that grain dir is at the end */
 
 /* 512 Grain Tables Entries Per Grain Table */
 #define GTEPERGT            0x00000200
 #define SECTORSIZE          0x00000200 /* 512 Bytes per sector */
+#define GRAINSIZE           ( GRAINSECTORS * SECTORSIZE ) /*bytes in a grain*/
 
 /* Conversion macros */
 #define BYTES(x)    ((x)<<9)
@@ -62,6 +62,7 @@
 #define OFFSETSIZE  sizeof(u_int32_t)
 
 u_int8_t zerograin[GRAINSIZE];
+u_int32_t zerogt[GTEPERGT];
 
 typedef u_int64_t  SectorType;
 typedef u_int8_t   Bool;
@@ -164,7 +165,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     if (vmdkType == MONOLITHIC_SPARSE) {
         hd->gdOffset  =     hd->rgdOffset + metadatasize;
     } else {
-        hd->gdOffset  =     (u_int64_t) -1;
+        hd->gdOffset  =     GD_AT_END;
     }
 
     /* The overHead is grain aligned */
@@ -500,6 +501,7 @@ int main(int argc, char ** argv) {
     strncpy(adapter, "ide", 3);
 
     memset(zerograin, 0, GRAINSIZE);
+    memset(zerogt, 0, GTEPERGT * sizeof(u_int32_t));
 
     // Parse command line options
     do {
@@ -621,15 +623,16 @@ int main(int argc, char ** argv) {
                 int grain;
                 int cgsize;
                 memset(gt, 0, GTEPERGT*sizeof(u_int32_t));
-                for (grain=0; (grain < GTEPERGT) && (lba <= SECTORS(outsize)); ) {
+                for (grain=0; (grain < GTEPERGT) && (lba <= SECTORS(outsize)); grain++) {
+                    /* writeCompressedGrain reads GRAINSIZE bytes */
                     cgsize = writeCompressedGrain(in, lba, of);
                     if (cgsize) {
-                        gt[grain++] = SECTORS(pos);
+                        gt[grain] = SECTORS(pos);
                         pos += cgsize;
                     }
                     lba += GRAINSECTORS;
                 }
-                if (grain != 0) {
+                if (grain != 0 && memcmp(gt, zerogt, GTEPERGT*sizeof(u_int32_t))) {
                     gd[gtNum] = SECTORS(pos+sizeof(MetaDataMarker));
                     pos += writeCompressedGrainTable(gt, of);
                 }
