@@ -4,7 +4,7 @@
 from collections import namedtuple
 import struct
 import sys
-
+import zlib
 
 class VMDK(object):
     _SECT = 512
@@ -104,10 +104,15 @@ class VMDK(object):
         def empty(self):
             return []
 
-    def __init__(self, fobj):
+    def __init__(self, fobj, outputFile=None):
         self._fobj = fobj
+        self._outputFileName = outputFile
 
     def inspect(self):
+        reconstruct = (self._outputFileName is not None)
+        if reconstruct:
+            fout = file(self._outputFileName, "w")
+
         headerData = self._fobj.read(self._SECT)
         self.header = self._HEADER(*struct.unpack("<4sIIQQQQIQQQBccccI431s", headerData))
         self.assertEquals(self.header.magicNumber, 'KDMV')
@@ -122,26 +127,33 @@ class VMDK(object):
         grainTable = self.GrainTable()
         grainDirectory = self.GrainDirectory()
         while 1:
-            marker = self._readMarker(withData=False)
+            marker = self._readMarker(withData=reconstruct)
             self._align()
             if isinstance(marker, self._METADATA_MARKER):
-                print "Read metadata marker of type %s" % self.Marker.toTypeString(marker.type)
+                print "%08x: Read metadata marker of type %s" % (marker.offset, self.Marker.toTypeString(marker.type))
                 if marker.type == self.Marker.GT:
                     grainTable.fromMarker(marker)
                     grainDirectory.add(grainTable)
-                    self.assertEquals(marker.metadata, grainTable.asTuple())
+                    if not reconstruct:
+                        self.assertEquals(marker.metadata, grainTable.asTuple())
                     grainTable.reset()
                     continue
                 if marker.type == self.Marker.GD:
+                    if reconstruct:
+                        return
                     self.assertEquals(marker.metadata, grainDirectory.asTuple())
                     # We're done reading extents, we now need to read
                     # the footer
                     break
                 continue
-            print marker.lba, marker.size
+            print "Data: %08x: %d bytes" % (marker.lba, marker.size)
+            if reconstruct:
+                fout.seek(marker.lba * self._SECT)
+                fout.write(zlib.decompress(marker.data))
             grainTable.add(marker)
 
         footerMarker = self._readMarker()
+        self.assertEquals(footerMarker.type, self.Marker.FOOTER)
         self.footer = self._HEADER(*struct.unpack("<4sIIQQQQIQQQBccccI431s",
             footerMarker.metadata))
         self.assertEquals(self.footer.magicNumber, 'KDMV')
@@ -200,12 +212,16 @@ class VMDK(object):
             self._fobj.read(self._SECT - padding)
 
 def main():
-    if len(sys.argv) != 2:
-        print "Usage: %s <file>" % sys.argv[0]
+    if len(sys.argv) < 2:
+        print "Usage: %s <file> [ <output-file> ]" % sys.argv[0]
         return 1
     vmdkFile = file(sys.argv[1])
+    if len(sys.argv) > 2:
+        outputFile = sys.argv[2]
+    else:
+        outputFile = None
 
-    vmdk = VMDK(vmdkFile)
+    vmdk = VMDK(vmdkFile, outputFile)
     vmdk.inspect()
 
 if __name__ == '__main__':
