@@ -279,13 +279,13 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     memset(buf, 0, GRAINSIZE*sizeof(u_int8_t));
     memset(outbuf, 0, GRAINSIZE*sizeof(u_int8_t));
 
-    bytesRead = fread((void *)&buf, 1, GRAINSIZE*sizeof(u_int8_t), infile);
+    bytesRead = fread(buf, 1, GRAINSIZE*sizeof(u_int8_t), infile);
     if (bytesRead == 0) {
         VPRINT("End of file reached.\n");
         return 0;
     }
 
-    if (! memcmp(&buf, &zerograin, GRAINSIZE*sizeof(u_int8_t))) {
+    if (! memcmp(buf, zerograin, GRAINSIZE*sizeof(u_int8_t))) {
         VPRINT("grain at LBA %lld is zero. skipping.\n", (long long)lba);
         return 0;
     }
@@ -413,7 +413,7 @@ off_t copyData(const char* infile, const off_t outsize,
     size_t read;
     u_int32_t numGrains = (outsize / GRAINSIZE) + ((outsize % GRAINSIZE) ? 1 : 0);
     u_int32_t curGrain = 0;
-    while((read = fread((void*)&buf, sizeof(u_int8_t), GRAINSIZE, in))) {
+    while((read = fread(buf, sizeof(u_int8_t), GRAINSIZE, in))) {
         VPRINT("Copying grain %d of %d", ++curGrain, numGrains);
         /* Check to make sure it's not all zeros */
         int i, rem, stop;
