@@ -425,8 +425,8 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                     if loops:
                         for l in loops:
                             if l[1] == self.image_root:
-                                loop = l[0]
-                tmpRootDev = os.path.join(self.image_root, loop[1:])
+                                loop = l[0][1:]
+                tmpRootDev = os.path.join(self.image_root, loop)
                 mkinitrdCmd.extend([ '-d', loop ])
             os.mknod(tmpRootDev, 0600 | stat.S_IFBLK,
                      os.stat(self.image_root).st_dev)
