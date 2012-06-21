@@ -502,6 +502,13 @@ class BootableImage(ImageGenerator):
 
         logCall('rm -rf %s/var/lib/conarydb/rollbacks/*' % self.root)
 
+        urandom = '%s/dev/urandom' % self.root
+        if not os.path.exists(urandom):
+            # CentOS/RHEL 5/6 require /dev/urandom to exit when creating tempfiles
+            os.mknod(urandom, 0666|stat.S_IFCHR, os.makedev(1, 9))
+            # The above mode doesn't seem to be honored, so set it again
+            os.chmod(urandom, 0666|stat.S_IFCHR)
+
         # set up shadow passwords/md5 passwords
         authConfigCmd = ('chroot %s %%s --kickstart --enablemd5 --enableshadow'
                          ' --disablecache' % self.root)
