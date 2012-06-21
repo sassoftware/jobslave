@@ -294,7 +294,7 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
-    ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+    ret = deflateInit(&strm, 1);
     if (ret != Z_OK)
         exit(2);
 
