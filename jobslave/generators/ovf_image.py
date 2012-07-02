@@ -5,6 +5,8 @@
 import hashlib
 import os
 
+from conary.lib import sha1helper
+
 from jobslave.generators import constants
 from jobslave.util import logCall
 
@@ -186,12 +188,12 @@ class OvfImage(object):
 
         mfFile = open(self.manifestPath, 'w')
 
-        ovfSha1 = hashlib.sha1(open(self.ovfPath).read()).hexdigest()
-        diskSha1 = hashlib.sha1(open(self.diskFilePath).read()).hexdigest()
+        ovfSha1 = sha1helper.sha1FileBin(self.ovfPath)
+        diskSha1 = sha1helper.sha1FileBin(self.diskFilePath)
 
         mfFile.write(sha1Line % (self.ovfFileName, ovfSha1))
         mfFile.write(sha1Line % (self.diskFileName, diskSha1))
-        
+
         mfFile.close()
 
     def createOva(self):
