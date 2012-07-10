@@ -1,7 +1,5 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All Rights Reserved
+# Copyright (c) rPath, Inc.
 #
 
 # python standard library imports
@@ -31,6 +29,7 @@ from jobslave.util import logCall
 
 # conary imports
 from conary import conaryclient
+from conary import dbstore
 from conary import display
 from conary.callbacks import UpdateCallback
 from conary.conaryclient.cmdline import parseTroveSpec
@@ -184,7 +183,17 @@ class Filesystem:
             return
 
         self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
-        logCall("mount -n %s %s" % (self.loopDev, mountPoint))
+        options = []
+        fsType = self.fsType
+        if self.fsType in ('ext3', 'ext4'):
+            # Would be nice to "upgrade" the driver to ext4, but rPL 2's
+            # extlinux cannot install into a ext4 mount.
+            #fsType = 'ext4'
+            # Turn off data integrity during install
+            options.append('data=writeback,barrier=0')
+        options = '-o %s' % (','.join(options)) if options else ''
+        logCall("mount -n -t %s %s %s %s" % (fsType, self.loopDev, mountPoint,
+            options))
         self.mounted = True
         self.mountPoint = mountPoint
 
@@ -980,6 +989,28 @@ class BootableImage(ImageGenerator):
         for mntpoint in reversed(sorted(mntlist)):
             logCall('umount -n %s' % mntpoint)
 
+    def _openClient(self):
+        # page_size has to be set before the first table is created
+        path = util.joinPaths(self.conarycfg.root, self.conarycfg.dbPath + '/conarydb')
+        util.mkdirChain(os.path.dirname(path))
+        db = dbstore.connect(path, driver='sqlite')
+        cu = db.cursor()
+        cu.execute("PRAGMA page_size = 4096")
+        db.commit()
+        cu.execute("VACUUM")
+        db.commit()
+        db.close()
+
+        # The rest are per-session and apply only to this install job
+        cclient = conaryclient.ConaryClient(self.conarycfg)
+        cclient.db.opJournalPath = None
+        db = cclient.db.db.db
+        cu = db.cursor()
+        cu.execute("PRAGMA cache_size = 200000")
+        cu.execute("PRAGMA journal_mode = MEMORY")
+        db.commit()
+        return cclient
+
     @timeMe
     def installFileTree(self, dest=None, bootloader_override=None,
             no_mbr=False):
@@ -1004,7 +1035,7 @@ class BootableImage(ImageGenerator):
             self.preInstallScripts()
 
             callback = None
-            cclient = conaryclient.ConaryClient(self.conarycfg)
+            cclient = self._openClient()
             try:
                 callback = InstallCallback(self.status)
                 cclient.setUpdateCallback(callback)
