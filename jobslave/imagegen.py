@@ -54,7 +54,6 @@ class Generator(object):
         cfgData = StringIO.StringIO(self.jobData['project']['conaryCfg'])
         ccfg.readObject(cfgData, cfgData)
 
-        ccfg.configLine('pinTroves %s' % constants.pinKernelRE)
         ccfg.configLine('tmpDir %s' % constants.tmpDir)
         ccfg.configLine('pubRing %s/pubring.gpg' % constants.tmpDir)
         ccfg.configLine('threaded False')
@@ -227,7 +226,7 @@ class ImageGenerator(Generator):
         print >> conaryrcFile, "installLabelPath " + ilp
         if mu:
             print >> conaryrcFile, 'includeConfigFile ' + mirrorUrl
-        print >> conaryrcFile, "pinTroves %s" % constants.pinKernelRE
+        print >> conaryrcFile, "pinTroves " + self.getPins()
         if self.getBuildData("autoResolve"):
             print >> conaryrcFile, "autoResolve True"
         print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
@@ -267,15 +266,18 @@ class ImageGenerator(Generator):
         self.platformDefinition.loadFromRepository(self.cc)
 
         info = self.platformDefinition.getPlatformInformation()
-        if (info and hasattr(info, 'platformClassifier')
-            and hasattr(info.platformClassifier, 'tags')):
-            self.platformTags = set(info.platformClassifier.tags)
+        if (info and getattr(info, 'platformClassifier', None)
+                and getattr(info.platformClassifier, 'tags', None)):
+            self.platformTags = set(info.platformClassifier.tags.split())
 
         return self.platformDefinition
 
     def isPlatform(self, tag):
         self.getProductDefinition()
-        return tag in self.platformTags
+        if self.platformTags:
+            return tag in self.platformTags
+        else:
+            return False
 
     def findImageSubtrove(self, name):
         if self.baseTroveObj is None:
@@ -284,3 +286,13 @@ class ImageGenerator(Generator):
 
         return set(x for x in self.baseTroveObj.iterTroveList(True, True)
                 if x[0] == name)
+
+    def getPins(self):
+        if self.isPlatform('redhat'):
+            names = 'kernel'
+        elif self.isPlatform('suse'):
+            names = 'kernel(|-base|-syms)'
+        else:
+            # rpath platforms pin kernel-* for historical reasons (RBL-3000)
+            names = 'kernel(-.*)?'
+        return names + '(:.*)?$'
