@@ -232,6 +232,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
     def install(self):
         cfgfile = self._get_grub_conf()
         grub_conf = util.joinPaths(self.image_root, 'boot/grub', cfgfile)
+        # TODO: clean up the various paths by which mkinitrd gets run, this
+        # workflow doesn't necessarily make sense.
+        mkinitrdWasRun = False
         # RPM-based images will not populate grub.conf, so do it here.
         for line in open(grub_conf):
             line = line.split()
@@ -243,6 +246,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         else:
             # No non-template kernel entry was found, so populate it by hand.
             self.add_kernels()
+            mkinitrdWasRun = True
 
         # Now that grubby has had a chance to add the new kernel,
         # remove the template entry added in setup()
@@ -263,6 +267,11 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
             irg = rh_initrd.RedhatGenerator(self.image_root)
             irg.generateFromBootman()
+            mkinitrdWasRun = True
+        elif not mkinitrdWasRun and not is_SUSE(self.image_root):
+            irg = rh_initrd.RedhatGenerator(self.image_root)
+            irg.generateFromGrub(cfgfile)
+            mkinitrdWasRun = True
 
         # Workaround for RPL-2423
         if os.path.exists(grub_conf):

@@ -76,6 +76,8 @@ class VMwareImage(raw_hd_image.RawHdImage):
                  'SLES 10 Delivered by rPath' : 'sles10',
                 }
 
+    WithCompressedDisks = True
+
     def _createVMDK(self, hdImage, outfile, size, streaming=False):
         args = [
                 self.raw2vmdk,
@@ -181,16 +183,27 @@ class VMwareImage(raw_hd_image.RawHdImage):
             (outputPath, self.productName + ' Image'))
         return vmdkPath
 
-    def writeVmwareOvf(self, capacity, vmdkPath):
-        """Create OVF 1.0 output for general purpose usage."""
+    def compressDiskImage(self, vmdkPath):
+        if not self.WithCompressedDisks:
+            # Need to add the file to the final directory
+            destf = util.AtomicFile(os.path.join(self.outputDir, self.basefilename + '.vmdk'))
+            util.copyfileobj(file(vmdkPath), destf)
+            destf.commit()
+            return destf.finalPath
         vmdkGzOutputFile = os.path.join(self.outputDir, self.basefilename +
                 '.vmdk.gz')
         self.gzip(vmdkPath, vmdkGzOutputFile)
         util.remove(vmdkPath)
+        return vmdkGzOutputFile
+
+    def writeVmwareOvf(self, capacity, vmdkPath):
+        """Create OVF 1.0 output for general purpose usage."""
+        vmdkPath = self.compressDiskImage(vmdkPath)
 
         self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.VMDK, vmdkGzOutputFile,
-                capacity, True, self.workingDir, self.outputDir)
+                self.jobData['description'], constants.VMDK, vmdkPath,
+                capacity, diskCompressed=self.WithCompressedDisks,
+                workingDir=self.workingDir, outputDir=self.outputDir)
         self.outputFileList.append((self.ovaPath,
             self.productName + ' %s' % constants.OVFIMAGETAG))
 
@@ -248,6 +261,8 @@ class VMwareESXImage(VMwareImage):
 
     createType = 'vmfs'
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
+    # Mingle #393
+    WithCompressedDisks = False
 
     def configure(self):
         VMwareImage.configure(self)

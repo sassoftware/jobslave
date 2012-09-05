@@ -33,15 +33,15 @@
 #define NELC                ' '
 #define DELC1               '\r'
 #define DELC2               '\n'
-#define GRAINSIZE           0x00010000 /*bytes in a grain*/
 #define GRAINSECTORS        0x00000080 /*sectors in a grain*/
 #define COMPRESSION_NONE    0          /* no compression (for monolithicSparse) */
 #define COMPRESSION_DEFLATE 1          /* compression algorithm for streamOptimized */
-// #define GD_AT_END           0xffffffff    /* signify that grain dir is at the end */
+#define GD_AT_END           0xffffffffffffffff /* signify that grain dir is at the end */
 
 /* 512 Grain Tables Entries Per Grain Table */
 #define GTEPERGT            0x00000200
 #define SECTORSIZE          0x00000200 /* 512 Bytes per sector */
+#define GRAINSIZE           ( GRAINSECTORS * SECTORSIZE ) /*bytes in a grain*/
 
 /* Conversion macros */
 #define BYTES(x)    ((x)<<9)
@@ -62,6 +62,7 @@
 #define OFFSETSIZE  sizeof(u_int32_t)
 
 u_int8_t zerograin[GRAINSIZE];
+u_int32_t zerogt[GTEPERGT];
 
 typedef u_int64_t  SectorType;
 typedef u_int8_t   Bool;
@@ -138,6 +139,13 @@ int GT0Offset(off_t numgts) {
     return ceil((double)(numgts * 4) / SECTORSIZE);
 }
 
+int gdSize(int numgts) {
+    /*
+     * We need a multiple of GRAINSECTORS (128)
+     * */
+    return GRAINSECTORS * ceil((double)numgts / GRAINSECTORS);
+}
+
 void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     memset(hd, 0, sizeof(SparseExtentHeader));
     size_t numgts = numGTs(outsize);
@@ -157,7 +165,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     if (vmdkType == MONOLITHIC_SPARSE) {
         hd->gdOffset  =     hd->rgdOffset + metadatasize;
     } else {
-        hd->gdOffset  =     (u_int64_t) -1;
+        hd->gdOffset  =     GD_AT_END;
     }
 
     /* The overHead is grain aligned */
@@ -228,16 +236,16 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
     return returner;
 }
 
-int writeCompressedGrainDirectory(u_int32_t numGTs, u_int32_t * gd, FILE * of) {
+int writeCompressedGrainDirectory(u_int32_t * gd, int gdsize, FILE * of) {
     off_t bytesWritten;
     MetaDataMarker gdm;
     memset(&gdm, 0, sizeof(MetaDataMarker));
-    gdm.numSectors = 1;  /* this needs to be determined by number of GTs */
+    gdm.numSectors = gdsize / GRAINSECTORS;  /* this needs to be determined by number of GTs */
     gdm.type       = MARKER_GD;
     bytesWritten = _fwrite((void *)&gdm, sizeof(MetaDataMarker), 1, of);
 
     VPRINT("Writing Grain Directory\n");
-    bytesWritten += _fwrite((void *) gd, sizeof(u_int32_t), numGTs, of);
+    bytesWritten += _fwrite((void *) gd, sizeof(u_int32_t), gdsize, of);
     /* pad to a sector boundary */
     off_t padding = SECTORSIZE - bytesWritten % SECTORSIZE;
     if (padding != SECTORSIZE) {
@@ -486,6 +494,7 @@ int main(int argc, char ** argv) {
     strncpy(adapter, "ide", 3);
 
     memset(zerograin, 0, GRAINSIZE);
+    memset(zerogt, 0, GTEPERGT * sizeof(u_int32_t));
 
     // Parse command line options
     do {
@@ -588,8 +597,10 @@ int main(int argc, char ** argv) {
             off_t pos = ftello(of);
             SectorType lba = 0;
             zeropad(GRAINSIZE - pos, of);
-            u_int32_t gd[numgts];
-            memset(gd, 0, numgts*sizeof(u_int32_t));
+
+            int gdsize = gdSize(numgts);
+            u_int32_t *gd = (u_int32_t *)alloca(sizeof(u_int32_t) * gdsize);
+            memset(gd, 0, gdsize * sizeof(u_int32_t));
             u_int32_t gt[GTEPERGT];
             pos = GRAINSIZE;
             int gtNum;
@@ -597,22 +608,23 @@ int main(int argc, char ** argv) {
                 int grain;
                 int cgsize;
                 memset(gt, 0, GTEPERGT*sizeof(u_int32_t));
-                for (grain=0; (grain < GTEPERGT) && (lba <= SECTORS(outsize)); ) {
+                for (grain=0; (grain < GTEPERGT) && (lba <= SECTORS(outsize)); grain++) {
+                    /* writeCompressedGrain reads GRAINSIZE bytes */
                     cgsize = writeCompressedGrain(in, lba, of);
                     if (cgsize) {
-                        gt[grain++] = SECTORS(pos);
+                        gt[grain] = SECTORS(pos);
                         pos += cgsize;
                     }
                     lba += GRAINSECTORS;
                 }
-                if (grain != 0) {
+                if (grain != 0 && memcmp(gt, zerogt, GTEPERGT*sizeof(u_int32_t))) {
                     gd[gtNum] = SECTORS(pos+sizeof(MetaDataMarker));
                     pos += writeCompressedGrainTable(gt, of);
                 }
             }
             pos = ftello(of);
             header.gdOffset = SECTORS(pos) + 1;
-            writeCompressedGrainDirectory(gtNum, gd, of);
+            writeCompressedGrainDirectory(gd, gdsize, of);
             writeFooter(&header, of);
             writeEndOfStream(of);
         }
