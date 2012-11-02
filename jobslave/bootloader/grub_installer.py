@@ -379,6 +379,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                         modules.add('pata_oldpiix')
                         modules.add('pata_mpiix')
                         modules.add('ata_piix')
+                        modules.add('virtio_net')
                         modules.add('virtio_blk')
                         modules.add('virtio_pci')
                 out.write('INITRD_MODULES="%s"' % (' '.join(modules)))

@@ -19,6 +19,7 @@ class RedhatGenerator(mkinitrd.InitrdGenerator):
             'mptspi',
             'scsi_transport_spi',
             'virtio_blk',
+            'virtio_net',
             'virtio_pci',
             'xenblk',
             ]
