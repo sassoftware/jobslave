@@ -23,8 +23,6 @@ finishedDir         = tmpDir + '/finished-images'
 implantIsoMd5 = '/usr/bin/implantisomd5'
 templatesLabel = 'conary.rpath.com@rpl:1'
 
-pinKernelRE = '(kernel|linux-image-2\.6\.[0-9]+-[0-9]+(-[a-z]+)?)([:-].*|$)'
-
 # ovf related constants
 OVF_EXTENSION = 'ovf'
 OVA_EXTENSION = 'ova'

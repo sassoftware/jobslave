@@ -1028,6 +1028,7 @@ class BootableImage(ImageGenerator):
 
         self.conarycfg.root = dest
         self.conarycfg.installLabelPath = [self.baseVersion.trailingLabel()]
+        self.conarycfg.configLine("pinTroves " + self.getPins())
         try:
             self.createDirectory('proc')
             self.createDirectory('sys')
