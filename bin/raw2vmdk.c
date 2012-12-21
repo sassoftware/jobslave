@@ -185,7 +185,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
 size_t _fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     /* call fwrite and bail on errors */
     if (fwrite(ptr, size, nmemb, stream) != nmemb) {
-       VPRINT("Write failed. Exiting");
+       VPRINT("Write failed. Exiting\n");
        exit(1);
     } else {
        return (size * nmemb);
@@ -230,7 +230,8 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
         "ddb.geometry.sectors = \"%d\"\n"
         "ddb.geometry.heads = \"%d\"\n"
         "ddb.geometry.cylinders = \"%d\"\n"
-        "ddb.virtualHWVersion = \"4\"\n", adapter, sectors, heads, cylinders);
+        "ddb.toolsVersion = \"8193\"\n"
+        "ddb.virtualHWVersion = \"7\"\n", adapter, sectors, heads, cylinders);
 
     free(cpoutfile);
     return returner;
@@ -272,13 +273,19 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     int ret;
     int compressedBytes = 0;
     off_t bytesWritten = 0;
+    size_t bytesRead = 0;
     u_int8_t buf[GRAINSIZE];
     u_int8_t outbuf[2*GRAINSIZE];
     memset(buf, 0, GRAINSIZE*sizeof(u_int8_t));
     memset(outbuf, 0, GRAINSIZE*sizeof(u_int8_t));
 
-    fread((void *)&buf, GRAINSIZE*sizeof(u_int8_t), 1, infile);
-    if (! memcmp(&buf, &zerograin, GRAINSIZE*sizeof(u_int8_t))) {
+    bytesRead = fread(buf, 1, GRAINSIZE*sizeof(u_int8_t), infile);
+    if (bytesRead == 0) {
+        VPRINT("End of file reached.\n");
+        return 0;
+    }
+
+    if (! memcmp(buf, zerograin, GRAINSIZE*sizeof(u_int8_t))) {
         VPRINT("grain at LBA %lld is zero. skipping.\n", (long long)lba);
         return 0;
     }
@@ -291,7 +298,7 @@ int writeCompressedGrain(FILE * infile, SectorType lba, FILE * of) {
     if (ret != Z_OK)
         exit(2);
 
-    strm.avail_in = GRAINSIZE;
+    strm.avail_in = bytesRead;
     strm.next_in = buf;
     strm.next_out = outbuf;
     strm.avail_out = 2*GRAINSIZE;
@@ -406,7 +413,7 @@ off_t copyData(const char* infile, const off_t outsize,
     size_t read;
     u_int32_t numGrains = (outsize / GRAINSIZE) + ((outsize % GRAINSIZE) ? 1 : 0);
     u_int32_t curGrain = 0;
-    while((read = fread((void*)&buf, sizeof(u_int8_t), GRAINSIZE, in))) {
+    while((read = fread(buf, sizeof(u_int8_t), GRAINSIZE, in))) {
         VPRINT("Copying grain %d of %d", ++curGrain, numGrains);
         /* Check to make sure it's not all zeros */
         int i, rem, stop;
@@ -551,6 +558,14 @@ int main(int argc, char ** argv) {
 
     FILE * of = fopen(outfile, "wb");
     if(of) {
+        // Write descriptor file, to compute its length (it is cheap)
+        FILE *devnull = fopen("/dev/null", "wb");
+        if (devnull) {
+            int descriptorSize =  writeDescriptorFile(devnull, outsize, outfile, cylinders, heads, sectors, adapter);
+            fclose(devnull);
+            header.descriptorSize = SECTORS(descriptorSize) + 1;
+        }
+
         // Write the header
         VPRINT("Writing the header\n");
         fwrite((void*)&header, sizeof(SparseExtentHeader), 1, of);

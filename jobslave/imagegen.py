@@ -149,6 +149,7 @@ class Generator(object):
 
 class ImageGenerator(Generator):
     ovfClass = None
+    alwaysOvf10 = False
 
     def __init__(self, *args, **kwargs):
         Generator.__init__(self, *args, **kwargs)
@@ -190,7 +191,7 @@ class ImageGenerator(Generator):
                 self.baseVersion.trailingRevision().version, self.arch))
 
         self.basefilename = basefilename.encode('utf8')
-        self.buildOVF10 = self.getBuildData('buildOVF10')
+        self.buildOVF10 = self.getBuildData('buildOVF10') or self.alwaysOvf10
 
         # Product definition / platform information
         self.productDefinition = None

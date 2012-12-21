@@ -21,7 +21,7 @@
       <System>
         <vssd:InstanceId>0</vssd:InstanceId>
         <vssd:VirtualSystemIdentifier>@NAME@</vssd:VirtualSystemIdentifier>
-        <vssd:VirtualSystemType>vmx-04</vssd:VirtualSystemType>
+        <vssd:VirtualSystemType>vmx-07</vssd:VirtualSystemType>
       </System>
       <Item>
         <rasd:Caption>1 virtual CPU(s)</rasd:Caption>

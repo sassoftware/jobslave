@@ -110,10 +110,6 @@ class AMIImage(raw_fs_image.RawFsImage):
         # AMIs don't need a kernel
         pass
 
-    def runGrubby(self, dest):
-        # AMI's don't have a kernel
-        pass
-
     def _findKernelMetadata(self):
         """
         Figure out if the kernel in the chroot has ec2 related metadata set.
@@ -202,15 +198,6 @@ class AMIImage(raw_fs_image.RawFsImage):
     def write(self):
         totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
         images = self.makeFSImage(sizes)
-
-        if self.buildOVF10:
-            self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.RAWFS, images['/'],
-                totalSize, True, self.workingDir,
-                self.outputDir)
-            self.outputFileList.append((self.ovaPath,
-                '%s %s' % (self.productName, constants.OVFIMAGETAG)))
-
 
         self.status("Creating the AMI bundle")
         bundleRoot = tempfile.mkdtemp(prefix='amibundle')

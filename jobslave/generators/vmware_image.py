@@ -4,6 +4,7 @@
 
 import os
 import stat
+from collections import namedtuple
 
 from jobslave import buildtypes
 from jobslave.generators import bootable_image, raw_hd_image, constants, \
@@ -60,6 +61,10 @@ def substitute(template, variables):
     return template
 
 
+class OSInfo(namedtuple('OSInfo', 'ovfId version description osType')):
+    __slots__ = ()
+
+
 class VMwareImage(raw_hd_image.RawHdImage):
 
     ovfClass = ovf_image.VMwareOVFImage
@@ -68,15 +73,50 @@ class VMwareImage(raw_hd_image.RawHdImage):
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
     raw2vmdk = '/usr/bin/raw2vmdk'
 
-    platforms = {'' : 'other26xlinux',
-                 'Red Hat Enterprise Linux AS 4' : 'rhel4',
-                 'Red Hat Enterprise Linux Server 5' : 'rhel5',
-                 'Red Hat Enterprise Linux Desktop Workstation 5' : 'rhel5',
-                 'SLES 11 Delivered by rPath' : 'sles11',
-                 'SLES 10 Delivered by rPath' : 'sles10',
+    platforms = {'' : ('other26xlinux', ''),
+                 'Red Hat Enterprise Linux AS 4': ('rhel4', '4'),
+                 'Red Hat Enterprise Linux Server 5': ('rhel5', '5'),
+                 'Red Hat Enterprise Linux Desktop Workstation 5':
+                    ('rhel5', '5'),
+                 'Red Hat Enterprise Linux Server 6': ('rhel6', '6'),
+                 'SLES 11 Delivered by rPath': ('sles11', '11'),
+                 'SLES 10 Delivered by rPath': ('sles10', '10'),
+                 'SuSE Linux Enterprise Server 10 SP3': ('sles10', '10'),
+                 'SuSE Linux Enterprise Server 11 SP1': ('sles11', '11') ,
+
+                 # Map centos 5 -> rhel 5 for now since VCD doesn't currently
+                 # support centos 5.
+                 'CentOS 5': ('rhel5', '5'),
                 }
 
     WithCompressedDisks = True
+
+    def _getPlatformAndVersion(self):
+        platformName = self.getBuildData('platformName')
+        return self.platforms.get(platformName, self.platforms[''])
+
+    def getPlatformAndVersion(self):
+        pd = self.getProductDefinition()
+        if not pd:
+            return self._getPlatformAndVersion()
+
+        info = pd.getPlatformInformation()
+        if not info or not hasattr(info, 'platformClassifier'):
+            return self._getPlatformAndVersion()
+
+        cls = info.platformClassifier
+
+        # Map centos 5 -> rhel 5 for now since VCD doesn't currently
+        # support centos 5.
+        if cls.name == 'centos':
+            name = 'rhel'
+        else:
+            name = cls.name
+
+        name = '%s%s' % (name, cls.version)
+        version = cls.version
+
+        return (name, version)
 
     def _createVMDK(self, hdImage, outfile, size, streaming=False):
         args = [
@@ -200,6 +240,9 @@ class VMwareImage(raw_hd_image.RawHdImage):
         """Create OVF 1.0 output for general purpose usage."""
         vmdkPath = self.compressDiskImage(vmdkPath)
 
+        # Insert OS info.
+        self.ovfClass.osInfo = self.getGuestOSInfo()
+
         self.ovaPath = self.createOvf(self.basefilename,
                 self.jobData['description'], constants.VMDK, vmdkPath,
                 capacity, diskCompressed=self.WithCompressedDisks,
@@ -219,19 +262,23 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.capacity = None
 
     def getGuestOS(self):
+        # vmwareOs hook used for windows builds.
         if 'vmwareOS' in self.jobData:
             return self.jobData['vmwareOS']
+
+        # for all linux builds, we send a paltform name
         else:
-            platformName = self.getBuildData('platformName')
-            platform = self.platforms.get(platformName, 'other26xlinux')
+            platform, version = self.getPlatformAndVersion()
             if self.baseFlavor.satisfies(deps.parseFlavor('is: x86_64')):
                 platform += '-64'
             return platform
 
-    def getGuestSection(self):
+    def getGuestOSInfo(self):
         platform = self.getGuestOS()
         if platform.startswith('winNet'):
             # Windows 2003
+            version = '2003'
+            platformName = 'Windows Server 2003'
             if platform.endswith('-64'):
                 ovfId = 70
                 osType = 'winNetStandard64Guest'
@@ -240,20 +287,46 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 osType = 'winNetStandardGuest'
         elif platform.startswith('win'):
             # Assume Windows 2008
+            version = '2008'
+            platformName = 'Windows Server 2008'
             ovfId = 1
             osType = 'windows7Server64Guest'
+        elif not platform.startswith('other'):
+            platformName = self.getBuildData('platformName')
+            _, version = self.getPlatformAndVersion()
+            is64 = platform.endswith('-64')
+            osType = platform.replace('-', '_') + 'Guest'
+            if platform.startswith('rhel'):
+                ovfId = is64 and 80 or 79
+            elif platform.startswith('sles'):
+                ovfId = is64 and 85 or 84
+            else:
+                osType = is64 and 'other26xLinux64Guest' or 'other26xLinuxGuest'
+                ovfId = is64 and 107 or 36
         else:
             # Assume Linux
+            version = '26'
+            platformName = 'Other Linux 2.6'
             if platform.endswith('-64'):
                 ovfId = 107
                 osType = 'other26xLinux64Guest'
             else:
                 ovfId = 36
                 osType = 'other26xLinuxGuest'
+
+        if platform.endswith('-64'):
+            platformName += ' (64 bit)'
+        else:
+            platformName += ' (32 bit)'
+
+        return OSInfo(ovfId, version, platformName, osType)
+
+    def getGuestSection(self):
+        osInfo = self.getGuestOSInfo()
         osSection = ('<Section ovf:id="%s" '
             'xsi:type="ovf:OperatingSystemSection_Type" vmw:osType="%s">'
             '<Info>The kind of installed guest operating system</Info>'
-            '</Section>') % (ovfId, osType)
+            '</Section>') % (osInfo.ovfId, osInfo.osType)
         return osSection
 
 
@@ -263,6 +336,7 @@ class VMwareESXImage(VMwareImage):
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_ESX_IMAGE]
     # Mingle #393
     WithCompressedDisks = False
+    alwaysOvf10 = True
 
     def configure(self):
         VMwareImage.configure(self)
@@ -274,11 +348,7 @@ class VMwareESXImage(VMwareImage):
         self._createVMDK(hdImage, outfile, size, True)
 
     def writeMachine(self, disk, callback=None):
-        """Create OVF 0.9 tarball for ESX deployments.
-
-        A streaming format VMDK will be created. The path to it will be
-        returned for use in the OVF 1.0 generator.
-        """
+        """Create VMDK for the OVF processor, but no actual output images."""
         if not callback:
             callback = VMwareCallback()
         ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
@@ -291,14 +361,6 @@ class VMwareESXImage(VMwareImage):
         self.createOvfVMDK(disk.image, vmdkPath, disk.totalSize)
         self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
-
-        # TODO: Add progress to self.gzip() and pass it to creatingArchive()
-        callback.creatingArchive(None, None)
-        self.createVMX(ovfPath, type='ovf')
-        self.setModes(self.workingDir)
-        self.gzip(self.workingDir, ovfOutputFile)
-        self.outputFileList.append(
-            (ovfOutputFile, self.productName + ' OVF 0.9 Image'))
         return vmdkPath
 
 

@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
         includeTemplate=True, kversions=(), ami=False, rdPrefix='initrd'):
-    xen = xen or dom0
+    xen = xen or dom0 or ami
     macros = {
         'name': name,
         'kversion'  : 'template',
