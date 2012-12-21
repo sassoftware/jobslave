@@ -406,7 +406,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             '-k', ' '.join(kpaths),
             '-i', ' '.join(ipaths),
             ]
-       
+
         # More SLES 11 magic: make a temporary device node
         # for the root fs device, and remove it after mkinitrd runs.
         if is_SUSE(self.image_root, version=11):
@@ -414,9 +414,21 @@ class GrubInstaller(bootloader.BootloaderInstaller):
                 tmpRootDev = os.path.join(self.image_root, 'dev', 'root')
                 mkinitrdCmd.extend([ '-d', '/dev/root' ])
             else:
-                tmpRootDev = os.path.join(self.image_root, 'dev', 'loop0')
-                mkinitrdCmd.extend([ '-d', '/dev/loop0' ])
-            os.mknod(tmpRootDev, 0600 | stat.S_IFBLK, 
+                # Patch for card 2258
+                # Need to make sure we use the correct loop device for mkinitrd
+                proc_mount = '/proc/mounts'
+                loop = os.path.join('dev', 'root')
+                if os.path.exists(proc_mount):
+                    mounts = open(proc_mount).readlines()
+                    loops = sorted([ x.split() for x in mounts if
+                                         x.startswith('/dev/loop') ])
+                    if loops:
+                        for l in loops:
+                            if l[1] == self.image_root:
+                                loop = l[0][1:]
+                tmpRootDev = os.path.join(self.image_root, loop)
+                mkinitrdCmd.extend([ '-d', loop ])
+            os.mknod(tmpRootDev, 0600 | stat.S_IFBLK,
                      os.stat(self.image_root).st_dev)
 
         logCall(mkinitrdCmd)
