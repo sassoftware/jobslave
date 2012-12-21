@@ -424,10 +424,10 @@ class InstallableIso(ImageGenerator):
     def setupKickstart(self, topdir):
         if os.path.exists(os.path.join(topdir, 'media-template',
                                        'disc1', 'ks.cfg')):
-            log.info("adding kickstart arguments")
             cfg = open(os.path.join(topdir, 'isolinux', 'isolinux.cfg'), "r+")
             contents = self.addKsBootLabel(cfg.readlines())
             cfg.seek(0)
+            cfg.truncate()
             cfg.writelines(contents)
             cfg.close()
 
@@ -436,14 +436,37 @@ class InstallableIso(ImageGenerator):
         Input initial isolinux.cfg contents, add new entry
         and make it the default
         '''
-
+        if any('label kscdrom' in x for x in isoLinuxCfg):
+            # Don't add kickstart entry if one was supplied by media-template
+            log.info("Leaving isolinux.cfg unmodified due to "
+                    "existing kickstart entry")
+            return isoLinuxCfg
+        log.info("Updating isolinux configuration to use provided kickstart")
+        isMenuBased = any(x.strip() == 'default vesamenu.c32'
+                for x in isoLinuxCfg)
         contents = []
         for line in isoLinuxCfg:
-            if line.startswith('default'):
-                line = 'default kscdrom\n' 
+            if line.startswith('default') and not isMenuBased:
+                # Only change "default" if it's not a syslinux menu module
+                # (menu.c32 or vesamenu.c32)
+                line = 'default kscdrom\n'
+            elif line.strip() == 'timeout 600' and isMenuBased:
+                # 60 seconds is a long time to wait for kickstart purposes
+                line = 'timeout 50\n'
+            elif line.strip() == 'menu default':
+                # Remove old menu default marker; add new one below
+                continue
             contents.append(line)
-        contents.extend(('label kscdrom\n', '  kernel vmlinuz\n',
-                '  append initrd=initrd.img ramdisk_size=8192 ks=cdrom\n'))
+        contents.extend([
+            'label kscdrom\n',
+            '  kernel vmlinuz\n',
+            '  append initrd=initrd.img ramdisk_size=8192 ks=cdrom\n',
+            ])
+        if isMenuBased:
+            contents.extend([
+                '  menu default\n',
+                '  menu label ^Automated install from kickstart\n',
+                ])
         return contents
 
     def retrieveTemplates(self):
