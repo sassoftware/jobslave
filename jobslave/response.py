@@ -11,10 +11,11 @@ Communicate status and artifacts back to the parent rBuilder.
 import logging
 import os
 import Queue
-import restlib.client
 import threading
 import time
 from conary.lib import digestlib
+from conary.lib.http import http_error
+from conary.lib.http import opener
 try:
     from xml.etree import ElementTree as ET
 except ImportError:
@@ -30,6 +31,7 @@ class ResponseProxy(object):
         self.imageBase = '%sapi/v1/images/%d' % (masterUrl, jobData['buildId'])
         self.uploadBase = '%suploadBuild/%d/' % (masterUrl, jobData['buildId'])
         self.outputToken = jobData['outputToken']
+        self.opener = opener.URLOpener(connectAttempts=2)
 
         # Create a logger for things that are inside the log sending path, so
         # we can log to console without causing an infinite loop.
@@ -45,21 +47,21 @@ class ResponseProxy(object):
             url = self.imageBase
         else:
             url = "%s/%s" % (self.imageBase.rstrip('/'), path)
+        return self.opener.open(url, data=body, method=method, headers=headers)
 
-        client = restlib.client.Client(url, headers)
-        client.connect()
-        return client.request(method, body)
-
-    def _postFile(self, method, targetName, filePath, digest):
+    def _postFile(self, method, targetName, filePath):
         headers = {
                 'Content-Type': 'application/octet-stream',
                 'X-rBuilder-OutputToken': self.outputToken,
                 }
         url = self.uploadBase + targetName
-
-        client = FilePutter(url, headers)
-        client.connect()
-        return client.putFile(method, filePath, digest)
+        req = self.opener.newRequest(url, method=method, headers=headers)
+        fobj = open(filePath, 'rb')
+        size = os.fstat(fobj.fileno()).st_size
+        body = DigestingReader(fobj)
+        req.setData(body, size=size, chunked=True)
+        self.opener.open(req)
+        return body.hexdigest()
 
     def sendStatus(self, code, message):
         root = ET.Element('image')
@@ -77,8 +79,8 @@ class ResponseProxy(object):
         try:
             try:
                 self._post('POST', 'build_log', contentType='text/plain', body=data)
-            except restlib.client.ResponseError, err:
-                if err.status != 204: # No Content
+            except http_error.ResponseError, err:
+                if err.errcode != 204: # No Content
                     raise
         except:
             self.log.exception("Error sending build log:")
@@ -93,10 +95,7 @@ class ResponseProxy(object):
             log.info("Uploading %d of %d: %s (%d bytes)",
                     n + 1, len(fileList), fileName, fileSize)
 
-            digest = digestlib.sha1()
-            self._postFile('PUT', fileName, filePath, digest)
-            digest = digest.hexdigest()
-
+            digest = self._postFile('PUT', fileName, filePath)
             log.info(" %s uploaded, SHA-1 digest is %s", fileName, digest)
 
             file = ET.SubElement(root, 'file')
@@ -181,46 +180,16 @@ class NonSendingLogger(logging.Logger):
         return record
 
 
-class FilePutter(restlib.client.Client):
-    CHUNK_SIZE = 16 * 1024
+class DigestingReader(object):
 
-    def putFile(self, method, filePath, digest):
-        fObj = open(filePath, 'rb')
-        fileSize = os.fstat(fObj.fileno()).st_size
-        return self.putFileObject(method, fObj, digest, fileSize)
+    def __init__(self, fobj):
+        self.fobj = fobj
+        self.digest = digestlib.sha1()
 
-    def putFileObject(self, method, fObj, digest, fileSize=None):
-        headers = self.headers.copy()
-        if fileSize is not None:
-            headers['Content-Length'] = str(fileSize)
-        headers['Content-Type'] = 'application/octet-stream'
-        headers['Transfer-Encoding'] = 'chunked'
+    def read(self, numbytes=None):
+        d = self.fobj.read(numbytes)
+        self.digest.update(d)
+        return d
 
-        conn = self._connection
-        conn.request(method, self.path, headers=headers)
-
-        toSend = fileSize
-        while toSend is None or toSend > 0:
-            if toSend is not None:
-                chunkSize = min(toSend, self.CHUNK_SIZE)
-            else:
-                chunkSize = self.CHUNK_SIZE
-            chunk = fObj.read(chunkSize)
-            if not chunk:
-                break
-            chunkSize = len(chunk)
-
-            conn.send('%x\r\n%s\r\n' % (chunkSize, chunk))
-            digest.update(chunk)
-
-            if toSend is not None:
-                toSend -= chunkSize
-
-        conn.send('0\r\nContent-SHA1: %s\r\n\r\n'
-                % (digest.digest().encode('base64'),))
-
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise restlib.client.ResponseError(resp.status, resp.reason,
-                    resp.msg, resp)
-        return resp
+    def hexdigest(self):
+        return self.digest.hexdigest()

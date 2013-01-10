@@ -13,7 +13,6 @@ class Jobslave(CPackageRecipe, TestPackageRecipe, Python.VersionMixIn):
         'PIL:python',
         'pyovf:python',
         'python:devel',
-        'restlib:python',
         'rpath-product-definition:python',
         'simplejson:python',
         'util-linux:runtime',
