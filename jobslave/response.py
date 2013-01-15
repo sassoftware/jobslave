@@ -85,7 +85,7 @@ class ResponseProxy(object):
         except:
             self.log.exception("Error sending build log:")
 
-    def postOutput(self, fileList, withMetadata=True):
+    def postOutput(self, fileList, withMetadata=True, attributes=None):
         root = ET.Element('files')
         for n, (filePath, description) in enumerate(fileList):
             # unicodify file names, dropping any invalid bytes
@@ -103,6 +103,10 @@ class ResponseProxy(object):
             ET.SubElement(file, 'size').text = str(fileSize)
             ET.SubElement(file, 'sha1').text = digest
             ET.SubElement(file, 'file_name').text = fileName
+        attr = ET.SubElement(root, 'attributes')
+        if attributes:
+            for key, value in attributes.iteritems():
+                ET.SubElement(attr, key).text = str(value)
 
         if withMetadata:
             self._post('PUT', 'build_files', body=ET.tostring(root))

@@ -122,8 +122,8 @@ class Generator(object):
         log.info("Sending job status: %d %s", status, message)
         self.response.sendStatus(status, message)
 
-    def postOutput(self, fileList):
-        self.response.postOutput(fileList)
+    def postOutput(self, fileList, attributes=None):
+        self.response.postOutput(fileList, attributes=attributes)
 
     def _sendStackTrace(self, e_type, e_value, e_tb):
         # Scrub the most likely place for user passwords to appear.
