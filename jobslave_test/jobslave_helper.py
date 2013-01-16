@@ -41,7 +41,7 @@ class DummyResponse(object):
     def sendLog(self, data):
         pass
 
-    def postOutput(self, fileList):
+    def postOutput(self, fileList, withMetadata=None, attributes=None):
         pass
 
 
