@@ -188,8 +188,8 @@ class OvfImage(object):
 
         mfFile = open(self.manifestPath, 'w')
 
-        ovfSha1 = sha1helper.sha1FileBin(self.ovfPath)
-        diskSha1 = sha1helper.sha1FileBin(self.diskFilePath)
+        ovfSha1 = sha1helper.sha1FileBin(self.ovfPath).hexdigest()
+        diskSha1 = sha1helper.sha1FileBin(self.diskFilePath).hexdigest()
 
         mfFile.write(sha1Line % (self.ovfFileName, ovfSha1))
         mfFile.write(sha1Line % (self.diskFileName, diskSha1))
