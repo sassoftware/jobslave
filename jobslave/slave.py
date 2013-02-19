@@ -5,7 +5,7 @@
 #
 
 import logging
-import simplejson
+import json
 import sys
 from conary.lib.cfg import ConfigFile
 from conary.lib.cfgtypes import CfgBool, CfgString, CfgPath
@@ -36,6 +36,6 @@ def main(args):
     cfg = SlaveConfig()
     cfg.read(configPath)
 
-    jobData = simplejson.load(open(cfg.jobDataPath))
+    jobData = json.load(open(cfg.jobDataPath))
     handler = jobhandler.getHandler(cfg, jobData)
     handler.run()

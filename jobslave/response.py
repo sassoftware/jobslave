@@ -16,11 +16,7 @@ import time
 from conary.lib import digestlib
 from conary.lib.http import http_error
 from conary.lib.http import opener
-try:
-    from xml.etree import ElementTree as ET
-except ImportError:
-    # pyflakes=ignore
-    from elementtree import ElementTree as ET
+from xml.etree import ElementTree as ET
 from jobslave import jobstatus
 
 log = logging.getLogger(__name__)
