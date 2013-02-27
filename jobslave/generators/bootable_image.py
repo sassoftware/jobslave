@@ -537,6 +537,12 @@ class BootableImage(ImageGenerator):
             # Fix permissions since mknod applies umask to it first
             os.chmod(urandom, 0666|stat.S_IFCHR)
 
+        if is_SUSE(self.root):
+            # SUSE needs /dev/fd for mkinitrd (RBL-5689)
+            os.symlink('/proc/self/fd', self.filePath('dev/fd'))
+        elif is_SUSE(self.root, version=11):
+            self.createFile('etc/sysconfig/mkinitrd', 'OPTIONS="-A"\n')
+
         # Configure the bootloader (but don't install it yet).
         self.bootloader.setup()
 
@@ -869,12 +875,6 @@ class BootableImage(ImageGenerator):
         ins.close()
         outs.close()
         os.unlink(os.path.join(dest, 'root', 'conary-tag-script.in'))
-
-        if is_SUSE(dest):
-            # SUSE needs /dev/fd for mkinitrd (RBL-5689)
-            os.symlink('/proc/self/fd', util.joinPaths(os.path.sep, dest, 'dev/fd'))
-        elif is_SUSE(dest, version=11):
-            open('%s/etc/sysconfig/mkinitrd' % dest, 'w').write('OPTIONS="-A"\n')
 
         for tagScript in ('conary-tag-script', 'conary-tag-script-kernel'):
             tagPath = util.joinPaths(os.path.sep, 'root', tagScript)
