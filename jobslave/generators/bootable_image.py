@@ -519,26 +519,6 @@ class BootableImage(ImageGenerator):
             f.write(name + '\n')
             f.close()
 
-        # HACK: rpm refuses to install passwd/group from setup:rpm if an info
-        # package was installed earlier.
-        # Delete after updating to conary 2.1.17
-        for path in ['/etc/passwd', '/etc/group']:
-            newpath = path + '.rpmnew'
-            if not self.fileExists(newpath):
-                continue
-            first = self.readFile(newpath).splitlines()
-            second = self.readFile(path).splitlines()
-            out = ''
-            seen = set()
-            for line in first + second:
-                name = line.split(':')[0]
-                if name not in seen:
-                    seen.add(name)
-                    out += line + '\n'
-
-            self.createFile(path, out)
-            self.deleteFile(newpath)
-
         # Disable selinux by default
         selinux = 'etc/selinux/config'
         if self.fileExists(selinux):
