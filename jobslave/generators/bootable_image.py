@@ -297,17 +297,20 @@ class BootableImage(ImageGenerator):
         # type 'c' or 'b', major, and minor numbers.
         self.devices = [
 
-            # common characture devices
-            ('console', 'c', 5, 1),
-            ('null', 'c', 1, 3),
-            ('zero', 'c', 1, 5),
-            ('full', 'c', 1, 7),
-            ('tty', 'c', 5, 0),
+            # common character devices
+            ('console', 'c', 5, 1, 0600),
+            ('null',    'c', 1, 3, 0666),
+            ('zero',    'c', 1, 5, 0666),
+            ('full',    'c', 1, 7, 0666),
+            ('tty',     'c', 5, 0, 0666),
+            ('ptmx',    'c', 5, 2, 0666),
+            ('random',  'c', 1, 8, 0666),
+            ('urandom', 'c', 1, 9, 0666),
 
             # common block devices
-            ('sda', 'b', 8, 0),
-            ('sda1', 'b', 8, 1),
-            ('sda2', 'b', 8, 2),
+            ('sda',     'b', 8, 0, 0660),
+            ('sda1',    'b', 8, 1, 0660),
+            ('sda2',    'b', 8, 2, 0660),
 
         ]
 
@@ -317,7 +320,7 @@ class BootableImage(ImageGenerator):
             rootLoopMajor = os.major(rootLoopDev.st_rdev)
             rootLoopMinor = os.minor(rootLoopDev.st_rdev)
             self.devices.append(('loop%d' %  rootLoopMinor, 'b', 
-                                 rootLoopMajor, rootLoopMinor ))
+                    rootLoopMajor, rootLoopMinor, 0660))
 
     def addFilesystem(self, mountPoint, fs):
         self.filesystems[mountPoint] = fs
@@ -417,19 +420,10 @@ class BootableImage(ImageGenerator):
         self.createFile('etc/fstab', fstab)
 
         # Create devices that we need most of the time.
-        for dev, type, major, minor in self.devices:
+        for dev, type, major, minor, mode in self.devices:
             devicePath = self.filePath('dev/%s' % dev)
-
-            # Remove any regular files that might have been created while
-            # scripts were running. (RHEL sometimes ends up with empty files
-            # in /dev due to post scripts.)
             if os.path.exists(devicePath):
-                if util.isregular(devicePath):
-                    os.unlink(devicePath)
-
-                # This is probably already an existing device file, skip it.
-                else:
-                    continue
+                os.unlink(devicePath)
 
             if type == 'c':
                 flags = stat.S_IFCHR
@@ -439,6 +433,7 @@ class BootableImage(ImageGenerator):
             # Create device.
             devnum = os.makedev(major, minor)
             os.mknod(devicePath, flags, devnum)
+            os.chmod(devicePath, mode)
 
     @timeMe
     def preTagScripts(self):
@@ -528,14 +523,6 @@ class BootableImage(ImageGenerator):
                     'change it back using a group post-install script.\n'
                     'SELINUX=disabled\n')
             self.createFile(selinux, contents)
-
-        urandom = self.filePath('dev/urandom')
-        if not os.path.exists(urandom):
-            # CentOS/RHEL 5/6 require /dev/urandom to exist when creating
-            # tempfiles
-            os.mknod(urandom, 0666|stat.S_IFCHR, os.makedev(1, 9))
-            # Fix permissions since mknod applies umask to it first
-            os.chmod(urandom, 0666|stat.S_IFCHR)
 
         if is_SUSE(self.root):
             # SUSE needs /dev/fd for mkinitrd (RBL-5689)
