@@ -1,98 +1,104 @@
 #
-# Copyright (c) 2011 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
-loadSuperClass('group-appliance')
-class GroupJobslave(ApplianceGroupRecipe):
-    name = 'group-jobslave'
-    version = '5.5.0'
 
-    autoResolve = True
+class GroupJobslave(GroupSetRecipe):
+    name = 'group-jobslave'
+    version = '8'
+
+    unwantedComponents = ['devel', 'devellib', 'doc', 'build-tree', 'tk', 'test', 'gtk']
 
     def setup(r):
-        r.setJSSearchPath()
+        r.dumpAll()
+        r.makeSearchPath()
+        addToMain = []
 
-        r.addAll('group-core', flatten=True)
-        r.replace('conary')
+        ## core troveset common to all appliance outputs
+        group = r.mainSearchPath.find(
+            # Application
+            'jobslave',
+            'jobslave-runtime',
 
-        # Application
-        r.add('jobslave')
-        r.add('jobslave-runtime')
+            # Application dependencies
+            # FIXME: all of these should be implicit dependencies of jobslave
+            'amiconfig',
+            'anaconda-utils',
+            'bitstream-vera-fonts',
+            'conary',
+            'dosfstools',
+            'ethtool',
+            'freetype',
+            'gnupg2',
+            'mtools',
+            'netpbm',
+            'nfs-utils',
+            'screen',
+            #'sgmlop',
+            'syslinux',
+            'tcsh',
 
-        # Application dependencies
-        # FIXME: all of these should be implicit dependencies of jobslave
-        r.add('anaconda-utils')
-        r.add('bitstream-vera-fonts')
-        r.add('dosfstools')
-        r.add('e2fsimage') # Needed for livecds
-        r.add('ethtool')
-        r.add('freetype')
-        r.add('gnupg')
-        r.add('cdrkit')
-        r.add('mtools')
-        r.add('netpbm')
-        r.add('nfs-utils')
-        r.add('PIL:python')
-        r.add('screen')
-        r.add('sgmlop')
-        r.add('simplejson')
-        r.add('syslinux')
-        r.add('tcsh')
+            'group-rpm',
+            )
+        group += group.depsNeeded(r.mainSearchPath)
+        group -= group.components(*r.unwantedComponents)
+        r.Group(group)
 
-        # Compatibility versions of RPM
-        r.add('group-rpm')
-
-        # things we don't need for a jobslave instance
-        r.remove('kernel')
-        r.remove('kudzu')
-        r.remove('open-iscsi')
-        r.remove('rhpl')
-        if Arch.x86_64:
-            r.remove('glibc', flavor='is: x86')
-
-        # strip out components we'll never use
-        r.removeComponents([ 'devel', 'devellib', 'doc' ])
-
-    def setJSSearchPath(r):
-        searchPath = []
+    def getAdditionalSearchPath(r):
+        """
+        Set a package search path from a plethora of macros. This covers all
+        the product components and dependencies that aren't part of the
+        platform, e.g. everything except rPA, rPL, and rLS.
+        """
+        # Place new packages in the correct section, sorted alphabetically.
+        packageSearchPath = []
         for macro, packages in [
-            # rBuilder components
-            ('buildlabel', [
-                'jobslave',
-                'jobslave-runtime',
-                ]),
             ('master_label', [
                 'conary',
                 'conary-build',
                 'conary-repository',
+                'jobslave',
+                'jobslave-runtime',
                 'pyovf',
                 'rpath-product-definition',
                 'xobj',
                 ]),
-            ('contrib_label', [
-                'e2fsimage',
-                ]),
-            ('rpm_label', ['group-rpm']),
             ('anaconda_label', ['anaconda-utils']),
             ]:
-            if macro not in r.macros:
+            label = r.macros.get(macro)
+            if label is None and r._lightInstance:
                 continue
-            items = ['%s=%s' % (package, r.macros[macro]) for package in packages]
-            searchPath.append(items)
+            packageSearchPath.append(
+                ['%s=%s' % (package, label) for package in packages])
+        # Hack to deal with @rpl:2-py26 setuptools being in lib64 vs lib thus
+        # changing the related python flags
+        packageSearchPath.append('python-setuptools=conary.rpath.com@rpl:2-py26')
+        return packageSearchPath
 
-        if 'productDefinitionSearchPath' in r.macros:
-            searchPath.extend(
-                [x] for x in r.macros.productDefinitionSearchPath.split('\n'))
-        else:
-            rPLVersion = r.macros.get('distro_label', 'conary.rpath.com@rpl:2')
-            searchPath.append(['group-rpath-platform=%(platform_label)s'
-                % r.macros])
-            searchPath.append(['group-os=%s[%s]'
-                % (rPLVersion, r.groupCoreFlavor)])
+    def getAppliancePlatformSearchPath(r):
+        return [
+            'group-rpath-platform=' + r.macros.platform_label,
+            'group-rpath-packages=' + r.macros.get('common_label', 'centos6.rpath.com@rpath:centos-6-common'),
+            'group-os=' + r.macros.get('distro_label', 'centos6.rpath.com@rpath:centos-6e'),
+            ]
 
-        # XXX BIG HACK TO BOOTSTRAP py26
-        if 'anaconda_label' in r.macros:
-            searchPath.append(['group-os=conary.rpath.com@rpl:2[%s]'
-                % r.groupCoreFlavor])
-
-        r.setSearchPath(*searchPath)
+    def makeSearchPath(r):
+        troveSets = []
+        searchPath = r.getAdditionalSearchPath() + r.getAppliancePlatformSearchPath()
+        for specs in searchPath:
+            if isinstance(specs, basestring):
+                specs = [specs]
+            troveSets.append(r.Repository(r.macros.buildlabel, r.flavor).find(*specs))
+        r.mainSearchPath = r.SearchPath(*troveSets)
