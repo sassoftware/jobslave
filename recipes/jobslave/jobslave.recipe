@@ -28,7 +28,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         # for tests
         'bitstream-vera-fonts:data',
         'conary-test:python',
-        'netpbm',
+        'netpbm-progs',
         'syslinux',
         'tag-cacheable-font',
       ]
@@ -57,6 +57,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         r.Requires('/usr/bin/ec2-bundle-image', '.*/generators/ami\..*')
         r.Requires('/usr/bin/raw2vmdk', '.*/generators/vmware_image\.py.*')
         r.Requires('/usr/bin/mkisofs', '.*/generators/installable_iso\.py.*')
+        r.Requires('/usr/bin/pngtopnm', '.*/generators/installable_iso\.py.*')
 
         # This file binds the freshly built jobslave to the system that will use it.
         r.Create('/srv/rbuilder/jobmaster/config.d/05_trove.conf',

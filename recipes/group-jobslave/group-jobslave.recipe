@@ -43,7 +43,6 @@ class GroupJobslave(GroupSetRecipe):
             'freetype',
             'gnupg2',
             'mtools',
-            'netpbm',
             'nfs-utils',
             'screen',
             #'sgmlop',
