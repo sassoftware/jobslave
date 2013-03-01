@@ -317,6 +317,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
 
     def testPreInstallScripts(self):
         mock.mock(os, 'mknod')
+        mock.mock(os, 'chmod')
         self.bootable.preInstallScripts()
         self.failUnlessEqual(set(os.listdir(self.bootable.root)),
                 set(['root', 'tmp', 'var', 'boot', 'etc', 'dev']))
