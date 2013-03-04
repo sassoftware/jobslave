@@ -30,6 +30,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         'conary-test:python',
         'netpbm-progs',
         'syslinux',
+        'syslinux-perl',
         'tag-cacheable-font',
       ]
 
