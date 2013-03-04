@@ -246,7 +246,7 @@ class InstallIso2Test(jobslave_helper.ExecuteLoggerTest):
             g._getLabelPath = lambda *args, **kwargs: ""
             g.writeProductImage(topdir, 'x86')
             self.failUnlessEqual([x[0] for x in self.callLog],
-                    ['sed', 'tar', 'tar', 'tar', 'tar', '/usr/bin/mkcramfs'])
+                    ['sed', 'tar', 'tar', 'tar', 'tar', '/sbin/mkfs.cramfs'])
         finally:
             os.unlink = unlink
             installable_iso.AnacondaImages = AnacondaImages
