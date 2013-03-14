@@ -48,13 +48,13 @@ from jobslave.generators import ovf_image
 from testrunner import pathManager
 from testutils import mock
 
-import simplejson
+import json
 
 class GeneratorThreadTest(jobslave_helper.ExecuteLoggerTest):
     def setUp(self):
         f = open (os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'),'jobdata.txt'))
         try:
-            self.jobData = simplejson.loads(f.read())
+            self.jobData = json.loads(f.read())
         finally:
             f.close()
         super(GeneratorThreadTest, self).setUp()
