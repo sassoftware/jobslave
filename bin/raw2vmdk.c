@@ -26,7 +26,14 @@
 
 #define CID_NOPARENT        0x0
 #define SPARSE_MAGICNUMBER  0x564d444b /* 'V' 'M' 'D' 'K' */
-#define VERSION             0x3
+/* http://www.vmware.com/support/developer/vddk/vmdk_50_technote.pdf
+ * There is no mention of version 3 (according to RBL-4831, it is required for
+ * streamOptimized)
+ * For monolithic, version 2 is not required, since we're not creating a
+ * sparse file proper.
+ * */
+#define VERSION             0x1
+#define SOVERSION           0x3
 #define FLAGS               0x3        /* flags for monolithicSparse */
 #define SOFLAGS             0x30001    /* flags for streamOptimized */
 #define SELC                '\n'
@@ -46,6 +53,7 @@
 /* Conversion macros */
 #define BYTES(x)    ((x)<<9)
 #define SECTORS(x)    ((x)>>9)
+#define PAD(x, y) ((x) % (y) == 0 ? (x) : (x) + (y) - (x) % (y))
 
 /* define two vmdk disk types */
 #define MONOLITHIC_SPARSE 0
@@ -151,7 +159,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     size_t numgts = numGTs(outsize);
     size_t gt0offset = GT0Offset(numgts);
     hd->magicNumber =       SPARSE_MAGICNUMBER;
-    hd->version =           VERSION;
+    hd->version =           (vmdkType == MONOLITHIC_SPARSE ? VERSION : SOVERSION);
     hd->flags =             (vmdkType == MONOLITHIC_SPARSE ? FLAGS : SOFLAGS );
     hd->capacity =          SECTORS(outsize);
     hd->grainSize =         SECTORS(GRAINSIZE);
@@ -160,7 +168,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     hd->numGTEsPerGT =      GTEPERGT;
     hd->rgdOffset =         (vmdkType == MONOLITHIC_SPARSE ? hd->descriptorSize + hd->descriptorOffset : 0);
 
-    /*offset of the first GT + total number of GTs * 4 sectors per GT */
+    /*offset of the GD + total number of GTs * 4 sectors per GT */
     u_int32_t metadatasize =      gt0offset + numgts * 4;
     if (vmdkType == MONOLITHIC_SPARSE) {
         hd->gdOffset  =     hd->rgdOffset + metadatasize;
@@ -170,7 +178,7 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
 
     /* The overHead is grain aligned */
     if (vmdkType == MONOLITHIC_SPARSE) {
-        hd->overHead = ceil((hd->gdOffset + metadatasize) / (float) hd->grainSize) * hd->grainSize;
+        hd->overHead = PAD(hd->gdOffset + metadatasize, hd->grainSize);
     } else {
         hd->overHead = GRAINSECTORS;
     }
@@ -361,28 +369,16 @@ int writeGrainDirectory(const size_t offset, const off_t outsize, FILE * of) {
     return returner * sizeof(cur);
 }
 
-int writeGrainTables(const size_t offset, const off_t outsize, FILE * of) {
-    size_t returner = 0;
-    size_t i, numGrains = (outsize / GRAINSIZE) + ((outsize % GRAINSIZE) ? 1 : 0);
-    size_t grainSize = SECTORS(GRAINSIZE);
-    u_int32_t cur;
-    for (i = 0; i < numGrains; i++) {
-        /* The next Grain is SECTORS(GRAINSIZE) away */
-        cur = offset + (i * grainSize);
-        returner += fwrite((void*)&cur, sizeof(cur), 1, of);
-    }
-    return returner * sizeof(cur);
-}
-
 int writeGrainTableData(const SparseExtentHeader * header, u_int32_t * grainTable, const size_t numgte, FILE * fd)
 {
     size_t numgts = numGTs(BYTES(header->capacity));
     size_t gt0offset = GT0Offset(numgts);
     int returner = 0;
-    //Seek to the first offset, and dump
+    VPRINT("Writing redundant grain tables\n");
     fseek(fd, BYTES(header->rgdOffset + gt0offset), SEEK_SET);
     returner += fwrite((void*)grainTable, sizeof(u_int32_t), numgte, fd);
 
+    VPRINT("Writing grain tables\n");
     fseek(fd, BYTES(header->gdOffset + gt0offset), SEEK_SET);
     returner += fwrite((void*)grainTable, sizeof(u_int32_t), numgte, fd);
     return returner;
@@ -568,30 +564,29 @@ int main(int argc, char ** argv) {
 
         // Write the header
         VPRINT("Writing the header\n");
-        fwrite((void*)&header, sizeof(SparseExtentHeader), 1, of);
+        _fwrite((void*)&header, sizeof(SparseExtentHeader), 1, of);
+
         // Write the descriptor
         VPRINT("Padding to the first sector\n");
         zeropad(BYTES(header.descriptorSize) - writeDescriptorFile(of, outsize, outfile, cylinders, heads, sectors, adapter), of);
         if (vmdkType == MONOLITHIC_SPARSE) {
             // Write the rGDE
             VPRINT("Writing the redundant Grain Directory\n");
-            size_t sizeofGDE = GT0Offset(numGTs(outsize));
-            zeropad( BYTES(sizeofGDE) - writeGrainDirectory(header.rgdOffset, outsize, of), of);
-            // Write the rGTs
-            VPRINT("Writing the redundant Grain Tables\n");
-            zeropad( BYTES(numGTs(outsize) * 4) - writeGrainTables(header.overHead, outsize, of), of);
-            // Write the GDE
+            // Skip to the rgd position first, this will zero-pad
+            fseek(of, BYTES(header.rgdOffset), SEEK_SET);
+            writeGrainDirectory(header.rgdOffset, outsize, of);
+
             VPRINT("Writing the Grain Directory\n");
-            zeropad( BYTES(sizeofGDE) - writeGrainDirectory(header.gdOffset, outsize, of), of);
-            // Write the GTs
-            VPRINT("Writing the Grain Tables\n");
-            zeropad( BYTES(numGTs(outsize) * 4) - writeGrainTables(header.overHead, outsize, of), of);
-            // Align to grain
-            off_t pos;
-            pos = ftello(of);
-            padding = GRAINSIZE - (pos % GRAINSIZE);
-            zeropad((padding == GRAINSIZE ? 0: padding), of);
-            // Write the grains
+            fseek(of, BYTES(header.gdOffset), SEEK_SET);
+            writeGrainDirectory(header.gdOffset, outsize, of);
+
+            // Align to grain; write a zero byte just to make sure we have at
+            // least overHead bytes in the image (corner case for a
+            // zero-filled file)
+            fseek(of, BYTES(header.overHead)-1, SEEK_SET);
+            fputc('\0', of);
+
+            // Write the grains. This also writes the grain tables
             VPRINT("Copying the data\n");
             if (copyData(infile, outsize, &header, of) < 0) {
                 return 1;

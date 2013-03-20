@@ -2,6 +2,7 @@
 # All rights reserved.
 
 from collections import namedtuple
+import math
 import struct
 import sys
 import zlib
@@ -9,7 +10,7 @@ import zlib
 class VMDK(object):
     _SECT = 512
     _HEADER = namedtuple('Header', 'magicNumber version flags capacity '
-        'grainSize descriptorOffset descriptorSize numGTEsPerGT rgdOffet '
+        'grainSize descriptorOffset descriptorSize numGTEsPerGT rgdOffset '
         'gdOffset overHead uncleanShutdown singleEndLineChar nonEndLineChar '
         'doubleEndLineChar1 doubleEndLineChar2 compressAlgorithm pad')
     _MARKER = namedtuple('Marker', 'val size data')
@@ -45,6 +46,14 @@ class VMDK(object):
 
         def asTuple(self):
             return tuple(self.map)
+
+        @classmethod
+        def fromData(cls, data):
+            sformat = "<%sI" % (len(data) / 4)
+            arr = struct.unpack(sformat, data)
+            ret = cls()
+            ret.map = arr
+            return ret
 
     class GrainTable(BaseGrainTable):
         __slots__ = [ 'offset', 'lba', ]
@@ -82,6 +91,7 @@ class VMDK(object):
 
     class GrainDirectory(BaseGrainTable):
         __slots__ = []
+        GD_AT_END = 0xffffffffffffffff
 
         def add(self, grainTable):
             if grainTable.isEmpty():
@@ -121,6 +131,9 @@ class VMDK(object):
         self._fobj.read(self._SECT * (self.header.descriptorOffset - 1))
         self.descriptor = self._fobj.read(self._SECT * self.header.descriptorSize)
         print self.descriptor
+        if self.header.gdOffset != self.GrainDirectory.GD_AT_END:
+            self.assertEquals(self.header.compressAlgorithm, 0)
+            return self.inspectNonStreamOptimized()
 
         # skip over the overhead
         self._fobj.seek(self.header.overHead * self._SECT, 0)
@@ -159,6 +172,53 @@ class VMDK(object):
         self.assertEquals(self.footer.magicNumber, 'KDMV')
         eosMarker = self._readMarker()
         self.assertEquals(eosMarker.type, self.Marker.EOS)
+
+    def inspectNonStreamOptimized(self):
+        grainTable = self.GrainTable()
+        grainDirectory = self.GrainDirectory()
+
+        # Compute size of GD
+        numGTs = math.ceil(self.header.capacity / float(self.header.grainSize))
+        gdSize = int(math.ceil(numGTs / self.header.numGTEsPerGT))
+        # gd is aligned to a sector size, which is 512, with each entry
+        # being 4 bytes
+        gdSize = self.pad(gdSize, 512/4)
+
+        self._fobj.seek(self.header.gdOffset * self._SECT, 0)
+        grainDirectory = self.GrainDirectory.fromData(self._fobj.read(gdSize * 4))
+        self._fobj.seek(self.header.rgdOffset * self._SECT, 0)
+        rgrainDirectory = self.GrainDirectory.fromData(self._fobj.read(gdSize * 4))
+        #self.assertEquals(grainDirectory.map, rgrainDirectory.map)
+
+        for gtNum in range(gdSize):
+            self._fobj.seek(grainDirectory.map[gtNum] * self._SECT, 0)
+            gt = self.GrainTable.fromData(self._fobj.read(512 * 4))
+            assert len(gt.map) == 512
+            self._fobj.seek(rgrainDirectory.map[gtNum] * self._SECT, 0)
+            rgt = self.GrainTable.fromData(self._fobj.read(512 * 4))
+            self.assertEquals(gt.map, rgt.map)
+
+            for (gteNum, gte) in enumerate(gt.map):
+                pos = gtNum * self.header.numGTEsPerGT + gteNum
+                if pos >= numGTs:
+                    break
+                self.assertEquals(gte, rgt.map[gteNum])
+
+                self._fobj.seek(self.header.gdOffset * self._SECT + gdSize * 4 + pos * 4)
+                data = self._fobj.read(4)
+                gteOther = struct.unpack("<I", data)[0]
+                self.assertEquals(gte, gteOther)
+
+            if (gtNum + 1) * self.header.numGTEsPerGT > numGTs:
+                break
+
+
+    @classmethod
+    def pad(cls, number, paddingSize):
+        remainder = number % paddingSize
+        if remainder == 0:
+            return number
+        return number + paddingSize - remainder
 
     def assertEquals(self, first, second):
         assert first == second, "%s != %s" % (first, second)
