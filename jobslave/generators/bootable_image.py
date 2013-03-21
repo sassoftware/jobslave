@@ -483,7 +483,7 @@ class BootableImage(ImageGenerator):
 
         self.writeConaryRc(os.path.join(fakeRoot, 'etc', 'conaryrc'), self.cc)
         self.writeSystemModel(os.path.join(fakeRoot, 'etc', 'conary',
-            'system-model.image'))
+            'system-model'))
 
         # If X is available, use runlevel 5 by default, for graphical login
         if start_x:
