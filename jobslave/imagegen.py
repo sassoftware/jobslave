@@ -166,6 +166,7 @@ class ImageGenerator(Generator):
                 deps.parseFlavor('domU'))
 
         self.productDefinition = None
+        self.platformDefinition = None
         self.platformTags = set()
         if 'filesystems' not in self.jobData:
             freeSpace = (self.getBuildData("freespace") or 0) * 1048576

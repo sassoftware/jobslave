@@ -259,6 +259,7 @@ class Filesystem:
 class StubFilesystem:
     def __init__(self):
         self.fsLabel = 'root'
+        self.fsType = 'ext4'
 
     def mount(self, *args):
         pass
