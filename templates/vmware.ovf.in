@@ -24,12 +24,12 @@
         <vssd:VirtualSystemType>vmx-07</vssd:VirtualSystemType>
       </System>
       <Item>
-        <rasd:Caption>1 virtual CPU(s)</rasd:Caption>
+        <rasd:Caption>@CPUS@ virtual CPU(s)</rasd:Caption>
         <rasd:Description>Number of Virtual CPUs</rasd:Description>
         <rasd:InstanceId>1</rasd:InstanceId>
         <rasd:ResourceType>3</rasd:ResourceType>
         <rasd:AllocationUnits>MegaHertz</rasd:AllocationUnits>
-        <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+        <rasd:VirtualQuantity>@CPUS@</rasd:VirtualQuantity>
       </Item>
       <Item>
         <rasd:Caption>@MEM@MB of memory</rasd:Caption>

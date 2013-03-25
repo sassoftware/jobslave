@@ -146,6 +146,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'NAME': vmEscape(displayName),
             'DESCRIPTION': vmEscape(description, eatNewlines=False),
             'MEM': self.vmMemory,
+            'CPUS': self.vmCPUs,
             'FILENAME': self.basefilename,
             'NETWORK_CONNECTION': (self.getBuildData('natNetworking')
                 and 'nat' or 'bridged'),
@@ -258,6 +259,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.adapter = self.getBuildData('diskAdapter')
         self.vmSnapshots = self.getBuildData('vmSnapshots')
         self.vmMemory = self.getBuildData('vmMemory')
+        self.vmCPUs = self.getBuildData('vmCPUs')
         self.vmdkSize = None
         self.capacity = None
 
