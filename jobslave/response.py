@@ -191,5 +191,8 @@ class DigestingReader(object):
         self.digest.update(d)
         return d
 
+    def seek(self, *args):
+        self.fobj.seek(*args)
+
     def hexdigest(self):
         return self.digest.hexdigest()
