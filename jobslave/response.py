@@ -55,7 +55,7 @@ class ResponseProxy(object):
         fobj = open(filePath, 'rb')
         size = os.fstat(fobj.fileno()).st_size
         body = DigestingReader(fobj)
-        req.setData(body, size=size, chunked=True)
+        req.setData(body, size=size)
         self.opener.open(req)
         return body.hexdigest()
 
