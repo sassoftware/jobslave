@@ -191,8 +191,12 @@ class DigestingReader(object):
         self.digest.update(d)
         return d
 
-    def seek(self, *args):
-        self.fobj.seek(*args)
+    def seek(self, where):
+        # This allows the conary http client to rewind the body file, and
+        # resets the digest along with it.
+        assert where == 0
+        self.digest = digestlib.sha1()
+        self.fobj.seek(0)
 
     def hexdigest(self):
         return self.digest.hexdigest()
