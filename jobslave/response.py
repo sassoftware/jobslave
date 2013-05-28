@@ -16,11 +16,7 @@ import time
 from conary.lib import digestlib
 from conary.lib.http import http_error
 from conary.lib.http import opener
-try:
-    from xml.etree import ElementTree as ET
-except ImportError:
-    # pyflakes=ignore
-    from elementtree import ElementTree as ET
+from xml.etree import ElementTree as ET
 from jobslave import jobstatus
 
 log = logging.getLogger(__name__)
@@ -38,7 +34,7 @@ class ResponseProxy(object):
         self.log = logging.getLogger(__name__ + '.proxy')
         self.log.__class__ = NonSendingLogger
 
-    def _post(self, method, path, contentType='application/xml', body=None):
+    def post(self, method, path, contentType='application/xml', body=None):
         headers = {
                 'Content-Type': contentType,
                 'X-rBuilder-OutputToken': self.outputToken,
@@ -49,26 +45,29 @@ class ResponseProxy(object):
             url = "%s/%s" % (self.imageBase.rstrip('/'), path)
         return self.opener.open(url, data=body, method=method, headers=headers)
 
-    def _postFile(self, method, targetName, filePath):
+    def postFileObject(self, method, targetName, fobj, size):
         headers = {
                 'Content-Type': 'application/octet-stream',
                 'X-rBuilder-OutputToken': self.outputToken,
                 }
         url = self.uploadBase + targetName
         req = self.opener.newRequest(url, method=method, headers=headers)
-        fobj = open(filePath, 'rb')
-        size = os.fstat(fobj.fileno()).st_size
         body = DigestingReader(fobj)
-        req.setData(body, size=size, chunked=True)
+        req.setData(body, size=size)
         self.opener.open(req)
         return body.hexdigest()
+
+    def postFile(self, method, targetName, filePath):
+        fobj = open(filePath, 'rb')
+        size = os.fstat(fobj.fileno()).st_size
+        return self.postFileObject(method, targetName, fobj, size)
 
     def sendStatus(self, code, message):
         root = ET.Element('image')
         ET.SubElement(root, "status").text = str(code)
         ET.SubElement(root, "status_message").text = message
         try:
-            self._post('PUT', path=None, body=ET.tostring(root))
+            self.post('PUT', path=None, body=ET.tostring(root))
         except:
             if code >= jobstatus.FINISHED:
                 # Don't eat errors from sending a final status.
@@ -78,7 +77,7 @@ class ResponseProxy(object):
     def sendLog(self, data):
         try:
             try:
-                self._post('POST', 'build_log', contentType='text/plain', body=data)
+                self.post('POST', 'build_log', contentType='text/plain', body=data)
             except http_error.ResponseError, err:
                 if err.errcode != 204: # No Content
                     raise
@@ -95,7 +94,7 @@ class ResponseProxy(object):
             log.info("Uploading %d of %d: %s (%d bytes)",
                     n + 1, len(fileList), fileName, fileSize)
 
-            digest = self._postFile('PUT', fileName, filePath)
+            digest = self.postFile('PUT', fileName, filePath)
             log.info(" %s uploaded, SHA-1 digest is %s", fileName, digest)
 
             file = ET.SubElement(root, 'file')
@@ -109,7 +108,7 @@ class ResponseProxy(object):
                 ET.SubElement(attr, key).text = str(value)
 
         if withMetadata:
-            self._post('PUT', 'build_files', body=ET.tostring(root))
+            self.post('PUT', 'build_files', body=ET.tostring(root))
 
 
 class LogHandler(threading.Thread, logging.Handler):
@@ -194,6 +193,13 @@ class DigestingReader(object):
         d = self.fobj.read(numbytes)
         self.digest.update(d)
         return d
+
+    def seek(self, where):
+        # This allows the conary http client to rewind the body file, and
+        # resets the digest along with it.
+        assert where == 0
+        self.digest = digestlib.sha1()
+        self.fobj.seek(0)
 
     def hexdigest(self):
         return self.digest.hexdigest()

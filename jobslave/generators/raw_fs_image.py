@@ -66,23 +66,27 @@ class RawFsImage(bootable_image.BootableImage):
 
         images = self.makeFSImage(sizes)
         self.status('Compressing filesystem images')
-        self.gzip(os.path.join(self.workDir, self.basefilename), finalImage)
+        self.gzip(self.workingDir, finalImage)
 
         if self.buildOVF10:
-            mountPoint = '/'
-            tag = 'root'
-            fsType = self.mountDict[mountPoint][-1]
-            self.diskFilePath = os.path.join(self.workDir, 
-                self.basefilename, 
-                "%s-%s.%s" % (self.basefilename, tag, fsType))
+            self.diskFilePath = images['/']
             self.diskFileName = os.path.split(self.diskFilePath)[1]
 
             self.status('Building OVF 1.0 package')
             diskFileGzipPath = self.gzip(self.diskFilePath, 
                 os.path.join(self.outputDir, self.diskFileName + '.gz'))
-            self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.RAWFS, diskFileGzipPath, 
-                totalSize, True, self.workingDir, self.outputDir)
+            util.rmtree(self.workingDir)
+
+            self.ovaPath = self.createOvf(
+                    imageName=self.basefilename,
+                    imageDescription=self.jobData['description'],
+                    diskFormat=constants.RAWFS,
+                    diskFilePath=diskFileGzipPath,
+                    diskCapacity=totalSize,
+                    diskCompressed=True,
+                    workingDir=self.workDir,
+                    outputDir=self.outputDir,
+                    )
             self.outputFileList.append((self.ovaPath, 
                 'Raw Filesystem %s' % constants.OVFIMAGETAG))
 

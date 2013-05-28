@@ -1,9 +1,8 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All Rights Reserved
+# Copyright (c) SAS Institute Inc.
 #
 
+import gzip
 import os
 
 from jobslave.generators import constants
@@ -86,17 +85,22 @@ class XenOVA(raw_hd_image.RawHdImage):
         util.mkdirChain(os.path.split(chunkPrefix)[0])
 
         self.status('Splitting hard disk image')
-        logCall('split -b 1000000000 -a 9 -d %s "%s"' % \
-            (image_path, chunkPrefix))
+        infile = open(image_path, 'rb')
+        n = 0
+        tocopy = os.stat(image_path).st_size
+        while True:
+            chunkname = '%s%04d.gz' % (chunkPrefix, n)
+            outfile = gzip.GzipFile(chunkname, 'wb')
+            tocopy -= util.copyfileobj(infile, outfile, sizeLimit=1000000000)
+            outfile.close()
+            print >>manifest, chunkname
+            if not tocopy:
+                break
+            n += 1
+        infile.close()
 
         # Delete the FS image to free up temp space
         os.unlink(image_path)
-
-        # Compress the chunks and add them to the manifest
-        self.status('Compressing image chunks')
-        for chunk_name in sorted(os.listdir(chunk_dir)):
-            logCall('gzip "%s"' % os.path.join(chunk_dir, chunk_name))
-            print >>manifest, os.path.join(label, chunk_name) + '.gz'
 
         # Create XVA file
         manifest.close()

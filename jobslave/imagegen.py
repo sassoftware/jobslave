@@ -165,13 +165,17 @@ class ImageGenerator(Generator):
         self.isDomU = self.baseFlavor.stronglySatisfies(
                 deps.parseFlavor('domU'))
 
+        self.productDefinition = None
+        self.platformDefinition = None
+        self.platformTags = set()
         if 'filesystems' not in self.jobData:
-            # support for legacy requests
             freeSpace = (self.getBuildData("freespace") or 0) * 1048576
-
-            self.jobData['filesystems'] = [
-                ('/', 0, freeSpace, 'ext3'),
-            ]
+            platName, platVer, platTags = self.getPlatformClassifier()
+            if 'redhat' in platTags and platVer >= 6:
+                fsType = 'ext4'
+            else:
+                fsType = 'ext3'
+            self.jobData['filesystems'] = [('/', 0, freeSpace, fsType)]
 
         self.mountDict = dict([(x[0], tuple(x[1:]))
             for x in self.jobData['filesystems'] if x[0]])
@@ -191,10 +195,6 @@ class ImageGenerator(Generator):
 
         self.basefilename = basefilename.encode('utf8')
         self.buildOVF10 = self.getBuildData('buildOVF10') or self.alwaysOvf10
-
-        # Product definition / platform information
-        self.productDefinition = None
-        self.platformTags = None
 
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()
@@ -272,12 +272,22 @@ class ImageGenerator(Generator):
 
         return self.platformDefinition
 
+    def getPlatformClassifier(self):
+        self.getProductDefinition()
+        if self.platformDefinition:
+            info = self.platformDefinition.getPlatformInformation()
+            if info and getattr(info, 'platformClassifier', None):
+                pc = info.platformClassifier
+                try:
+                    ver = int(pc.version)
+                except ValueError:
+                    ver = pc.version
+                return (pc.name, ver, self.platformTags)
+        return ('rpath', 2, self.platformTags)
+
     def isPlatform(self, tag):
         self.getProductDefinition()
-        if self.platformTags:
-            return tag in self.platformTags
-        else:
-            return False
+        return tag in self.platformTags
 
     def findImageSubtrove(self, name):
         if self.baseTroveObj is None:

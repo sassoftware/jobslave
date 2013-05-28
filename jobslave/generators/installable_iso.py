@@ -331,7 +331,7 @@ class InstallableIso(ImageGenerator):
             log.info('Could not find stage2.img; not changing beta nag')
 
         # create cramfs
-        logCall(['/usr/bin/mkcramfs', tmpPath, productPath])
+        logCall(['/sbin/mkfs.cramfs', tmpPath, productPath])
 
         # clean up
         util.rmtree(tmpPath, ignore_errors = True)
