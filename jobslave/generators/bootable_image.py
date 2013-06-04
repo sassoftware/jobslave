@@ -20,7 +20,7 @@ from jobslave import generators
 from jobslave import helperfuncs
 from jobslave import loophelpers
 from jobslave import buildtypes
-from jobslave.distro_detect import is_SUSE, is_UBUNTU
+from jobslave.distro_detect import is_RH, is_SUSE, is_UBUNTU
 from jobslave.filesystems import sortMountPoints
 from jobslave.geometry import GEOMETRY_REGULAR
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
@@ -615,6 +615,13 @@ class BootableImage(ImageGenerator):
                     logCall(cmd)
                 except:
                     pass
+
+        # RedHat needs a config to tell it it's okay to upgrade the kernel
+        if is_RH(self.root) and not self.fileExists('etc/sysconfig/kernel'):
+            self.createFile('etc/sysconfig/kernel',
+                    "UPDATEDEFAULT=yes\n"
+                    "DEFAULTKERNEL=kernel\n"
+                    )
 
         # Finish installation of bootloader
         self.bootloader.install()
