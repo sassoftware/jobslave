@@ -160,11 +160,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         #write the file to the proper location
         #Read in the stub file
-        if type == 'ovf':
-            template = 'vmware.ovf.in'
-            variables['OS_SECTION'] = self.getGuestSection()
-        else:
-            template = self.templateName
+        template = self.templateName
         infile = open(os.path.join(constants.templateDir, template),
                   'rb')
         filecontents = infile.read()
@@ -322,14 +318,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
             platformName += ' (32 bit)'
 
         return OSInfo(ovfId, version, platformName, osType)
-
-    def getGuestSection(self):
-        osInfo = self.getGuestOSInfo()
-        osSection = ('<Section ovf:id="%s" '
-            'xsi:type="ovf:OperatingSystemSection_Type" vmw:osType="%s">'
-            '<Info>The kind of installed guest operating system</Info>'
-            '</Section>') % (osInfo.ovfId, osInfo.osType)
-        return osSection
 
 
 class VMwareESXImage(VMwareImage):
