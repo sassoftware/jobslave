@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
 
 import logging
@@ -242,9 +242,18 @@ class ImageGenerator(Generator):
         diskFileSize = getFileSize(diskFilePath)
 
         self.ovfImage = self.ovfClass(
-            imageName, imageDescription, diskFormat,
-            diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-            self.getBuildData('vmMemory'), workingDir, outputDir)
+            imageName=imageName,
+            imageDescription=imageDescription,
+            diskFormat=diskFormat,
+            diskFilePath=diskFilePath,
+            diskFileSize=diskFileSize,
+            diskCapacity=diskCapacity,
+            diskCompressed=diskCompressed,
+            memorySize=self.getBuildData('vmMemory'),
+            cpuCount=self.getBuildData('vmCPUs'),
+            workingDir=workingDir,
+            outputDir=outputDir,
+            )
 
         ovfObj = self.ovfImage.createOvf()
         ovfXml = self.ovfImage.writeOvf()

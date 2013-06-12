@@ -1,8 +1,7 @@
 #
-# Copyright (c) 2011 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
 
-import hashlib
 import os
 
 from conary.lib import sha1helper
@@ -63,7 +62,7 @@ class OvfImage(object):
 
     def __init__(self, imageName, imageDescription, diskFormat,
                  diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-                 memorySize, workingDir, outputDir):
+                 memorySize, cpuCount, workingDir, outputDir):
         self.imageName = imageName
         self.imageDescription = imageDescription
         self.diskFormat = diskFormat
@@ -72,6 +71,7 @@ class OvfImage(object):
         self.diskCapacity = diskCapacity
         self.diskCompressed = diskCompressed
         self.memorySize = memorySize
+        self.cpuCount = cpuCount
         self.workingDir = workingDir
         self.outputDir = outputDir
 
@@ -116,7 +116,8 @@ class OvfImage(object):
         self.ovf.addFileReference(self.fileRef)
 
     def addHardwareDefaults(self, VirtualHardware):
-        VirtualHardware.addItem(Cpu())
+        VirtualHardware.addItem(Cpu(
+            VirtualQuantity=self.cpuCount, Caption="%s CPUs" % self.cpuCount))
         VirtualHardware.addItem(Memory(VirtualQuantity=self.memorySize,
                                        Caption="%s MB of Memory" % self.memorySize))
         network = Network()

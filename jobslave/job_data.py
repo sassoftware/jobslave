@@ -30,6 +30,7 @@ BUILD_DEFAULTS = {
         'showMediaCheck': False,
         'amiHugeDiskMountpoint': '',
         'platformName': '',
+        'vmCPUs': 1,
         }
 
 
