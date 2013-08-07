@@ -83,7 +83,7 @@ if __name__ == '__main__':
     import epdb
 
     from conary import versions
-    from conary import updatecmd
+    from conary.cmds import updatecmd
     from conary import conarycfg
     from conary import conaryclient
 

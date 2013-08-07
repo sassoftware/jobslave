@@ -336,7 +336,7 @@ if __name__ == '__main__':
     import sys
     from conary import conarycfg
     from conary import conaryclient
-    from conary import updatecmd
+    from conary.cmds import updatecmd
     from conary.lib import util
 
     def usage():
