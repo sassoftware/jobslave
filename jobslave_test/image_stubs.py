@@ -122,17 +122,10 @@ class BootableImageStub(ImageGeneratorStub):
     def getImageSize(self, realign = 0, partitionOffset = 0):
         return 100, {'/': 100, 'swap': 100}
 
-    def getKernelFlavor(self):
-        flavor = ''
-        return flavor
-
     def addScsiModules(self, dest):
         pass
 
     def updateGroupChangeSet(self, cclient):
-        pass
-
-    def updateKernelChangeSet(self, cclient):
         pass
 
     def installFileTree(self, dest):

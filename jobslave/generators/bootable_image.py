@@ -718,13 +718,6 @@ class BootableImage(ImageGenerator):
         return totalSize, realSizes
 
     @timeMe
-    def getKernelFlavor(self):
-        flavor = ''
-        if not self.baseFlavor.stronglySatisfies(deps.parseFlavor('use: xen')):
-            flavor = '!kernel.smp is: %s' % self.arch
-        return flavor
-
-    @timeMe
     def addScsiModules(self):
         # FIXME: this part of the code needs a rewrite, because any
         # bootable image type / distro combination may need different
@@ -796,15 +789,6 @@ class BootableImage(ImageGenerator):
         cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False)
         cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = True,
             tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script.in'))
-
-    @timeMe
-    def updateKernelChangeSet(self, cclient):
-        kernel, version, flavor = parseTroveSpec('kernel:runtime[%s]' % self.getKernelFlavor())
-        itemList = [(kernel, (None, None), (version, flavor), True)]
-        uJob = cclient.newUpdateJob()
-        cclient.prepareUpdateJob(uJob, itemList, resolveDeps = False, sync = True)
-        cclient.applyUpdateJob(uJob, replaceFiles = True, noRestart = False,
-            tagScript = os.path.join(self.conarycfg.root, 'root', 'conary-tag-script-kernel'))
 
     @timeMe
     def installBootstrapTroves(self, callback):
@@ -1020,20 +1004,6 @@ class BootableImage(ImageGenerator):
 
                 del os.environ['YAST_IS_RUNNING']
 
-                # set up the flavor for the kernel install based on the 
-                # rooted flavor setup.
-                self.conarycfg.useDirs = [os.path.join(dest, 'etc/conary/use')]
-                self.conarycfg.initializeFlavors()
-                if not self.findFile(os.path.join(dest, 'boot'), 'vmlinuz.*'):
-                    self.status('Installing kernel')
-                    try:
-                        self.updateKernelChangeSet(cclient)
-                    except conaryclient.NoNewTrovesError:
-                        log.info('strongly-included kernel found--no new kernel trove to sync')
-                    except errors.TroveNotFound:
-                        log.info('no kernel found at all. skipping.')
-                else:
-                    log.info('Kernel detected, skipping.')
             finally:
                 cclient.close()
                 if callback:

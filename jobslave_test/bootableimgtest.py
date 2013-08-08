@@ -273,13 +273,6 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         self.failIf('scsi_hostadapter' not in data,
                     "scsi modules not added to modprobe.conf")
 
-    def testGetKernelFlavor(self):
-        self.failIf('!kernel.smp' not in self.bootable.getKernelFlavor(),
-                "non-xen kernel returned wrong flavor")
-        self.bootable.baseFlavor = deps.parseFlavor('xen,domU is: x86')
-        self.failIf(self.bootable.getKernelFlavor() != '',
-                "getKernelFlavor favored non-xen flavor for xen group")
-
     def testGetImageSize(self):
         self.bootable.mountDict = {'/boot' : (0, 10240, 'ext3')}
         self.bootable.getTroveSize = \
@@ -433,10 +426,7 @@ SELINUX=enforcing
 SELINUXTYPE=targeted
 ''')
 
-            self.bootable.updateKernelChangeSet = \
-                    self.bootable.updateGroupChangeSet = \
-                    self.bootable.fileSystemOddsNEnds = \
-                    lambda *args, **kwargs: None
+            self.bootable.updateGroupChangeSet = lambda *args, **kwargs: None
             def mockLog(cmd, ignoreErrors=False):
                 self.cmds.append(cmd)
             def mockOpen(*args):
@@ -479,16 +469,11 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             os.mknod = mknod
             os.chmod = chmod
 
-    def _getStubCClient(self, isKernel):
+    def _getStubCClient(self):
         data = self.bootable.jobData
-        if isKernel:
-            name = 'kernel:runtime'
-            version = None
-            flavor = deps.parseFlavor(self.bootable.getKernelFlavor())
-        else:
-            name = data['troveName']
-            version = versions.ThawVersion(data['troveVersion'])
-            flavor = deps.ThawFlavor(data['troveFlavor'])
+        name = data['troveName']
+        version = versions.ThawVersion(data['troveVersion'])
+        flavor = deps.ThawFlavor(data['troveFlavor'])
         expectedItems = [(name, (None, None), (version, flavor), True)]
 
         class CClient(object):
@@ -511,13 +496,8 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
         return CClient()
 
     def testUpdateGroupChangeSet(self):
-        cclient = self._getStubCClient(False)
+        cclient = self._getStubCClient()
         self.bootable.updateGroupChangeSet(cclient)
-        cclient.failUnlessRun()
-
-    def testUpdateKernelChangeSet(self):
-        cclient = self._getStubCClient(True)
-        self.bootable.updateKernelChangeSet(cclient)
         cclient.failUnlessRun()
 
 
