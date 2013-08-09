@@ -71,6 +71,9 @@ class JobSlaveHelper(TestCase):
         'proxy'             : 
             {'http'     : 'http://jim:bar@proxy.example.com:888/',
              'https'    : 'https://jim:bar@proxy.example.com:888/',},
+        'imageModel': [
+            'install "group-core=/conary.rpath.com@rpl:1/1.0.1-1-1[is: x86]"\n',
+            ],
         }
 
     amiData = {'amiData': {

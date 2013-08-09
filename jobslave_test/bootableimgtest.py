@@ -325,17 +325,6 @@ sysfs                   /sys                    sysfs   defaults        0 0
 ''')
         os.mknod._mock.assertCalled(self.bootable.filePath('dev/null'), 8192, 259)
 
-    def testGetTroveSize(self):
-        calculatePartitionSizes = filesystems.calculatePartitionSizes
-        try:
-            self.bootable.nc.createChangeSet = lambda *args, **kwargs: None
-            filesystems.calculatePartitionSizes = \
-                    lambda *args, **kwargs: (None, None)
-            self.failIf(self.bootable.getTroveSize(None) != (None, None),
-                    "results from getTroveSize did not come from filesystem")
-        finally:
-            filesystems.calculatePartitionSizes = calculatePartitionSizes
-
     def testMountAll(self):
         self.bootable.workDir = tempfile.mkdtemp()
         sortMountPoints = bootable_image.sortMountPoints
@@ -479,24 +468,20 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
         class CClient(object):
             def __init__(x):
                 x.uJob = object()
-                x.prepared = x.applied = False
+                x.applied = False
             def newUpdateJob(x):
                 return x.uJob
-            def prepareUpdateJob(x, uJob, items, **kwargs):
-                self.failUnless(uJob is x.uJob)
-                self.failUnlessEqual(expectedItems, items)
-                x.prepared = True
             def applyUpdateJob(x, uJob, tagScript=None, **kwargs):
                 self.failUnless(uJob is x.uJob)
                 self.failUnless(tagScript is not None)
                 x.applied = True
             def failUnlessRun(x):
-                self.failUnless(x.prepared, "Image trove was not installed")
                 self.failUnless(x.applied, "Kernel was not installed")
         return CClient()
 
     def testUpdateGroupChangeSet(self):
         cclient = self._getStubCClient()
+        self.bootable.uJob = cclient.newUpdateJob()
         self.bootable.updateGroupChangeSet(cclient)
         cclient.failUnlessRun()
 

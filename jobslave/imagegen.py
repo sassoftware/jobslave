@@ -12,6 +12,7 @@ import urllib
 from conary import conarycfg
 from conary import conaryclient
 from conary import versions
+from conary.conaryclient.cml import CML
 from conary.deps import deps
 from conary.lib import formattrace
 from conary.lib import util, log as conaryLog
@@ -57,6 +58,7 @@ class Generator(object):
         ccfg.configLine('tmpDir %s' % constants.tmpDir)
         ccfg.configLine('pubRing %s/pubring.gpg' % constants.tmpDir)
         ccfg.configLine('threaded False')
+        ccfg.flavor = [self.jobData['troveFlavor']]
 
         proxy = None
         if self.cfg.conaryProxy:
@@ -161,7 +163,6 @@ class ImageGenerator(Generator):
                 self.jobData['troveFlavor'].encode('utf8'))
         self.baseTup = self.baseTrove, self.baseVersion, self.baseFlavor
         self.baseTroveObj = None
-
         self.isDomU = self.baseFlavor.stronglySatisfies(
                 deps.parseFlavor('domU'))
 
@@ -195,6 +196,18 @@ class ImageGenerator(Generator):
 
         self.basefilename = basefilename.encode('utf8')
         self.buildOVF10 = self.getBuildData('buildOVF10') or self.alwaysOvf10
+
+        self.cml = CML(self.conarycfg)
+        imageModel = self.jobData.get('imageModel')
+        if not imageModel:
+            # Short-term backwards compatibility, remove after diamond is
+            # released
+            imageModel = [str('install "%s=%s/%s[%s]"\n' % (
+                    self.baseTrove,
+                    self.baseVersion.trailingLabel(),
+                    self.baseVersion.trailingRevision(),
+                    self.baseFlavor))]
+        self.cml.parse(imageModel)
 
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()

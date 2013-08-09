@@ -1,13 +1,12 @@
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All Rights Reserved
+# Copyright (c) SAS Institute Inc.
 #
 
-from conary import trove, files
+
+from conary import files
 from conary.lib import util
+from conary.repository.changeset import ChangeSetFromFile
 
-import sys
 import os
 
 
@@ -26,7 +25,7 @@ def sortMountPoints(mounts):
     return mounts
 
 
-def calculatePartitionSizes(changeSet, mounts):
+def calculatePartitionSizes(uJob, mounts):
     """
     Iterate over every file in a C{changeSet} and return a sum of the
     sizes for each mount in C{mounts}.
@@ -34,26 +33,16 @@ def calculatePartitionSizes(changeSet, mounts):
     mounts = sortMountPoints(mounts)
     mountDict = dict.fromkeys(mounts, 0)
 
-    for n, v, f in changeSet.getPrimaryTroveList():
-        trv = trove.Trove(changeSet.getNewTroveVersion(n, v, f))
-
-        for troveTup, byDefault, strongRef in trv.iterTroveListInfo():
-            if not byDefault:
-                continue
-
-            processTrove(changeSet, mounts, mountDict, troveTup)
-
+    for csPath in uJob.getJobsChangesetList():
+        cs = ChangeSetFromFile(csPath)
+        for trvCs in cs.iterNewTroveList():
+            _processTrove(cs, trvCs, mounts, mountDict)
     return mountDict, sum(mountDict.values())
 
 
-def processTrove(changeSet, mounts, mountDict, troveTup):
-    """
-    Add the files from one trove C{troveTup} to the size
-    mapping in C{mountDict}.
-    """
+def _processTrove(changeSet, trvCs, mounts, mountDict):
 
-    subTrv = trove.Trove(changeSet.getNewTroveVersion(*troveTup))
-    for pathId, path, fileId, fVer in subTrv.iterFileList():
+    for pathId, path, fileId, fVer in trvCs.getNewFileList():
         fStr = changeSet.getFileChange(None, fileId)
         fObj = files.frozenFileContentInfo(fStr)
 
@@ -65,56 +54,3 @@ def processTrove(changeSet, mounts, mountDict, troveTup):
                     nearestBlock = (realSize / blockSize + 1) * blockSize
                     mountDict[mount] += nearestBlock
                     break
-
-
-def test(args):
-    import time
-    from conary.repository.changeset import ChangeSetFromFile
-
-    def prettySize(bytes):
-        if bytes > 1073741824:
-            pretty = '%.2fGiB' % (bytes / 1073741824.0)
-        elif bytes > 1048576:
-            pretty = '%.2fMiB' % (bytes / 1048576.0)
-        elif bytes > 1024:
-            pretty = '%.2fKiB' % (bytes / 1024.0)
-        else:
-            pretty = '%dB' % bytes
-        return '%s (%d)' % (pretty, bytes)
-
-    if len(args) < 2:
-        sys.exit('Usage: %s <changeset> <mount point>+' % sys.argv[0])
-
-    changeSetPath, mountPoints = args[0], args[1:]
-
-    _start = time.time()
-    changeSet = ChangeSetFromFile(changeSetPath)
-    _stop = time.time()
-
-    csTotal = 0
-    print 'From changeset: (loaded in %.03fs)' % (_stop - _start)
-    for primaryTup in sorted(changeSet.getPrimaryTroveList()):
-        trvCs = changeSet.getNewTroveVersion(*primaryTup)
-        trv = trove.Trove(trvCs)
-        trvSize = trv.getTroveInfo().size()
-        csTotal += trvSize
-        trvSpec = '%s=%s[%s]' % primaryTup
-        print '%s=%s[%s] %s' % (primaryTup + (prettySize(trvSize),))
-    print 'Total: %s' % prettySize(csTotal)
-    print
-
-    _start = time.time()
-    sizeDict, totalSize = calculatePartitionSizes(changeSet, mountPoints)
-    _stop = time.time()
-    print 'From calculatePartitionSizes: (runtime %.03fs)' % (_stop - _start)
-    for mountPoint in sortMountPoints(mountPoints):
-        print '%-32s: %s' % (mountPoint, prettySize(sizeDict[mountPoint]))
-    print 'Total: %s' % prettySize(totalSize)
-
-    factor = float(csTotal) / float(totalSize)
-    print 'Info delta: %12d  Factor: %.03f (%+.1f%%)' % (csTotal - totalSize,
-        factor, (1 - factor) * -100.0)
-
-
-if __name__ == '__main__':
-    sys.exit(test(sys.argv[1:]))
