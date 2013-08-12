@@ -672,8 +672,9 @@ class BootableImage(ImageGenerator):
             proxy = inventory_node.replace(':8443', '')
             self.createFile(cfg_path, "proxyMap * conarys://%s\n" % proxy)
 
-    @timeMe
-    def getTroveSize(self, mounts):
+    def downloadChangesets(self):
+        if self.uJob is not None:
+            return
         self.conarycfg.flavor = [self.baseFlavor]
         self.conarycfg.initializeFlavors()
         cclient = self._openClient(self.tempRoot)
@@ -685,10 +686,12 @@ class BootableImage(ImageGenerator):
         cclient._updateFromTroveSetGraph(uJob, ts, tc)
         util.mkdirChain(self.changesetDir)
         cclient.downloadUpdate(uJob, self.changesetDir)
-
-        sizes, totalSize = filesystems.calculatePartitionSizes(uJob, mounts)
         self.uJob = uJob
-        return sizes, totalSize
+
+    @timeMe
+    def getTroveSize(self, mounts):
+        self.downloadChangesets()
+        return filesystems.calculatePartitionSizes(self.uJob, mounts)
 
     def getImageSize(self, realign=512, offset=None):
         if offset is None:
@@ -975,6 +978,7 @@ class BootableImage(ImageGenerator):
     @timeMe
     def installFileTree(self, dest, bootloader_override=None,
             no_mbr=False):
+        self.downloadChangesets()
         self.root = dest
         self.status('Installing image contents')
         self.loadRPM()
