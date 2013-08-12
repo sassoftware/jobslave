@@ -200,8 +200,6 @@ class ImageGenerator(Generator):
         self.cml = CML(self.conarycfg)
         imageModel = self.jobData.get('imageModel')
         if not imageModel:
-            # Short-term backwards compatibility, remove after diamond is
-            # released
             imageModel = [str('install "%s=%s/%s[%s]"\n' % (
                     self.baseTrove,
                     self.baseVersion.trailingLabel(),
