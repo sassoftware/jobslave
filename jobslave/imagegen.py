@@ -200,12 +200,12 @@ class ImageGenerator(Generator):
         self.cml = CML(self.conarycfg)
         imageModel = self.jobData.get('imageModel')
         if not imageModel:
-            imageModel = [str('install "%s=%s/%s[%s]"\n' % (
+            imageModel = ['install "%s=%s/%s[%s]"\n' % (
                     self.baseTrove,
                     self.baseVersion.trailingLabel(),
                     self.baseVersion.trailingRevision(),
-                    self.baseFlavor))]
-        self.cml.parse(imageModel)
+                    self.baseFlavor)]
+        self.cml.parse([str(x) for x in imageModel])
 
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()
