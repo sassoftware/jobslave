@@ -661,16 +661,16 @@ class BootableImage(ImageGenerator):
             self._writeCert(lg_path, 'rbuilder-lg.pem', lg_ca)
 
         inventory_node = self.jobData.get('inventory_node')
-        cfg_dir = '/etc/conary/rpath-tools/config.d'
-        cfg_path = os.path.join(cfg_dir, 'directMethod')
-        # Write config only if rpath-tools is installed, but not if the
-        # directMethod config file is already there.
-        if (inventory_node and self.fileExists(cfg_dir)
-                and not self.fileExists(cfg_path)):
-            self.createFile(os.path.join(cfg_dir, 'directMethod'),
+        cfg_path = '/etc/conary/rpath-tools/config.d/directMethod'
+        if inventory_node and not self.fileExists(cfg_path):
+            self.createFile(cfg_path,
                     'directMethod []\n'
                     'directMethod %s\n'
                     % (inventory_node,))
+        cfg_path = '/etc/conary/config.d/rpath-tools-conaryProxy'
+        if inventory_node and not self.fileExists(cfg_path):
+            proxy = inventory_node.replace(':8443', '')
+            self.createFile(cfg_path, "proxyMap * conarys://%s\n" % proxy)
 
     @timeMe
     def getTroveSize(self, mounts):
