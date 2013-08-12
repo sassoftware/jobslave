@@ -1154,6 +1154,15 @@ class BootableImage(ImageGenerator):
             logCall('gzip -c %s > %s' % (source, dest))
         return dest
 
+    @timeMe
+    def zipArchive(self, source, dest=None):
+        assert os.path.isdir(source)
+        if not dest:
+            dest = source + '.zip'
+        parDir, targetDir = os.path.split(source)
+        logCall(['/usr/bin/zip', '-r', dest, targetDir], cwd=parDir)
+        return dest
+
     def write(self):
         raise NotImplementedError
 

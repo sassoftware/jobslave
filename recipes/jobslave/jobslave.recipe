@@ -23,6 +23,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         'python-imaging',
         'rpath-product-definition:python',
         'util-linux-ng',
+        'zip',
         'zlib-devel',
 
         # for tests
@@ -60,6 +61,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         r.Requires('/usr/bin/mkisofs', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/pngtopnm', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/ppmtolss16', '.*/generators/installable_iso\.py.*')
+        r.Requires('/usr/bin/zip', '.*/generators/bootable_image\.py.*')
 
         # This file binds the freshly built jobslave to the system that will use it.
         r.Create('/srv/rbuilder/jobmaster/config.d/05_trove.conf',

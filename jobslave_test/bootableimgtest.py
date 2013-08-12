@@ -258,6 +258,21 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         finally:
             util.rmtree(tmpDir)
 
+    def testZipDir(self):
+        # RCE-2074
+        tmpDir = tempfile.mkdtemp()
+        try:
+            src = os.path.join(tmpDir, 'test')
+            util.mkdirChain(src)
+            self.touch(os.path.join(src, 'junk'), contents = '\n')
+            dest = src + '.zip'
+            self.bootable.zipArchive(src)
+            self.failIf(not os.path.exists(dest),
+                    "zip did not function for directory")
+        finally:
+            util.rmtree(tmpDir)
+
+
     def testAddMissingScsiModules(self):
         modpath = self.bootable.filePath('etc/modprobe.conf')
         self.touch(modpath, 'dummy line')

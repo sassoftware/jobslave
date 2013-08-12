@@ -203,7 +203,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         vmxPath = os.path.join(self.workingDir, self.basefilename + '.vmx')
         vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
         outputPath = os.path.join(self.outputDir, self.basefilename +
-                '.vmware.tar.gz')
+                '.vmware.zip')
         self.capacity = disk.totalSize
         # TODO: Add progress to raw2vmdk and pass it to creatingDisk()
         callback.creatingDisk(None, None)
@@ -215,7 +215,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
         callback.creatingArchive(None, None)
         self.createVMX(vmxPath)
         self.setModes(self.workingDir)
-        self.gzip(self.workingDir, outputPath)
+        self.zipArchive(self.workingDir, outputPath)
         self.outputFileList.append(
             (outputPath, self.productName + ' Image'))
         return vmdkPath
