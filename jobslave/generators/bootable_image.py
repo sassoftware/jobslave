@@ -1021,6 +1021,7 @@ class BootableImage(ImageGenerator):
                 cclient = callback = None
 
             self.status('Finalizing install')
+            util.rmtree(self.changesetDir)
 
             if not self.bootloader:
                 if (self.isDomU or 
