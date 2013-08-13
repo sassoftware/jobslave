@@ -400,6 +400,7 @@ sysfs                   /sys                    sysfs   defaults        0 0
             self.touch(os.path.join(tmpDir, 'root', 'conary-tag-script'))
             self.touch(os.path.join(tmpDir, 'usr/sbin/authconfig'))
             self.touch(os.path.join(tmpDir, 'usr/sbin/usermod'))
+            os.mkdir(self.bootable.changesetDir)
             common_auth = os.path.join(tmpDir, 'etc/pam.d/common-auth')
             self.touch(common_auth)
             f = file(common_auth, 'w')
@@ -430,6 +431,7 @@ SELINUX=enforcing
 SELINUXTYPE=targeted
 ''')
 
+            self.bootable.downloadChangesets = lambda: None
             self.bootable.updateGroupChangeSet = lambda *args, **kwargs: None
             def mockLog(cmd, ignoreErrors=False):
                 self.cmds.append(cmd)
