@@ -19,7 +19,7 @@ class LVMContainer(object):
         self.filesystems = []
         assert image # for now
 
-        self.loopDev = loophelpers.loopAttach(image, offset)
+        self.loopDev = loophelpers.loopAttach(image, offset=offset, size=totalSize)
         logCall("pvcreate %s" % self.loopDev)
         logCall("vgcreate %s %s" % (self.volGroupName, self.loopDev))
 

@@ -179,7 +179,7 @@ class Filesystem(object):
     def attach(self):
         if self.offset:
             self.devPath = loophelpers.loopAttach(self.fsDev,
-                    offset=self.offset)
+                    offset=self.offset, size=self.size)
         else:
             self.devPath = self.fsDev
 
@@ -195,9 +195,6 @@ class Filesystem(object):
         options = []
         fsType = self.fsType
         if self.fsType in ('ext3', 'ext4'):
-            # Would be nice to "upgrade" the driver to ext4, but rPL 2's
-            # extlinux cannot install into a ext4 mount.
-            #fsType = 'ext4'
             # Turn off data integrity during install
             options.append('data=writeback,barrier=0')
         options = '-o %s' % (','.join(options)) if options else ''
@@ -247,15 +244,22 @@ class Filesystem(object):
         self.attach()
         try:
             if self.fsType in ('ext3', 'ext4'):
-                cmd = 'mkfs.%s -F -b 4096 -L %s %s' % (
-                        self.fsType, self.fsLabel, self.devPath)
+                cmd = ['mkfs.' + self.fsType,
+                        '-F',
+                        '-b', '4096',
+                        '-L', self.fsLabel,
+                        self.devPath]
                 if self.size:
-                    cmd += ' %s' % (self.size / 4096)
+                    cmd.append(str(self.size / 4096))
                 logCall(cmd)
-                logCall('tune2fs -i 0 -c 0 %s' % (self.devPath,))
+                logCall(['tune2fs',
+                    '-i', '0',
+                    '-c', '0',
+                    self.devPath])
+            elif self.fsType == 'xfs':
+                logCall(['mkfs.xfs', '-L', self.fsLabel, self.devPath])
             elif self.fsType == 'swap':
-                cmd = 'mkswap -L %s %s' % (self.fsLabel, self.devPath)
-                logCall(cmd)
+                logCall(['mkswap', '-L', self.fsLabel, self.devPath])
             else:
                 raise RuntimeError, "Invalid filesystem type: %s" % self.fsType
         finally:
