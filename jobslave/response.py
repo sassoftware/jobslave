@@ -22,7 +22,19 @@ from jobslave import jobstatus
 log = logging.getLogger(__name__)
 
 
-class ResponseProxy(object):
+class BaseResponseProxy(object):
+
+    def sendStatus(self, code, message):
+        pass
+
+    def sendLog(self, data):
+        pass
+
+    def postOutput(self, fileList, withMetadata=True, attributes=None):
+        pass
+
+
+class ResponseProxy(BaseResponseProxy):
     def __init__(self, masterUrl, jobData):
         self.imageBase = '%sapi/v1/images/%d' % (masterUrl, jobData['buildId'])
         self.uploadBase = '%suploadBuild/%d/' % (masterUrl, jobData['buildId'])

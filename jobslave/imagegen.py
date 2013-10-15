@@ -38,7 +38,10 @@ class Generator(object):
         self.cfg = cfg
         self.jobData = JobData(jobData)
 
-        self.response = response.ResponseProxy(cfg.masterUrl, self.jobData)
+        if cfg.masterUrl:
+            self.response = response.ResponseProxy(cfg.masterUrl, self.jobData)
+        else:
+            self.response = response.BaseResponseProxy()
         self.UUID = self.jobData['UUID'].encode('ascii')
         self.workDir = os.path.join(constants.tmpDir, self.UUID)
 
