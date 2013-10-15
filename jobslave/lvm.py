@@ -20,8 +20,8 @@ class LVMContainer(object):
         assert image # for now
 
         self.loopDev = loophelpers.loopAttach(image, offset=offset, size=totalSize)
-        logCall("pvcreate %s" % self.loopDev)
-        logCall("vgcreate %s %s" % (self.volGroupName, self.loopDev))
+        logCall(['lvm', 'pvcreate', self.loopDev])
+        logCall(['lvm', 'vgcreate', self.volGroupName, self.loopDev])
 
     def addFilesystem(self, mountPoint, fsType, size):
         name = mountPoint.replace('/', '')
@@ -29,7 +29,10 @@ class LVMContainer(object):
             name = 'root'
 
         fsDev = '/dev/vg00/%s' % name
-        logCall('lvcreate -n %s -L%dK vg00' % (name, size / 1024))
+        logCall(['lvm', 'lvcreate',
+            '-n', name,
+            '-L', '%sK' % (size / 1024),
+            self.volGroupName])
 
         fs = bootable_image.Filesystem(fsDev, fsType, size, fsLabel=mountPoint)
         self.filesystems.append(fs)
@@ -38,7 +41,5 @@ class LVMContainer(object):
     def unmount(self):
         for fs in self.filesystems:
             fs.umount()
-            logCall("lvchange -a n %s" % fs.fsDev)
-        logCall("vgchange -a n %s" % self.volGroupName)
-        logCall("pvchange -x n %s" % self.loopDev)
+        logCall(['lvm', 'vgchange', '-a', 'n', self.volGroupName])
         loophelpers.loopDetach(self.loopDev)

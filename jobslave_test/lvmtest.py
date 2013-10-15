@@ -1,10 +1,6 @@
-#!/usr/bin/python
 #
 # Copyright (c) SAS Institute Inc.
 #
-
-import testsuite
-testsuite.setup()
 
 from jobslave import lvm
 from jobslave_helper import ExecuteLoggerTest
@@ -17,18 +13,18 @@ class LVMTest(ExecuteLoggerTest):
 
         self.failUnlessEqual(self.callLog, [
             ['losetup', '-o', '1', '--sizelimit', '20971520', '/dev/loop0', 'testimg'],
-            'pvcreate /dev/loop0',
-            'vgcreate vg00 /dev/loop0',
+            ['lvm', 'pvcreate', '/dev/loop0'],
+            ['lvm', 'vgcreate', 'vg00', '/dev/loop0'],
             ])
 
         self.reset()
 
         root = container.addFilesystem('/', 'ext3', 1024)
         swap = container.addFilesystem('swap1', 'swap', 1024)
-        self.failUnlessEqual(self.callLog,
-            ['lvcreate -n root -L1K vg00',
-             'lvcreate -n swap1 -L1K vg00'],
-        )
+        self.failUnlessEqual(self.callLog, [
+            ['lvm', 'lvcreate', '-n', 'root', '-L', '1K', 'vg00'],
+            ['lvm', 'lvcreate', '-n', 'swap1', '-L', '1K', 'vg00'],
+            ])
 
         self.reset()
         root.mount("/")
@@ -45,12 +41,6 @@ class LVMTest(ExecuteLoggerTest):
         self.reset()
         container.unmount()
         self.failUnlessEqual(self.callLog, [
-            'lvchange -a n /dev/vg00/root',
-            'lvchange -a n /dev/vg00/swap1',
-            'vgchange -a n vg00',
-            'pvchange -x n /dev/loop0',
+            ['lvm', 'vgchange', '-a', 'n', 'vg00'],
             ['losetup', '-d', '/dev/loop0'],
             ])
-
-if __name__ == "__main__":
-    testsuite.main()
