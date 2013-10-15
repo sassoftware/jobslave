@@ -1,5 +1,5 @@
 #
-# Copyright (c) rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
 
 # python standard library imports
@@ -156,13 +156,13 @@ class InstallCallback(UpdateCallback):
         self.status = lambda x: None
 
 
-class Filesystem:
-    loopDev = None
+class Filesystem(object):
+    devPath = None
     offset = None
     mounted = False
     fsType = None
 
-    def __init__(self, fsDev, fsType, size, offset = 0, fsLabel = None):
+    def __init__(self, fsDev, fsType, size, offset=0, fsLabel=None):
         self.fsDev = fsDev
         self.size = size
         self.offset = offset
@@ -176,11 +176,22 @@ class Filesystem:
         self.fsType = fsType
         self.mountPoint = None
 
+    def attach(self):
+        if self.offset:
+            self.devPath = loophelpers.loopAttach(self.fsDev,
+                    offset=self.offset)
+        else:
+            self.devPath = self.fsDev
+
+    def detach(self):
+        if self.offset:
+            loophelpers.loopDetach(self.devPath)
+
     def mount(self, mountPoint):
         if self.fsType == "swap":
             return
 
-        self.loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
+        self.attach()
         options = []
         fsType = self.fsType
         if self.fsType in ('ext3', 'ext4'):
@@ -190,8 +201,8 @@ class Filesystem:
             # Turn off data integrity during install
             options.append('data=writeback,barrier=0')
         options = '-o %s' % (','.join(options)) if options else ''
-        logCall("mount -n -t %s %s %s %s" % (fsType, self.loopDev, mountPoint,
-            options))
+        logCall("mount -n -t %s %s %s %s" %
+                (fsType, self.devPath, mountPoint, options))
         self.mounted = True
         self.mountPoint = mountPoint
 
@@ -199,14 +210,14 @@ class Filesystem:
         if self.fsType == "swap":
             return
 
-        if not self.loopDev or not self.mounted:
+        if not self.devPath or not self.mounted:
             return
 
         try:
             logCall("umount -n %s" % self.mountPoint)
         except RuntimeError:
             log.warning('Unmount of %s from %s failed - trying again',
-                self.loopDev, self.mountPoint)
+                self.devPath, self.mountPoint)
 
             clean = False
             for x in range(5):
@@ -227,34 +238,31 @@ class Filesystem:
                   helperfuncs.getMountedFiles(self.mountPoint)):
                     log.error(path)
 
-                raise RuntimeError('Failed to unmount %s' % self.loopDev)
+                raise RuntimeError('Failed to unmount %s' % self.devPath)
 
-        loophelpers.loopDetach(self.loopDev)
+        self.detach()
         self.mounted = False
 
     def format(self):
-        if self.offset:
-            loopDev = loophelpers.loopAttach(self.fsDev, offset = self.offset)
-        else:
-            loopDev = self.fsDev
+        self.attach()
         try:
             if self.fsType in ('ext3', 'ext4'):
                 cmd = 'mkfs.%s -F -b 4096 -L %s %s' % (
-                        self.fsType, self.fsLabel, loopDev)
+                        self.fsType, self.fsLabel, self.devPath)
                 if self.size:
                     cmd += ' %s' % (self.size / 4096)
                 logCall(cmd)
-                logCall('tune2fs -i 0 -c 0 %s' % (loopDev,))
+                logCall('tune2fs -i 0 -c 0 %s' % (self.devPath,))
             elif self.fsType == 'swap':
-                cmd = 'mkswap -L %s %s' % (self.fsLabel, loopDev)
+                cmd = 'mkswap -L %s %s' % (self.fsLabel, self.devPath)
                 logCall(cmd)
             else:
                 raise RuntimeError, "Invalid filesystem type: %s" % self.fsType
         finally:
-            if self.offset:
-                loophelpers.loopDetach(loopDev)
+            self.detach()
 
-class StubFilesystem:
+
+class StubFilesystem(object):
     def __init__(self):
         self.fsLabel = 'root'
         self.fsType = 'ext4'
@@ -267,6 +275,7 @@ class StubFilesystem:
 
     def format(self, *args):
         pass
+
 
 class BootableImage(ImageGenerator):
     geometry = GEOMETRY_REGULAR
@@ -403,11 +412,11 @@ class BootableImage(ImageGenerator):
             fs = self.filesystems[mountPoint]
 
             if fsType != 'swap':
-                fstab = "LABEL=%s\t%s\t%s\tdefaults\t1\t%d\n" % (
+                fstab += "LABEL=%s\t%s\t%s\tdefaults\t1\t%d\n" % (
                     (fs.fsLabel, mountPoint, fsType,
                         (mountPoint == '/') and 1 or 2))
             else:
-                fstab = "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
+                fstab += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
 
         # Add elements that might otherwise be missing:
         if 'devpts ' not in fstab:
@@ -625,6 +634,9 @@ class BootableImage(ImageGenerator):
                     )
 
         # Finish installation of bootloader
+        if not self.fileExists('boot/boot'):
+            # So /boot/blah in grub conf still works if /boot is separate
+            os.symlink('.', self.filePath('boot/boot'))
         self.bootloader.install()
 
     def _writeCert(self, dirpath, filename, contents):
@@ -946,8 +958,15 @@ class BootableImage(ImageGenerator):
         for line in mounts:
             line = line.strip()
             mntpoint = line.split(' ')[1]
-            if mntpoint.startswith(dest) and mntpoint != dest:
-                mntlist.add(mntpoint)
+            if not mntpoint.startswith(dest):
+                continue
+            # Ignore actual managed filesystem mounts
+            name = mntpoint[len(dest):]
+            if not name:
+                name = '/'
+            if name in self.mountDict:
+                continue
+            mntlist.add(mntpoint)
         # unmount in reverse sorted order to get /foo/bar before /foo
         for mntpoint in reversed(sorted(mntlist)):
             logCall('umount -n %s' % mntpoint)

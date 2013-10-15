@@ -1,7 +1,5 @@
 #
-# Copyright (c) 2011 rPath, Inc.
-#
-# All Rights Reserved
+# Copyright (c) SAS Institute Inc.
 #
 
 import logging
@@ -122,6 +120,8 @@ class RawHdImage(bootable_image.BootableImage):
 
             lvmContainer = lvm.LVMContainer(lvmSize, image,
                     lvmStartBlock * self.geometry.BLOCK)
+        else:
+            lvmContainer = None
 
         container.partition(partitions)
 
@@ -133,45 +133,40 @@ class RawHdImage(bootable_image.BootableImage):
         for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
             if mountPoint == rootPart:
                 continue
-
-            # FIXME: this code is broken - fs is only set in a branch
-            # it only happens to work now because we only support one
-            # partition and the continue above gets hit
-            if lvmContainer:
-                fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
+            fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
             fs.format()
-
             self.addFilesystem(mountPoint, fs)
 
-        self.mountAll()
-
-        # Install contents into image
-        root_dir = os.path.join(self.workDir, "root")
-        bootloader_installer = self.installFileTree(root_dir)
-
-        # Install bootloader's MBR onto the disk
-        #  first bind mount the disk image into the root dir.
-        #  this lets some bootloaders (like grub) write to the disk
-        diskpath = os.path.join(root_dir, 'disk.img')
-        f = open(diskpath, 'w')
-        f.close()
-        logCall('mount -n -obind %s %s' %(image, diskpath))
         try:
-            bootloader_installer.install_mbr(root_dir, image, totalSize)
+            self.mountAll()
+
+            # Install contents into image
+            root_dir = os.path.join(self.workDir, "root")
+            bootloader_installer = self.installFileTree(root_dir)
+
+            # Install bootloader's MBR onto the disk
+            #  first bind mount the disk image into the root dir.
+            #  this lets some bootloaders (like grub) write to the disk
+            diskpath = os.path.join(root_dir, 'disk.img')
+            f = open(diskpath, 'w')
+            f.close()
+            logCall('mount -n -obind %s %s' %(image, diskpath))
+            try:
+                bootloader_installer.install_mbr(root_dir, image, totalSize)
+            finally:
+                blkidtab = os.path.join(root_dir, "etc", "blkid.tab")
+                if os.path.exists(blkidtab):
+                    os.unlink(blkidtab)
+                logCall('umount -n %s' % diskpath)
+                os.unlink(diskpath)
+
         finally:
-            blkidtab = os.path.join(root_dir, "etc", "blkid.tab")
-            if os.path.exists(blkidtab):
-                os.unlink(blkidtab)
-            logCall('umount -n %s' % diskpath)
-            os.unlink(diskpath)
-
-        # Unmount and destroy LVM
-        try:
-            self.umountAll()
-            if lvmContainer:
-                lvmContainer.destroy()
-        except Exception, e:
-            log.warning("Error tearing down LVM setup: %s" % str(e))
+            try:
+                self.umountAll()
+                if lvmContainer:
+                    lvmContainer.unmount()
+            except Exception, e:
+                log.warning("Error tearing down filesystems:", exc_info=True)
 
         return container
 
