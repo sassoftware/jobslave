@@ -82,19 +82,20 @@ class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
 
     def testUmountNotMounted(self):
         fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600)
-        fsm.loopDev = '/dev/loop0'
+        fsm.devPath = '/dev/loop0'
         fsm.umount()
-        self.failIf(fsm.loopDev != '/dev/loop0',
+        self.failIf(fsm.devPath != '/dev/loop0',
                 "allowed to umount an unmounted partition")
 
     def testUmount(self):
-        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600)
+        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600,
+                offset=65536)
         logCall = bootable_image.logCall
         loopDetach = jobslave.loophelpers.loopDetach
         try:
             bootable_image.logCall = lambda *args, **kwargs: None
             jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
-            fsm.loopDev = '/dev/loop0'
+            fsm.devPath = '/dev/loop0'
             fsm.mounted = True
             fsm.mountPoint = '/mnt/null'
             fsm.umount()
@@ -135,7 +136,7 @@ class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
                 ['/mnt/null/foo', '/mnt/null/bar'])
             time.sleep = lambda dur: None
             jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
-            fsm.loopDev = '/dev/loop0'
+            fsm.devPath = '/dev/loop0'
             fsm.mounted = True
             fsm.mountPoint = '/mnt/null'
 
