@@ -34,7 +34,8 @@ class LVMContainer(object):
             '-L', '%sK' % (size / 1024),
             self.volGroupName])
 
-        fs = bootable_image.Filesystem(fsDev, fsType, size, fsLabel=mountPoint)
+        fs = bootable_image.Filesystem(fsDev, fsType, size, fsLabel=mountPoint,
+                useLoop=False)
         self.filesystems.append(fs)
         return fs
 

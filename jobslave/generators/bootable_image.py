@@ -162,10 +162,14 @@ class Filesystem(object):
     mounted = False
     fsType = None
 
-    def __init__(self, fsDev, fsType, size, offset=0, fsLabel=None):
+    def __init__(self, fsDev, fsType, size, offset=0, fsLabel=None,
+            useLoop=True):
         self.fsDev = fsDev
         self.size = size
         self.offset = offset
+        self.useLoop = useLoop
+        if not useLoop:
+            assert not offset
         # make the label "safe" so vol_id returns something for
         # ID_FS_LABEL_SAFE and udev creates a link in /dev/disk/by-label/
         if fsLabel is not None:
@@ -177,14 +181,14 @@ class Filesystem(object):
         self.mountPoint = None
 
     def attach(self):
-        if self.offset:
+        if self.useLoop:
             self.devPath = loophelpers.loopAttach(self.fsDev,
                     offset=self.offset, size=self.size)
         else:
             self.devPath = self.fsDev
 
     def detach(self):
-        if self.offset:
+        if self.useLoop:
             loophelpers.loopDetach(self.devPath)
 
     def mount(self, mountPoint):
