@@ -1,17 +1,14 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2011 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-
-import testsuite
-testsuite.setup()
 
 from jobslave.job_data import JobData
 from jobslave.generators import vmware_image
+from jobslave_test.jobslave_helper import JobSlaveHelper
 from conary.deps import deps
 
 
-class VMwareTest(testsuite.TestCase):
+class VMwareTest(JobSlaveHelper):
     def testNoVmEscape(self):
         data = 'test'
         ref = 'test'
@@ -77,7 +74,3 @@ class VMwareTest(testsuite.TestCase):
                 'other26xlinux')
         self._testGuestOS(vmware_image.VMwareESXImage, '', 'is: x86_64',
                 'other26xlinux-64')
-
-
-if __name__ == "__main__":
-    testsuite.main()

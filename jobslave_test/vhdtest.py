@@ -1,19 +1,14 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved
+# Copyright (c) SAS Institute Inc.
 #
 
 import os
-import testsuite
 import tempfile
-import sys
-testsuite.setup()
 
 from jobslave.generators import vhd
+from jobslave_test.jobslave_helper import JobSlaveHelper
 
-class VHDTest(testsuite.TestCase):
+class VHDTest(JobSlaveHelper):
     def setUp(self):
         fd, fn = tempfile.mkstemp()
         f = os.fdopen(fd, "w")
@@ -22,10 +17,10 @@ class VHDTest(testsuite.TestCase):
         f.close()
 
         self.fn = fn
-        testsuite.TestCase.setUp(self)
+        super(VHDTest, self).setUp()
 
     def tearDown(self):
-        testsuite.TestCase.tearDown(self)
+        super(VHDTest, self).tearDown()
         os.unlink(self.fn)
 
     def validateVHD(self, fn, magic = "conectix"):
@@ -63,7 +58,3 @@ class VHDTest(testsuite.TestCase):
     def testBlockTable(self):
         blk = vhd.BlockAllocationTable(10)
         self.failIf(blk[1] != 4294967295L, "enexpected return")
-
-
-if __name__ == "__main__":
-    testsuite.main()

@@ -1,15 +1,12 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-
-import testsuite
-testsuite.setup()
 
 import os, sys
 import tempfile
 
 from jobslave.generators import installable_iso
+from jobslave_test.jobslave_helper import JobSlaveHelper
 
 from conary import versions
 from conary.repository import changeset
@@ -110,7 +107,8 @@ class DummyIso(installable_iso.InstallableIso):
     def getConaryClient(self, *args, **kwargs):
         return self.conaryClient
 
-class KeyTest(testsuite.TestCase):
+class KeyTest(JobSlaveHelper):
+
     def setUp(self):
         self._call = installable_iso.call
         installable_iso.call = lambda *args, **kwargs: None
@@ -165,7 +163,3 @@ class KeyTest(testsuite.TestCase):
             util.rmtree(csdir)
 
         assert d.statusList == ['Extracting Public Keys']
-
-
-if __name__ == "__main__":
-    testsuite.main()

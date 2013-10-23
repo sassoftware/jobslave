@@ -1,12 +1,6 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-# All rights reserved
-#
-
-import testsuite
-testsuite.setup()
 
 import jobslave_helper
 from jobslave import buildtypes
@@ -61,6 +55,3 @@ class HandlerTest(jobslave_helper.JobSlaveHelper):
         handler = self.suppressOutput(self.getHandler,
                                      buildtypes.UPDATE_ISO)
         assert handler, "Failed to get Update ISO"
-
-if __name__ == "__main__":
-    testsuite.main()

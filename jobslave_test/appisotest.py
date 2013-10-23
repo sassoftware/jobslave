@@ -1,12 +1,6 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-# All rights reserved
-#
-
-import testsuite
-testsuite.setup()
 
 import os
 import stat
@@ -117,7 +111,3 @@ class TarSplitTest(jobslave_helper.JobSlaveHelper):
             realSize = os.stat(path)[stat.ST_SIZE]
 
             self.failUnlessEqual(size, realSize)
-
-
-if __name__ == '__main__':
-    testsuite.main()

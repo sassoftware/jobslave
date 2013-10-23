@@ -1,8 +1,7 @@
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-# All Rights Reserved
-#
+
 import os
 from conary import versions
 from conary.deps import deps

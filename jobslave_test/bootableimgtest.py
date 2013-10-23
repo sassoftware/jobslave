@@ -1,10 +1,6 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2011 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-
-import testsuite
-testsuite.setup()
 
 import os
 import tempfile
@@ -16,7 +12,6 @@ from conary.lib import util
 from conary.deps import deps
 
 import jobslave_helper
-from jobslave import filesystems
 from jobslave import helperfuncs
 from jobslave.generators import constants
 from jobslave.generators import bootable_image
@@ -502,7 +497,3 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
         self.bootable.uJob = cclient.newUpdateJob()
         self.bootable.updateGroupChangeSet(cclient)
         cclient.failUnlessRun()
-
-
-if __name__ == "__main__":
-    testsuite.main()

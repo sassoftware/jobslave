@@ -1,21 +1,16 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-# All rights reserved.
-#
-
-import testsuite
-testsuite.setup()
 
 from jobslave import geometry
+from jobslave_test.jobslave_helper import JobSlaveHelper
 
 
 def fromhex(hexstr):
     return ''.join(chr(int(x, 16)) for x in hexstr.split())
 
 
-class GeometryTest(testsuite.TestCase):
+class GeometryTest(JobSlaveHelper):
     def testNewStyle(self):
         g = geometry.Geometry(64, 32)
         self.assertEquals(g.heads, 64)

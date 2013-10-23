@@ -1,12 +1,6 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-# All rights reserved
-#
-
-import testsuite
-testsuite.setup()
 
 import os
 import re
@@ -18,9 +12,9 @@ import jobslave.generators
 from jobslave import buildtypes
 from jobslave.bootloader import grub_installer
 from jobslave.bootloader import extlinux_installer
-from jobslave.generators import constants
 
 import jobslave_helper
+
 
 class BootloaderTest(jobslave_helper.JobSlaveHelper):
     def _getInstaller(self, tmpdir, handler=None, kind='extlinux', name='Foo Project', **kw):

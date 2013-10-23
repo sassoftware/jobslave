@@ -1,17 +1,9 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
-#
-# All rights reserved
+# Copyright (c) SAS Institute Inc.
 #
 
-import testsuite
-testsuite.setup()
-
-import httplib
 import os
 import tempfile
-import time
 import StringIO
 
 from conary.lib import util, sha1helper
@@ -19,7 +11,6 @@ from conary.deps import deps
 from conary import versions
 
 
-import jobslave_helper
 from jobslave.generators import anaconda_images
 from jobslave.generators import constants
 from jobslave.generators import installable_iso
@@ -28,7 +19,10 @@ from jobslave import flavors
 from jobslave import splitdistro
 from jobslave import gencslist
 
-from testrunner import pathManager
+from testrunner import testcase
+from jobslave_test import jobslave_helper
+from jobslave_test import resources
+
 
 class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
     def testGetArchFlavor(self):
@@ -92,11 +86,10 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
     def testAnacondaImages(self):
         fontPath = '/usr/share/fonts/bitstream-vera/Vera.ttf'
         if not os.path.exists(fontPath):
-            raise testsuite.SkipTestException("Vera.ttf is missing")
+            raise testcase.SkipTestException("Vera.ttf is missing")
         tmpDir = tempfile.mkdtemp()
         ai = anaconda_images.AnacondaImages("Mint Test Suite",
-            os.path.join(pathManager.getPath("JOB_SLAVE_PATH"),"pixmaps"),
-            tmpDir, fontPath)
+                resources.get_path('pixmaps'), tmpDir, fontPath)
         ai.processImages()
 
         files = set(['first-lowres.png', 'anaconda_header.png',
@@ -143,7 +136,7 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
 
     def testConvertSplash(self):
         if not os.path.exists('/usr/bin/pngtopnm'):
-            raise testsuite.SkipTestException("pngtopnm is not installed")
+            raise testcase.SkipTestException("pngtopnm is not installed")
         ii = self.getHandler(buildtypes.INSTALLABLE_ISO)
 
         d1 = tempfile.mkdtemp()
@@ -151,8 +144,8 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
 
         util.mkdirChain(os.path.join(d1, 'isolinux'))
         util.mkdirChain(os.path.join(d2, 'pixmaps'))
-        util.copyfile(os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'), 'syslinux-splash.png'),
-                      os.path.join(d2, 'pixmaps', 'syslinux-splash.png'))
+        util.copyfile(resources.get_archive('syslinux-splash.png'),
+                os.path.join(d2, 'pixmaps', 'syslinux-splash.png'))
         self.suppressOutput(ii.convertSplash, d1, d2)
 
         result = os.path.join(d1, 'isolinux', 'splash.lss')
@@ -535,7 +528,3 @@ class CallbackTest(jobslave_helper.JobSlaveHelper):
         cb.downloadingFileContents(0, 1024)
         self.failIf(self.messages != \
                 ['test: Downloading files for foo from repository (0% of 1k)'])
-
-
-if __name__ == "__main__":
-    testsuite.main()

@@ -1,12 +1,6 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-# All rights reserved
-#
-
-import testsuite
-testsuite.setup()
 
 import jobslave_helper
 from jobslave.generators import bootable_image
@@ -94,6 +88,3 @@ class UpdateCallbackTest(jobslave_helper.JobSlaveHelper):
         callback.update('testing')
         self.failIf(self.msgs == ['testing'],
                 "update did not propogate update hunk message")
-
-if __name__ == "__main__":
-    testsuite.main()

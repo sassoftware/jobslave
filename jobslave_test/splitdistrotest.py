@@ -1,10 +1,6 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-
-import testsuite
-testsuite.setup()
 
 import os
 
@@ -162,7 +158,3 @@ class SplitDistroTest(jobslave_helper.JobSlaveHelper):
         splitdistro.lndir(tmpdir, tmpdir2)
         self.failIf(not os.path.exists(os.path.join(tmpdir2, 'a', 'b')),
                     "Dir a/b should exist")
-
-
-if __name__ == "__main__":
-    testsuite.main()

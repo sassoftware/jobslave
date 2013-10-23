@@ -1,22 +1,17 @@
-#!/usr/bin/python
 #
-# Copyright (c) 2010 rPath, Inc.
+# Copyright (c) SAS Institute Inc.
 #
-# All rights reserved
-#
-import os
-import unittest
-import testsuite
-from testrunner import pathManager
 
-testsuite.setup()
+import unittest
 
 from conary.local.database import UpdateJob
 from jobslave import filesystems
+from jobslave_test import resources
+
 
 class FilesystemsTest(unittest.TestCase):
     def testCalculatePartitionSizes(self):
-        cspath = os.path.join(pathManager.getPath('JOB_SLAVE_ARCHIVE_PATH'),"tmpwatch.ccs")
+        cspath = resources.get_archive("tmpwatch.ccs")
         ujob = UpdateJob(None)
         ujob.setJobsChangesetList([cspath])
         mounts = ['/usr/', '/bin/', '/usr/share/', '/']
@@ -24,7 +19,3 @@ class FilesystemsTest(unittest.TestCase):
         sizes = {'/usr/share': 8192L, '/': 4096L, '/bin': 0, '/usr': 16384L}
         r = filesystems.calculatePartitionSizes(ujob, mounts)
         self.failUnlessEqual(r, (sizes, 28672L))
-
-
-if __name__ == "__main__":
-    testsuite.main()
