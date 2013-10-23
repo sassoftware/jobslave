@@ -54,6 +54,7 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
                 package='jobslave-runtime')
 
         r.Requires('/bin/tar', '.*/generators/installable_iso\.py.*')
+        r.Requires('/sbin/mkfs.xfs', '.*/generators/bootable_image\.py.*')
         r.Requires('/usr/bin/gpg', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/isosize', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/ec2-bundle-image', '.*/generators/ami\..*')
