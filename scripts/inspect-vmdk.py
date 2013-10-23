@@ -127,6 +127,9 @@ class VMDK(object):
         self.header = self._HEADER(*struct.unpack("<4sIIQQQQIQQQBccccI431s", headerData))
         self.assertEquals(self.header.magicNumber, 'KDMV')
         print self.header
+        if reconstruct:
+            fout.seek(self.header.capacity * self._SECT)
+            fout.truncate()
         # skip to descriptor
         self._fobj.read(self._SECT * (self.header.descriptorOffset - 1))
         self.descriptor = self._fobj.read(self._SECT * self.header.descriptorSize)

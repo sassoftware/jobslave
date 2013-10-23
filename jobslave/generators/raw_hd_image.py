@@ -73,9 +73,10 @@ class RawHdImage(bootable_image.BootableImage):
         lvmContainer = None
 
         # Align to the next cylinder
-        def align(size):
-            alignTo = self.geometry.bytesPerCylinder
+        def align(size, alignTo):
             return divCeil(size, alignTo) * alignTo
+        alignPart = lambda size: align(size, self.geometry.bytesPerCylinder)
+        alignLvm = lambda size: align(size, 1024*1024)
 
         if os.path.exists(image):
             util.rmtree(image)
@@ -89,19 +90,19 @@ class RawHdImage(bootable_image.BootableImage):
         # partition offset so that the *end* of the root will be on a
         # cylinder boundary.
         rootStart = self.geometry.offsetBytes
-        rootEnd = align(rootStart + realSizes[rootPart])
+        rootEnd = alignPart(rootStart + realSizes[rootPart])
         rootSize = rootEnd - rootStart
 
-        # Collect sizes of all non-boot partitions, pad 10% for LVM
-        # overhead, and realign to the nearest cylinder.
-        lvmSize = sum(x[1] for x in realSizes.items() if x[0] != rootPart)
-        lvmSize += int(lvmSize * 0.10)
-        lvmSize = align(lvmSize)
+        # Collect sizes of all non-boot partitions
+        lvmSize = sum(alignLvm(x[1]) for x in realSizes.items()
+                if x[0] != rootPart)
+        lvmSize += 1048576  # room for metadata
+        lvmSize = alignPart(lvmSize)
 
         # Add one cylinder to the disk to work around grub/VMware/BIOS bugs
         # and/or a misunderstanding by this developer of how partition table
         # sizes are calculated, see RBL-8292.
-        totalSize = align(rootEnd + lvmSize + 1)
+        totalSize = alignPart(rootEnd + lvmSize + 1)
         container = HDDContainer(image, self.geometry, totalSize)
         container.create()
 
