@@ -69,7 +69,7 @@ class HDDContainer(object):
 class RawHdImage(bootable_image.BootableImage):
 
     def makeHDImage(self, image):
-        _, realSizes = self.getImageSize()
+        realSizes = self.getImageSize()
         lvmContainer = None
 
         # Align to the next cylinder
@@ -126,15 +126,17 @@ class RawHdImage(bootable_image.BootableImage):
 
         container.partition(partitions)
 
-        rootFs = bootable_image.Filesystem(image, self.mountDict[rootPart][2],
-                rootSize, offset=rootStart, fsLabel = rootPart)
+        root = self.mountDict[rootPart]
+        rootFs = bootable_image.Filesystem(image, root.fstype, rootSize,
+                offset=rootStart, fsLabel=root.name)
         rootFs.format()
         self.addFilesystem(rootPart, rootFs)
 
-        for mountPoint, (reqSize, freeSpace, fsType) in self.mountDict.items():
+        for mountPoint, req in self.mountDict.items():
             if mountPoint == rootPart:
                 continue
-            fs = lvmContainer.addFilesystem(mountPoint, fsType, realSizes[mountPoint])
+            fs = lvmContainer.addFilesystem(req.name, mountPoint, req.fstype,
+                    realSizes[mountPoint])
             fs.format()
             self.addFilesystem(mountPoint, fs)
 

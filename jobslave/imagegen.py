@@ -170,19 +170,8 @@ class ImageGenerator(Generator):
                 deps.parseFlavor('domU'))
 
         self.productDefinition = None
-        self.platformDefinition = None
         self.platformTags = set()
-        if 'filesystems' not in self.jobData:
-            freeSpace = (self.getBuildData("freespace") or 0) * 1048576
-            platName, platVer, platTags = self.getPlatformClassifier()
-            if 'redhat' in platTags and platVer >= 6:
-                fsType = 'ext4'
-            else:
-                fsType = 'ext3'
-            self.jobData['filesystems'] = [('/', 0, freeSpace, fsType)]
-
-        self.mountDict = dict([(x[0], tuple(x[1:]))
-            for x in self.jobData['filesystems'] if x[0]])
+        self._loadProddef()
 
         try:
             self.arch = \
@@ -276,29 +265,25 @@ class ImageGenerator(Generator):
 
         return ovaPath
 
-    def getProductDefinition(self):
-        if self.productDefinition:
-            return self.productDefinition
-
+    def _loadProddef(self):
         proddefLabel = self.jobData.get('proddefLabel')
         if not proddefLabel:
             return None
 
-        self.platformDefinition = proddef.ProductDefinition()
-        self.platformDefinition.setBaseLabel(proddefLabel)
-        self.platformDefinition.loadFromRepository(self.cc)
+        self.productDefinition = proddef.ProductDefinition()
+        self.productDefinition.setBaseLabel(proddefLabel)
+        self.productDefinition.loadFromRepository(self.cc)
 
-        info = self.platformDefinition.getPlatformInformation()
+        info = self.productDefinition.getPlatformInformation()
         if (info and getattr(info, 'platformClassifier', None)
                 and getattr(info.platformClassifier, 'tags', None)):
             self.platformTags = set(info.platformClassifier.tags.split())
 
-        return self.platformDefinition
+        return self.productDefinition
 
     def getPlatformClassifier(self):
-        self.getProductDefinition()
-        if self.platformDefinition:
-            info = self.platformDefinition.getPlatformInformation()
+        if self.productDefinition:
+            info = self.productDefinition.getPlatformInformation()
             if info and getattr(info, 'platformClassifier', None):
                 pc = info.platformClassifier
                 try:
@@ -309,7 +294,6 @@ class ImageGenerator(Generator):
         return ('rpath', 2, self.platformTags)
 
     def isPlatform(self, tag):
-        self.getProductDefinition()
         return tag in self.platformTags
 
     def findImageSubtrove(self, name):

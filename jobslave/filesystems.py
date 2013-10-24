@@ -31,16 +31,16 @@ def calculatePartitionSizes(uJob, mounts):
     sizes for each mount in C{mounts}.
     """
     mounts = sortMountPoints(mounts)
-    mountDict = dict.fromkeys(mounts, 0)
+    sizes = dict.fromkeys(mounts, 0)
 
     for csPath in uJob.getJobsChangesetList():
         cs = ChangeSetFromFile(csPath)
         for trvCs in cs.iterNewTroveList():
-            _processTrove(cs, trvCs, mounts, mountDict)
-    return mountDict, sum(mountDict.values())
+            _processTrove(cs, trvCs, mounts, sizes)
+    return sizes, sum(sizes.values())
 
 
-def _processTrove(changeSet, trvCs, mounts, mountDict):
+def _processTrove(changeSet, trvCs, mounts, sizes):
 
     for pathId, path, fileId, fVer in trvCs.getNewFileList():
         fStr = changeSet.getFileChange(None, fileId)
@@ -52,5 +52,5 @@ def _processTrove(changeSet, trvCs, mounts, mountDict):
                     blockSize = 4096
                     realSize = fObj.size()
                     nearestBlock = (realSize / blockSize + 1) * blockSize
-                    mountDict[mount] += nearestBlock
+                    sizes[mount] += nearestBlock
                     break

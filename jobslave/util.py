@@ -4,6 +4,7 @@
 
 import logging
 import os
+import re
 import select
 import stat
 import subprocess
@@ -161,3 +162,17 @@ def setupLogging(logLevel=logging.INFO, toStderr=True, toFile=None):
             fileLevel=logLevel,
             fileFormat='file',
             )
+
+
+def parseSize(val):
+    if not val:
+        return 0
+    m = re.match('^(\d+(?:\.\d+)?)\s*(?:([kmgt])(i)?)?b?$', val.lower())
+    if not m:
+        raise ValueError("Invalid size '%s'" % val)
+    value, power, binary = m.groups()
+    value = float(value)
+    powers = {'': 0, 'k': 1, 'm': 2, 'g': 3, 't': 4}
+    order = 1024 if binary else 1000
+    value *= (order ** powers[power or ''])
+    return long(value)

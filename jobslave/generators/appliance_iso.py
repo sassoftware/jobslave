@@ -76,19 +76,8 @@ class ApplianceInstaller(bootable_image.BootableImage,
         self.showMediaCheck = self.getBuildData('showMediaCheck')
         #self.maxIsoSize = int(self.getBuildData('maxIsoSize'))
         self.maxIsoSize = 0
-
-        if 'filesystems' not in self.jobData:
-            # support for legacy requests
-            freeSpace = self.getBuildData("freespace") * 1048576
-            swapSize = 0
-
-            self.jobData['filesystems'] = [
-                ('/', 0, freeSpace, 'ext3'),
-                ('swap', 0, swapSize, 'swap'),
-            ]
-
-        self.mountDict = dict([(x[0], tuple(x[1:]))
-            for x in self.jobData['filesystems'] if x[0]])
+        self.mountDict = self.getDefaultFilesystem()
+        self.swapSize = 0
 
     def writeBuildStamp(self, tmpPath):
         installable_iso.InstallableIso.writeBuildStamp(self, tmpPath)

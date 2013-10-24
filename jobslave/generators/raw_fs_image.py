@@ -24,7 +24,7 @@ class RawFsImage(bootable_image.BootableImage):
         return fs
 
     def mntPointFileName(self, mountPoint):
-        fsType = self.mountDict[mountPoint][-1]
+        fsType = self.mountDict[mountPoint].fstype
         tag = mountPoint[mountPoint.startswith('/') and 1 or 0:]
         tag = tag.replace("/", "_")
         tag = tag and tag or "root"
@@ -35,7 +35,7 @@ class RawFsImage(bootable_image.BootableImage):
         try:
             # create an image file per mount point
             imgFiles = {}
-            for mountPoint, (_, _, fsType) in self.mountDict.items():
+            for mountPoint, req in self.mountDict.items():
                 size = sizes[mountPoint]
 
                 tag = mountPoint.replace("/", "")
@@ -43,7 +43,7 @@ class RawFsImage(bootable_image.BootableImage):
                 imgFiles[mountPoint] = path = self.mntPointFileName(mountPoint)
                 log.info("Creating mount point %s at %s with size %d bytes",
                         mountPoint, path, size)
-                fs = self.makeBlankFS(path, fsType, size, fsLabel=mountPoint)
+                fs = self.makeBlankFS(path, req.fstype, size, fsLabel=req.name)
 
                 self.addFilesystem(mountPoint, fs)
 
@@ -61,7 +61,7 @@ class RawFsImage(bootable_image.BootableImage):
         return imgFiles
 
     def write(self):
-        totalSize, sizes = self.getImageSize(realign = 0, offset = 0)
+        sizes = self.getImageSize(realign=0)
         finalImage = os.path.join(self.outputDir, self.basefilename + '.fs.tar.gz')
 
         images = self.makeFSImage(sizes)
@@ -82,7 +82,7 @@ class RawFsImage(bootable_image.BootableImage):
                     imageDescription=self.jobData['description'],
                     diskFormat=constants.RAWFS,
                     diskFilePath=diskFileGzipPath,
-                    diskCapacity=totalSize,
+                    diskCapacity=sizes['/'],
                     diskCompressed=True,
                     workingDir=self.workDir,
                     outputDir=self.outputDir,

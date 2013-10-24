@@ -20,7 +20,9 @@ log = logging.getLogger(__name__)
 
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
-        includeTemplate=True, kversions=(), ami=False, rdPrefix='initrd'):
+        includeTemplate=True, kversions=(), ami=False, rdPrefix='initrd',
+        root_label='root',
+        ):
     xen = xen or dom0 or ami
     macros = {
         'name': name,
@@ -29,9 +31,10 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
         'moduleCmd' : '',
         'timeOut'   : '5',
         'bootDev'   : 'hda',
-        'kernelCmd' : 'kernel /boot/vmlinuz-%(kversion)s ro root=LABEL=root %(clock)s',
+        'kernelCmd' : 'kernel /boot/vmlinuz-%(kversion)s ro root=LABEL=%(root_label)s %(clock)s',
         'clock'     : clock,
         'rootDev'   : 'hd0,0',
+        'root_label': root_label,
         }
 
     if hasInitrd:
@@ -45,7 +48,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
     if xen:
         if dom0:
             macros['moduleCmd'] = (
-                    'module /boot/vmlinuz-%(kversion)s ro root=LABEL=root')
+                    'module /boot/vmlinuz-%(kversion)s ro root=LABEL=%(root_label)s')
             macros['kernelCmd'] = 'kernel /boot/xen.gz-%(kversion)s'
         else:
             macros['bootDev'] = 'xvda'
@@ -170,9 +173,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             if (self.jobData['buildType'] == buildtypes.validBuildTypes['XEN_OVA']):
                 consoleArgs = ' console=ttyS0 xencons=ttyS'
             contents += (
-                'DEFAULT_APPEND="root=LABEL=root showopts%s"\n' 
-                'FAILSAFE_APPEND="root=LABEL=root%s"\n' % (consoleArgs, consoleArgs)
-                )
+                'DEFAULT_APPEND="root=LABEL=%s showopts%s"\n'
+                'FAILSAFE_APPEND="root=LABEL=%s%s"\n' % (self.root_label,
+                    consoleArgs, self.root_label, consoleArgs))
         self.createFile('etc/sysconfig/bootloader', contents)
 
     def writeConf(self, kernels=()):
@@ -217,7 +220,9 @@ class GrubInstaller(bootloader.BootloaderInstaller):
 
         conf = getGrubConf(name, hasInitrd, xen, dom0, clock,
                 includeTemplate=not is_SUSE(self.image_root, version=11),
-                kversions=kernels, ami=ami, rdPrefix=rdPrefix)
+                kversions=kernels, ami=ami, rdPrefix=rdPrefix,
+                root_label=self.root_label,
+                )
 
         cfgfile = self._get_grub_conf()
         if cfgfile == 'menu.lst' and is_SUSE(self.image_root):
@@ -290,7 +295,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
             doubleboot_re = re.compile('/boot/boot')
             kernel_re = re.compile('^\s+kernel')
             for line in f:
-                line = rootdev_re.sub('root=LABEL=root ', line)
+                line = rootdev_re.sub('root=LABEL=%s ' % self.root_label, line)
                 if (self.jobData['buildType'] == buildtypes.validBuildTypes['AMI']):
                     line = grubroot_re.sub('root (hd0)', line)
                 else:

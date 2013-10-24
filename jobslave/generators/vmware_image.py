@@ -96,11 +96,10 @@ class VMwareImage(raw_hd_image.RawHdImage):
         return self.platforms.get(platformName, self.platforms[''])
 
     def getPlatformAndVersion(self):
-        pd = self.getProductDefinition()
-        if not pd:
+        if not self.productDefinition:
             return self._getPlatformAndVersion()
 
-        info = pd.getPlatformInformation()
+        info = self.productDefinition.getPlatformInformation()
         if not info or not hasattr(info, 'platformClassifier'):
             return self._getPlatformAndVersion()
 

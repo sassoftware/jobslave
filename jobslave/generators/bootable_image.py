@@ -13,6 +13,7 @@ import signal
 import stat
 import subprocess
 import time
+from collections import namedtuple
 
 # mint imports
 from jobslave import filesystems
@@ -25,7 +26,7 @@ from jobslave.filesystems import sortMountPoints
 from jobslave.geometry import GEOMETRY_REGULAR
 from jobslave.imagegen import ImageGenerator, MSG_INTERVAL
 from jobslave.generators import constants
-from jobslave.util import logCall
+from jobslave.util import logCall, parseSize
 
 # conary imports
 from conary import conaryclient
@@ -41,6 +42,8 @@ log = logging.getLogger(__name__)
 
 RPM_ALTERNATES = '/opt'
 RPM_DOTS = re.compile('^(.*)[._]')
+
+FsRequest = namedtuple('FsRequest', 'name mount fstype minSize freeSpace')
 
 
 def timeMe(func):
@@ -416,15 +419,14 @@ class BootableImage(ImageGenerator):
         # to add default fstab setup to product definition.
         fstab = ""
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
-            reqSize, freeSpace, fsType = self.mountDict[mountPoint]
             fs = self.filesystems[mountPoint]
 
-            if fsType != 'swap':
+            if fs.fsType != 'swap':
                 fstab += "LABEL=%s\t%s\t%s\tdefaults\t1\t%d\n" % (
-                    (fs.fsLabel, mountPoint, fsType,
+                    (fs.fsLabel, mountPoint, fs.fsType,
                         (mountPoint == '/') and 1 or 2))
             else:
-                fstab += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % mountPoint
+                fstab += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % fs.fsLabel
 
         # Add elements that might otherwise be missing:
         if 'devpts ' not in fstab:
@@ -713,41 +715,93 @@ class BootableImage(ImageGenerator):
         self.downloadChangesets()
         return filesystems.calculatePartitionSizes(self.uJob, mounts)
 
-    def getImageSize(self, realign=512, offset=None):
-        if offset is None:
-            offset = self.geometry.offsetBytes
-        mounts = [x[0] for x in self.jobData['filesystems'] if x[0]]
+    def getDefaultFilesystems(self):
+        freeSpace = (self.getBuildData("freespace") or 0) * 1048576
+        platName, platVer, platTags = self.getPlatformClassifier()
+        fsType = 'ext4' if ('redhat' in platTags and platVer >= 6) else 'ext3'
+        return {'/': FsRequest(name='root', mount='/', fstype=fsType,
+            minSize=0, freeSpace=freeSpace)}
+
+    def getFilesystems(self):
+        pd = self.productDefinition
+        if not pd:
+            return None
+        for build in pd.getBuildDefinitions():
+            if build.name == self.jobData['name']:
+                break
+        else:
+            log.warning("Unable to match current build '%s' to a build "
+                    "definition", self.jobData['name'])
+            return None
+        scheme = build.partitionScheme
+        if not scheme:
+            return None
+        if scheme.ref:
+            scheme = pd.getPartitionScheme(scheme.ref)
+        filesystems = {}
+        names = set()
+        for partition in scheme.partition:
+            assert partition.mount not in filesystems
+            name = str(partition.name or '')
+            if not name:
+                if partition.mount == '/':
+                    name = 'root'
+                elif partition.fstype == 'swap':
+                    name = 'swap'
+                else:
+                    name = str(partition.mount).strip('/').replace('/', '_')
+            base = name
+            n = 2
+            while name in names:
+                name = '%s%s' % (base, n)
+                n += 1
+            names.add(name)
+            mountPoint = str(partition.mount or '')
+            if not mountPoint or mountPoint in filesystems:
+                if partition.fstype != 'swap':
+                    raise RuntimeError("duplicate or invalid partition '%s'" %
+                            (mountPoint,))
+                mountPoint = name
+            filesystems[mountPoint] = FsRequest(
+                    name=name,
+                    mount=mountPoint,
+                    fstype=str(partition.fstype or ''),
+                    minSize=parseSize(partition.minSize),
+                    freeSpace=parseSize(partition.freeSpace),
+                    )
+        if '/' not in filesystems:
+            raise RuntimeError("Partition scheme has no root partition")
+        return filesystems
+
+    def getImageSize(self, realign=512):
+        self.mountDict = self.getFilesystems() or self.getDefaultFilesystems()
         self.status("Calculating filesystem sizes...")
-        sizes, totalSize = self.getTroveSize(mounts)
+        sizes, totalSize = self.getTroveSize(self.mountDict.keys())
 
         swapMount = self.find_mount(self.swapPath)
+        if any(x.fstype == 'swap' for x in self.mountDict.values()):
+            # Force swap file off if there is a swap partition
+            self.swapSize = 0
 
         totalSize = 0
         realSizes = {}
-        for x in self.mountDict.keys():
-            requestedSize, minFreeSpace, fsType = self.mountDict[x]
-
-            if requestedSize - sizes[x] < minFreeSpace:
-                requestedSize += sizes[x] + minFreeSpace
-
+        for req in self.mountDict.values():
+            neededSize = sizes.get(req.mount, 0) + req.freeSpace
             # Add swap file to requested size
-            if self.swapSize and x == swapMount:
-                requestedSize += self.swapSize
-
-            # pad size if ext3
-            if fsType != 'swap':
-                requestedSize = int(ceil((requestedSize + 20 * 1024 * 1024) / 0.87))
+            if self.swapSize and req.mount == swapMount:
+                neededSize += self.swapSize
+            # pad size for real filesystems
+            if req.fstype != 'swap':
+                neededSize = int(ceil((neededSize + 20 * 1024 * 1024) / 0.87))
+            size = max(req.minSize, neededSize)
             # realign to sector if requested
             if realign:
-                adjust = (realign - (requestedSize % realign)) % realign
-                requestedSize += adjust
+                adjust = (realign - (size % realign)) % realign
+                size += adjust
+            totalSize += size
+            realSizes[req.mount] = size
 
-            totalSize += requestedSize
-            realSizes[x] = requestedSize
-
-        totalSize += offset
-
-        return totalSize, realSizes
+        return realSizes
 
     @timeMe
     def addScsiModules(self):
@@ -807,9 +861,10 @@ class BootableImage(ImageGenerator):
         stdout, stderr = p.communicate()
         uuid = stdout.strip()
         root = self.filesystems['/']
-        blkid = ('<device DEVNO="%s" TIME="%s" LABEL="root" '
+        blkid = ('<device DEVNO="%s" TIME="%s" LABEL="%s" '
                 'UUID="%s" TYPE="%s">%s</device>\n'
-                % (devno, int(time.time()), uuid, root.fsType, dev))
+                % (devno, int(time.time()), root.fsLabel,
+                    uuid, root.fsType, dev))
         path = self.createFile('etc/blkid/blkid.tab', blkid)
         os.link(path, self.filePath('etc/blkid.tab'))
 
@@ -820,10 +875,9 @@ class BootableImage(ImageGenerator):
 
     @timeMe
     def installBootstrapTroves(self, callback):
-        pd = self.getProductDefinition()
-        if not pd:
+        if not self.productDefinition:
             return
-        info = pd.getPlatformInformation()
+        info = self.productDefinition.getPlatformInformation()
         if not info or not info.bootstrapTroves:
             return
         bootstrapTroves = info.bootstrapTroves
@@ -832,7 +886,7 @@ class BootableImage(ImageGenerator):
         # to cause problems. To insure against subtle bugs in the future,
         # assert that the trove has no flavor.
         installLabelPath = [Label(x.label.encode('ascii'))
-                for x in pd.getGroupSearchPaths()]
+                for x in self.productDefinition.getGroupSearchPaths()]
         result = self.nc.findTroves(installLabelPath, bootstrapTroves)
         jobList = []
         for query, matches in result.items():
@@ -1081,9 +1135,8 @@ class BootableImage(ImageGenerator):
 
     def loadRPM(self):
         """Insert the necessary RPM (if any) into sys.path."""
-        pd = self.getProductDefinition()
-        if pd:
-            info = pd.getPlatformInformation()
+        if self.productDefinition:
+            info = self.productDefinition.getPlatformInformation()
             if info:
                 # Platform info is present and indicates which RPM to use
                 return self._loadRPMFromRequirement(info.rpmRequirements)

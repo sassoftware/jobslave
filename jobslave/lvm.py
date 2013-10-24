@@ -47,23 +47,7 @@ class LVMContainer(object):
         if not os.path.exists(image):
             open(image, 'w').close()
 
-    def lvname(self, mountPoint, fsType):
-        base = str(mountPoint).replace('/', '')
-        if not base:
-            if fsType == 'swap':
-                base = 'swap'
-            else:
-                base = 'root'
-        name = base
-        n = 2
-        while name in self.names:
-            name = '%s%d' % (base, n)
-            n += 1
-        self.names.add(name)
-        return name
-
-    def addFilesystem(self, mountPoint, fsType, size):
-        name = self.lvname(mountPoint, fsType)
+    def addFilesystem(self, name, mountPoint, fsType, size):
         pe_count = (size + self.extent_size - 1) // self.extent_size
         size = pe_count * self.extent_size
         # Allocate extents for this volume
@@ -103,7 +87,7 @@ stripes = [
         offset = self.offset + self.loc_data + self.extent_size * pe_offset
         log.info("Adding LVM volume %r at offset %d size %d", name, offset, size)
         fs = bootable_image.Filesystem(self.image, fsType, size=size,
-                offset=offset, fsLabel=mountPoint)
+                offset=offset, fsLabel=name)
         self.filesystems.append(fs)
         return fs
 
