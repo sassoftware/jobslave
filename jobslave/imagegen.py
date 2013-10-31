@@ -269,10 +269,12 @@ class ImageGenerator(Generator):
         proddefLabel = self.jobData.get('proddefLabel')
         if not proddefLabel:
             return None
+        proddefVersion = self.jobData.get('proddefVersion')
 
         self.productDefinition = proddef.ProductDefinition()
         self.productDefinition.setBaseLabel(proddefLabel)
-        self.productDefinition.loadFromRepository(self.cc)
+        self.productDefinition.loadFromRepository(self.cc,
+                sourceTrove=proddefVersion)
 
         info = self.productDefinition.getPlatformInformation()
         if (info and getattr(info, 'platformClassifier', None)
