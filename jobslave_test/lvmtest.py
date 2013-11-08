@@ -12,26 +12,16 @@ from jobslave_test.jobslave_helper import JobSlaveHelper
 
 class LVMTest(JobSlaveHelper):
 
-    def testNames(self):
-        image = os.path.join(self.workDir, 'test.img')
-        container = lvm.LVMContainer(totalSize=20*1024*1024, image=image)
-        self.assertEqual(container.lvname('', 'swap'), 'swap')
-        self.assertEqual(container.lvname('', 'swap'), 'swap2')
-        self.assertEqual(container.lvname('/', 'ext4'), 'root')
-        self.assertEqual(container.lvname('/srv', 'ext4'), 'srv')
-        self.assertEqual(container.lvname('/srv/foo', 'ext4'), 'srvfoo')
-        self.assertEqual(container.lvname('/sr/vfoo', 'ext4'), 'srvfoo2')
-
     def testLVMContainer(self):
         self.mock(time, 'time', lambda: 0)
         self.mock(random, 'choice', lambda items: items[0])
         image = os.path.join(self.workDir, 'test.img')
         container = lvm.LVMContainer(totalSize=20*1024*1024, image=image)
 
-        container.addFilesystem('/', 'ext3', 10*1024*1024)
-        container.addFilesystem('swap1', 'swap', 9*1024*1024)
+        container.addFilesystem('root', '/', 'ext3', 10*1024*1024)
+        container.addFilesystem('swap1', 'swap1', 'swap', 9*1024*1024)
         self.assertRaises(lvm.LVMOverflowError,
-                container.addFilesystem, 'swap2', 'swap', 1)
+                container.addFilesystem, 'swap2', 'swap2', 'swap', 1)
         self.assertEqualWithDiff(container.getMetadata(), """\
 vg00 {
 id = "000000-0000-0000-0000-0000-0000-000000"

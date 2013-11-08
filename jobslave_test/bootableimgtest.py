@@ -285,34 +285,13 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "scsi modules not added to modprobe.conf")
 
     def testGetImageSize(self):
-        self.bootable.mountDict = {'/boot' : (0, 10240, 'ext3')}
-        self.bootable.getTroveSize = \
-                lambda *args, **kwargs: ({'/boot': 10240}, 0)
-        totalSize, realSizes = self.bootable.getImageSize()
-        self.failIf(totalSize != 24194560, \
-                "Expected total size of 24194560 but got %d" % totalSize)
-        self.failIf(realSizes != {'/boot': 24129024}, \
-                "Expected real sizes of {'/boot': 24129024} but got %s" % \
-                str(realSizes))
-
-    def testGetImageSizeWithSwap(self):
-        """
-        Verify that self.bootable.swapSize (40960) gets added to the
-        filesystem mounted at /var.
-        """
-        self.bootable.mountDict = {'/boot': (0, 10240, 'ext3'),
-                                   '/var' : (0, 0, 'swap')}
-        self.bootable.filesystems['/var'] = '/var/swap'
-        self.bootable.getTroveSize = \
-                lambda *args, **kwargs: ({'/boot': 10240,
-                                          '/var' : 0}, 0)
-        totalSize, realSizes = self.bootable.getImageSize()
-        self.failIf(totalSize != 24235520, \
-                "Expected total size of 24194560 but got %d" % totalSize)
-        self.failIf(realSizes != {'/boot': 24129024, '/var':40960}, \
-                "Expected real sizes of {'/boot': 24129024, '/var': 40960} but got %s" % \
-                str(realSizes))
-
+        self.bootable.getFilesystems = lambda: {
+            '/':     bootable_image.FsRequest('root', '/',     'ext4', 0, 500000000),
+            '/boot': bootable_image.FsRequest('boot', '/boot', 'ext4',    200000000, 0),
+            }
+        self.bootable.getTroveSize = lambda *a, **k: ({'/boot': 10240}, 0)
+        realSizes = self.bootable.getImageSize()
+        self.assertEqual(realSizes, {'/boot': 200000000, '/': 598865408})
 
     def testAddFilesystem(self):
         self.bootable.addFilesystem('/', 'ext3')
@@ -327,7 +306,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                 set(['root', 'tmp', 'var', 'boot', 'etc', 'dev']))
         self.failUnlessEqual(open(self.bootable.filePath('etc/fstab')).read(),
         '''\
-LABEL=root\t/\text3\tdefaults\t1\t1
+LABEL=root\t/\text4\tdefaults\t1\t1
 devpts                  /dev/pts                devpts  gid=5,mode=620  0 0
 tmpfs                   /dev/shm                tmpfs   defaults        0 0
 proc                    /proc                   proc    defaults        0 0
@@ -429,6 +408,7 @@ SELINUXTYPE=targeted
 
             self.bootable.downloadChangesets = lambda: None
             self.bootable.updateGroupChangeSet = lambda *args, **kwargs: None
+            self.bootable.mountDict = {'/': None}
             def mockLog(cmd, ignoreErrors=False):
                 self.cmds.append(cmd)
             def mockOpen(*args):
@@ -454,8 +434,6 @@ loop0 %(d)s blah""" %dict(d=tmpDir))
             self.failIf('SELINUX=disabled\n' not in open(
                 os.path.join(tmpDir, 'etc/selinux/config')).read(),
                 "selinux not disabled")
-            self.failIf(len(self.cmds) != 11,
-                    "unexpected number of external calls")
             # make sure we unmount things in the right order
             self.failUnlessEqual(self.cmds[-3:],
                                  ['umount -n %s/sys/bar' %tmpDir,
