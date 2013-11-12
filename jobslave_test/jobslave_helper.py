@@ -95,6 +95,7 @@ class JobSlaveHelper(TestCase):
         self.entDir = tempfile.mkdtemp(prefix="jobslave-test-ent")
         generators.constants.finishedDir = self.finishedDir
         generators.constants.entDir = self.entDir
+        self.constants = generators.constants
 
         self.testDir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 
