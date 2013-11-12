@@ -3,7 +3,6 @@
 #
 
 import os
-from conary.local.database import UpdateJob
 from testutils import mock
 
 from jobslave.job_data import JobData
