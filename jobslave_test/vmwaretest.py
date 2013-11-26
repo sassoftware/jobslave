@@ -90,13 +90,18 @@ class VMwareImageTest(JobSlaveHelper):
             f.flush()
             disk._mock.set(totalSize=f.tell(), image=image)
             return disk
+        def mockCreateVMDK(hdImage, outfile, size, streaming=False):
+            assert os.path.exists(hdImage)
+            with open(outfile, 'w') as f:
+                f.seek(1000000)
+                f.truncate()
 
         self.data['data'].update(buildOVF10=True)
         self.data.update(description='Blabbedy')
         img = vmware_image.VMwareImage(self.slaveCfg, self.data)
         img.makeHDImage = mockMakeHDImage
+        img._createVMDK = mockCreateVMDK
 
-        img.raw2vmdk = os.path.join(self.testDir, '..', 'bin', 'raw2vmdk')
         mock.mockMethod(img.downloadChangesets)
         mock.mockMethod(img.postOutput)
         img.write()
@@ -104,7 +109,7 @@ class VMwareImageTest(JobSlaveHelper):
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common">
   <ovf:References>
-    <ovf:File ovf:href="foo-1.0.1-x86.vmdk.gz" ovf:id="fileId_1" ovf:size="344783" ovf:compression="gzip"/>
+    <ovf:File ovf:href="foo-1.0.1-x86.vmdk.gz" ovf:id="fileId_1" ovf:size="1022" ovf:compression="gzip"/>
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>
