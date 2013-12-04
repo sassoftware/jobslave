@@ -285,7 +285,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
                     "scsi modules not added to modprobe.conf")
 
     def testGetImageSize(self):
-        self.bootable.getFilesystems = lambda: {
+        self.bootable.mountDict = {
             '/':     bootable_image.FsRequest('root', '/',     'ext4', 0, 500000000),
             '/boot': bootable_image.FsRequest('boot', '/boot', 'ext4',    200000000, 0),
             }
