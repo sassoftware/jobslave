@@ -76,7 +76,6 @@ class ApplianceInstaller(bootable_image.BootableImage,
         self.showMediaCheck = self.getBuildData('showMediaCheck')
         #self.maxIsoSize = int(self.getBuildData('maxIsoSize'))
         self.maxIsoSize = 0
-        self.mountDict = self.getDefaultFilesystems()
         self.swapSize = 0
 
     def writeBuildStamp(self, tmpPath):

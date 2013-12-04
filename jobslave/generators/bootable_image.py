@@ -313,6 +313,7 @@ class BootableImage(ImageGenerator):
         self.bootloader = None
         self.outputFileList = []
         self.uJob = None
+        self.mountDict = self.getFilesystems() or self.getDefaultFilesystems()
 
         # List of devicePath (realative to the rootPath's /dev), device
         # type 'c' or 'b', major, and minor numbers.
@@ -774,7 +775,6 @@ class BootableImage(ImageGenerator):
         return filesystems
 
     def getImageSize(self, realign=512):
-        self.mountDict = self.getFilesystems() or self.getDefaultFilesystems()
         self.status("Calculating filesystem sizes...")
         sizes, totalSize = self.getTroveSize(self.mountDict.keys())
 
