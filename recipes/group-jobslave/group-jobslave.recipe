@@ -65,6 +65,8 @@ class GroupJobslave(GroupSetRecipe):
         packageSearchPath = []
         for macro, packages in [
             ('master_label', [
+                'amiconfig',
+                'amiconfig-vmwareguest',
                 'conary',
                 'conary-build',
                 'conary-repository',
