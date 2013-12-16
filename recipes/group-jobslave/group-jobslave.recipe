@@ -91,7 +91,6 @@ class GroupJobslave(GroupSetRecipe):
     def getAppliancePlatformSearchPath(r):
         return [
             'group-rpath-platform=' + r.macros.platform_label,
-            'group-rpath-packages=' + r.macros.get('common_label', 'centos6.rpath.com@rpath:centos-6-common'),
             'group-os=' + r.macros.get('distro_label', 'centos6.rpath.com@rpath:centos-6e'),
             ]
 
