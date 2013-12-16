@@ -133,7 +133,7 @@ class RawHdImage(bootable_image.BootableImage):
         self.addFilesystem(rootPart, rootFs)
 
         for mountPoint, req in self.mountDict.items():
-            if mountPoint == rootPart:
+            if mountPoint == rootPart or req.fstype == 'unallocated':
                 continue
             fs = lvmContainer.addFilesystem(req.name, mountPoint, req.fstype,
                     realSizes[mountPoint])

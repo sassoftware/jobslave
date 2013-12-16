@@ -195,7 +195,7 @@ class Filesystem(object):
             loophelpers.loopDetach(self.devPath)
 
     def mount(self, mountPoint):
-        if self.fsType == "swap":
+        if self.fsType in ('swap', 'none', 'unallocated'):
             return
 
         self.attach()
@@ -211,7 +211,7 @@ class Filesystem(object):
         self.mountPoint = mountPoint
 
     def umount(self):
-        if self.fsType == "swap":
+        if self.fsType in ('swap', 'none', 'unallocated'):
             return
 
         if not self.devPath or not self.mounted:
@@ -267,6 +267,8 @@ class Filesystem(object):
                 logCall(['mkfs.xfs', '-L', self.fsLabel, self.devPath])
             elif self.fsType == 'swap':
                 logCall(['mkswap', '-L', self.fsLabel, self.devPath])
+            elif self.fsType in ('none', 'unallocated'):
+                pass
             else:
                 raise RuntimeError, "Invalid filesystem type: %s" % self.fsType
         finally:
@@ -422,12 +424,12 @@ class BootableImage(ImageGenerator):
         for mountPoint in reversed(sortMountPoints(self.filesystems.keys())):
             fs = self.filesystems[mountPoint]
 
-            if fs.fsType != 'swap':
+            if fs.fsType == 'swap':
+                fstab += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % fs.fsLabel
+            elif fs.fsType not in ('none', 'unallocated'):
                 fstab += "LABEL=%s\t%s\t%s\tdefaults\t1\t%d\n" % (
                     (fs.fsLabel, mountPoint, fs.fsType,
                         (mountPoint == '/') and 1 or 2))
-            else:
-                fstab += "LABEL=%s\tswap\tswap\tdefaults\t0\t0\n" % fs.fsLabel
 
         # Add elements that might otherwise be missing:
         if 'devpts ' not in fstab:
@@ -438,7 +440,7 @@ class BootableImage(ImageGenerator):
             fstab += "proc                    /proc                   proc    defaults        0 0\n"
         if '/sys ' not in fstab:
             fstab += "sysfs                   /sys                    sysfs   defaults        0 0\n"
-        if self.swapSize and self.swapPath and ' swap ' not in fstab:
+        if self.swapSize and self.swapPath:
             fstab += "%s\tswap\tswap\tdefaults\t0\t0\n" % self.swapPath
 
         self.createFile('etc/fstab', fstab)
@@ -759,7 +761,7 @@ class BootableImage(ImageGenerator):
             names.add(name)
             mountPoint = str(partition.mount or '')
             if not mountPoint or mountPoint in filesystems:
-                if partition.fstype != 'swap':
+                if partition.fstype not in ('swap', 'none', 'unallocated'):
                     raise RuntimeError("duplicate or invalid partition '%s'" %
                             (mountPoint,))
                 mountPoint = name
@@ -791,7 +793,7 @@ class BootableImage(ImageGenerator):
             if self.swapSize and req.mount == swapMount:
                 neededSize += self.swapSize
             # pad size for real filesystems
-            if req.fstype != 'swap':
+            if req.fstype not in ('swap', 'none', 'unallocated'):
                 neededSize = int(ceil((neededSize + 20 * 1024 * 1024) / 0.87))
             size = max(req.minSize, neededSize)
             # realign to sector if requested
