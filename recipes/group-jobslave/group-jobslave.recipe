@@ -78,7 +78,7 @@ class GroupJobslave(GroupSetRecipe):
                 ]),
             ('anaconda_label', ['anaconda-utils']),
             ('common_label_def', [
-                'tag-initscripts',
+                'tag-initscript',
                 ]),
             ]:
             label = r.macros.get(macro)
