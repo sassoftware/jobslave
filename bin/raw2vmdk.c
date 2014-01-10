@@ -216,15 +216,15 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
     if (vmdkType == MONOLITHIC_SPARSE) {
         extentType = "RW";
     } else {
-        extentType = "RO";
+        extentType = "RDONLY";
     }
 
     returner += fprintf(of,
             "# Disk DescriptorFile\n"
-            "version=1\n"
-            "CID=fffffffe\n"
-            "parentCID=ffffffff\n"
-            "createType=\"%s\"\n"
+            "version=1 \n"
+            "CID=fffffffe \n"
+            "parentCID=ffffffff \n"
+            "createType=\"%s\" \n"
             "\n"
             "# Extent description\n"
             "%s %lld SPARSE \"%s\"\n",
@@ -235,11 +235,12 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
         "# The Disk Data Base \n"
         "#DDB\n\n"
         "ddb.adapterType = \"%s\"\n"
-        "ddb.geometry.sectors = \"%d\"\n"
-        "ddb.geometry.heads = \"%d\"\n"
+        "ddb.encoding = \"UTF-8\"\n"
         "ddb.geometry.cylinders = \"%d\"\n"
+        "ddb.geometry.heads = \"%d\"\n"
+        "ddb.geometry.sectors = \"%d\"\n"
         "ddb.toolsVersion = \"8193\"\n"
-        "ddb.virtualHWVersion = \"7\"\n", adapter, sectors, heads, cylinders);
+        "ddb.virtualHWVersion = \"7\"\n", adapter, cylinders, heads, sectors);
 
     free(cpoutfile);
     return returner;
