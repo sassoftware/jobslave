@@ -272,6 +272,7 @@ class ISOOvfImage(OvfImage):
 class VMwareOVFImage(OvfImage):
 
     def createOvf(self):
+        self.ovf._doc.nameSpaceMap['vbox'] = 'http://www.virtualbox.org/ovf/machine'
         # Set network and disk info in ovf.
         self.ovf.NetworkSection.Info = constants.NETWORKSECTIONINFO
         self.ovf.DiskSection.Info = constants.DISKSECTIONINFO
@@ -290,6 +291,20 @@ class VMwareOVFImage(OvfImage):
         self.addDisks()
         self.addVirtualSystem()
 
+        for i, disk in enumerate(self.ovf.ovf_DiskSection.ovf_Disk):
+            disk._xobj.attributes.update(vbox_uuid=str)
+            object.__setattr__(disk, 'vbox_uuid',
+                    "00000000-0000-4000-8000-%012d" % (i + 1))
+
+        vbox = VBoxMachine(self.ovf.ovf_VirtualSystem.ovf_id,
+                cpuCount=self.cpuCount,
+                memory=self.memorySize,
+                diskCount=i+1)
+        object.__setattr__(self.ovf._doc.ovf_Envelope.ovf_VirtualSystem, 'vbox_Machine', vbox)
+
+        # vbox will make schema validation not work
+        # reaching inside a private __schema is nasty too
+        object.__setattr__(self.ovf._doc, '_Document__schema', None)
         return self.ovf
 
     def addVirtualSystem(self):
@@ -317,3 +332,83 @@ class VMwareOVFImage(OvfImage):
         self.addVirtualHardware(virtSystem)
         self.ovf.ovf_VirtualSystem = virtSystem
 
+class VboxCPU(object):
+    _xobj = ovf.xobj.XObjMetadata(attributes=dict(count=int, hotplug=str))
+    def __init__(self, count):
+        self.count = count
+        self.hotplug = "false"
+
+class VboxMemory(object):
+    _xobj = ovf.xobj.XObjMetadata(attributes=dict(RAMSize=int, PageFusion=str))
+    def __init__(self, size):
+        self.RAMSize = size
+        self.PageFusion = "false"
+
+class VboxChipset(object):
+    _xobj = ovf.xobj.XObjMetadata(attributes=dict(type=str))
+    def __init__(self):
+        self.type = "ICH9"
+
+VboxBIOS = ovf.xobj.parse("""\
+<BIOS>
+  <ACPI enabled="true"/>
+  <IOAPIC enabled="true"/>
+  <Logo fadeIn="false" fadeOut="false" displayTime="0"/>
+  <BootMenu mode="MessageAndMenu"/>
+  <TimeOffset value="0"/>
+  <PXEDebug enabled="false"/>
+</BIOS>""").BIOS
+
+VboxNetwork = ovf.xobj.parse("""\
+<Network>
+  <Adapter slot="0" enabled="true" cable="true" type="82540EM">
+    <NAT>
+      <DNS pass-domain="true" use-proxy="false" use-host-resolver="false"/>
+      <Alias logging="false" proxy-only="false" use-same-ports="false"/>
+    </NAT>
+  </Adapter>
+</Network>""").Network
+
+VboxStorageControllers = ovf.xobj.parse("""\
+<StorageControllers>
+  <StorageController name="SCSI Controller" type="LsiLogic" PortCount="16" useHostIOCache="false" Bootable="true">
+  </StorageController>
+</StorageControllers>""").StorageControllers
+
+class VboxAttachedDevice(object):
+    _uuidTemplate = "00000000-0000-4000-8000-%012d"
+    def __init__(self, deviceNumber):
+        self.obj = ovf.xobj.parse("""\
+<AttachedDevice type="HardDisk" port="ignoreme" device="0">
+  <Image uuid="ignoreme"/>
+</AttachedDevice>""").AttachedDevice
+        self.obj.port = deviceNumber
+        self.obj.Image.uuid = "{%s}" % (self._uuidTemplate % (deviceNumber + 1))
+
+class VboxHardware(object):
+    _xobj = ovf.xobj.XObjMetadata(
+            elements=[ 'CPU', 'Memory', 'Chipset', 'BIOS', 'Network' ],
+            attributes=dict(version=int))
+    def __init__(self, cpuCount, memory):
+        self.version = 2
+        self.CPU = VboxCPU(cpuCount)
+        self.Memory = VboxMemory(memory)
+        self.Chipset = VboxChipset()
+        self.BIOS = VboxBIOS
+        self.Network = VboxNetwork
+
+class VBoxMachine(object):
+    _xobj = ovf.xobj.XObjMetadata(
+            elements = [ "ovf_Info", "Hardware", "StorageControllers" ],
+            attributes=dict(ovf_required=str,
+                uuid=str, name=str))
+    def __init__(self, name, cpuCount, memory, diskCount):
+        self.ovf_required = "false"
+        self.uuid = "{00000000-0000-4000-8000-000000000000}"
+        self.ovf_Info = "VirtualBox machine configuration in VirtualBox format"
+        self.name = name
+        self.Hardware = VboxHardware(cpuCount, memory)
+        self.StorageControllers = VboxStorageControllers
+        attachedDevices = self.StorageControllers.StorageController.AttachedDevice = []
+        for i in range(diskCount):
+            attachedDevices.append(VboxAttachedDevice(i).obj)
