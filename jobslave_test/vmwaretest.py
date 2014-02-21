@@ -107,13 +107,13 @@ class VMwareImageTest(JobSlaveHelper):
         img.write()
         self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), """\
 <?xml version='1.0' encoding='UTF-8'?>
-<ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common">
+<ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:vbox="http://www.virtualbox.org/ovf/machine">
   <ovf:References>
     <ovf:File ovf:href="foo-1.0.1-x86.vmdk.gz" ovf:id="fileId_1" ovf:size="1022" ovf:compression="gzip"/>
   </ovf:References>
   <ovf:DiskSection>
     <ovf:Info>Describes the set of virtual disks</ovf:Info>
-    <ovf:Disk ovf:diskId="diskId_1" ovf:capacity="100663296" ovf:fileRef="fileId_1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
+    <ovf:Disk ovf:diskId="diskId_1" ovf:capacity="100663296" ovf:fileRef="fileId_1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized" vbox:uuid="00000000-0000-4000-8000-000000000001"/>
   </ovf:DiskSection>
   <ovf:NetworkSection>
     <ovf:Info>List of logical networks used in the package</ovf:Info>
@@ -176,6 +176,37 @@ class VMwareImageTest(JobSlaveHelper):
         <rasd:ResourceType>6</rasd:ResourceType>
       </ovf:Item>
     </ovf:VirtualHardwareSection>
+    <vbox:Machine ovf:required="false" uuid="{00000000-0000-4000-8000-000000000000}" name="foo-1.0.1-x86">
+      <ovf:Info>VirtualBox machine configuration in VirtualBox format</ovf:Info>
+      <Hardware version="2">
+        <CPU count="1" hotplug="false"/>
+        <Memory RAMSize="256" PageFusion="false"/>
+        <Chipset type="ICH9"/>
+        <BIOS>
+          <ACPI enabled="true"/>
+          <IOAPIC enabled="true"/>
+          <Logo fadeIn="false" fadeOut="false" displayTime="0"/>
+          <BootMenu mode="MessageAndMenu"/>
+          <TimeOffset value="0"/>
+          <PXEDebug enabled="false"/>
+        </BIOS>
+        <Network>
+          <Adapter slot="0" enabled="true" cable="true" type="82540EM">
+            <NAT>
+              <DNS pass-domain="true" use-proxy="false" use-host-resolver="false"/>
+              <Alias logging="false" proxy-only="false" use-same-ports="false"/>
+            </NAT>
+          </Adapter>
+        </Network>
+      </Hardware>
+      <StorageControllers>
+        <StorageController name="SCSI Controller" type="LsiLogic" PortCount="16" useHostIOCache="false" Bootable="true">
+          <AttachedDevice type="HardDisk" port="0" device="0">
+            <Image uuid="{00000000-0000-4000-8000-000000000001}"/>
+          </AttachedDevice>
+        </StorageController>
+      </StorageControllers>
+    </vbox:Machine>
   </ovf:VirtualSystem>
 </ovf:Envelope>
 """)
