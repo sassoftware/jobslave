@@ -365,6 +365,8 @@ VboxNetwork = ovf.xobj.parse("""\
     <NAT>
       <DNS pass-domain="true" use-proxy="false" use-host-resolver="false"/>
       <Alias logging="false" proxy-only="false" use-same-ports="false"/>
+      <Forwarding name="HTTP" proto="1" hostip="127.0.0.1" hostport="10080" guestport="80"/>
+      <Forwarding name="HTTPS" proto="1" hostip="127.0.0.1" hostport="10443" guestport="443"/>
     </NAT>
   </Adapter>
 </Network>""").Network
