@@ -71,6 +71,7 @@ class GroupJobslave(GroupSetRecipe):
                 'conary',
                 'conary-build',
                 'conary-repository',
+                'conary-policy',
                 'jobslave',
                 'jobslave-runtime',
                 'pyovf',
