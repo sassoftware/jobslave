@@ -223,6 +223,7 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         else:
             rdPrefix = 'initrd'
 
+        grubConfMacros = None
         grubConfMacroPath = util.joinPaths(self.image_root, 'etc',
                 'sysconfig', 'grubconfmacros')
         if os.path.exists(grubConfMacroPath):
