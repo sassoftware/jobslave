@@ -9,6 +9,7 @@ import shlex
 import stat
 
 from conary.lib import util
+from conary.build.recipe import loadMacros
 
 from jobslave import bootloader
 from jobslave import buildtypes
@@ -21,7 +22,7 @@ log = logging.getLogger(__name__)
 
 def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
         includeTemplate=True, kversions=(), ami=False, rdPrefix='initrd',
-        root_label='root',
+        root_label='root', grubConfMacros=None,
         ):
     xen = xen or dom0 or ami
     macros = {
@@ -31,11 +32,15 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
         'moduleCmd' : '',
         'timeOut'   : '5',
         'bootDev'   : 'hda',
-        'kernelCmd' : 'kernel /boot/vmlinuz-%(kversion)s ro root=LABEL=%(root_label)s %(clock)s',
+        'kernelCmd' : 'kernel /boot/vmlinuz-%(kversion)s ro root=LABEL=%(root_label)s %(extra_args)s %(clock)s',
         'clock'     : clock,
         'rootDev'   : 'hd0,0',
         'root_label': root_label,
+        'extra_args': '',
         }
+
+    if grubConfMacros:
+        macros.update(grubConfMacros)
 
     if hasInitrd:
         if dom0:
@@ -48,7 +53,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
     if xen:
         if dom0:
             macros['moduleCmd'] = (
-                    'module /boot/vmlinuz-%(kversion)s ro root=LABEL=%(root_label)s')
+                    'module /boot/vmlinuz-%(kversion)s ro root=LABEL=%(root_label)s %(extra_args)s')
             macros['kernelCmd'] = 'kernel /boot/xen.gz-%(kversion)s'
         else:
             macros['bootDev'] = 'xvda'
@@ -218,10 +223,15 @@ class GrubInstaller(bootloader.BootloaderInstaller):
         else:
             rdPrefix = 'initrd'
 
+        grubConfMacroPath = util.joinPaths(self.image_root, 'etc',
+                'sysconfig', 'grubconfmacros')
+        if os.path.exists(grubConfMacroPath):
+            grubConfMacros = loadMacros([grubConfMacroPath, ])
+
         conf = getGrubConf(name, hasInitrd, xen, dom0, clock,
                 includeTemplate=not is_SUSE(self.image_root, version=11),
                 kversions=kernels, ami=ami, rdPrefix=rdPrefix,
-                root_label=self.root_label,
+                root_label=self.root_label, grubConfMacros=grubConfMacros,
                 )
 
         cfgfile = self._get_grub_conf()
