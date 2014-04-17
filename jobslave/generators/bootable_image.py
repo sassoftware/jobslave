@@ -615,9 +615,6 @@ class BootableImage(ImageGenerator):
             if not 'SELINUX=disabled' in selinuxLines:
                 self.createFile('.autorelabel')
 
-        # Install CA certificates for system inventory registration.
-        self.installCertificates()
-
         # write an appropriate SLES inittab for XenServer
         # and update /etc/securetty so that logins work.
         if is_SUSE(self.root):
@@ -651,51 +648,6 @@ class BootableImage(ImageGenerator):
             # So /boot/blah in grub conf still works if /boot is separate
             os.symlink('.', self.filePath('boot/boot'))
         self.bootloader.install()
-
-    def _writeCert(self, dirpath, filename, contents):
-        """Write a SSL cert to a certificate directory."""
-        relpath = os.path.join(dirpath, filename)
-        self.createFile(relpath, contents)
-
-        try:
-            f = os.popen("chroot '%s' openssl x509 -noout -hash -in '%s'" %
-                    (self.root, relpath))
-            hash = f.readline().strip()
-            f.close()
-        except:
-            log.exception("Failed to hash certificate %s:", relpath)
-            return
-        if not hash:
-            log.error("Failed to hash certificate %s", relpath)
-            return
-
-        os.symlink(filename,
-                self.filePath(os.path.join(dirpath, "%s.0" % hash)))
-
-    def installCertificates(self):
-        pki = self.jobData.get('pki', {})
-
-        hg_path = '/etc/conary/rpath-tools/certs'
-        hg_ca = pki.get('hg_ca')
-        if hg_ca:
-            self._writeCert(hg_path, 'rbuilder-hg.pem', hg_ca)
-
-        lg_path = '/etc/conary/sfcb/clients'
-        lg_ca = pki.get('lg_ca')
-        if lg_ca:
-            self._writeCert(lg_path, 'rbuilder-lg.pem', lg_ca)
-
-        inventory_node = self.jobData.get('inventory_node')
-        cfg_path = '/etc/conary/rpath-tools/config.d/directMethod'
-        if inventory_node and not self.fileExists(cfg_path):
-            self.createFile(cfg_path,
-                    'directMethod []\n'
-                    'directMethod %s\n'
-                    % (inventory_node,))
-        cfg_path = '/etc/conary/config.d/rpath-tools-conaryProxy'
-        if inventory_node and not self.fileExists(cfg_path):
-            proxy = inventory_node.replace(':8443', '')
-            self.createFile(cfg_path, "proxyMap * conarys://%s\n" % proxy)
 
     def downloadChangesets(self):
         if self.uJob is not None:
