@@ -349,6 +349,13 @@ class VboxChipset(object):
     def __init__(self):
         self.type = "ICH9"
 
+VboxDisplay = ovf.xobj.parse("""\
+<Display VRAMSize="16" monitorCount="1" accelerate3D="false"
+accelerate2DVideo="false"/>""").Display
+
+VboxRemoteDisplay = ovf.xobj.parse("""\
+<RemoteDisplay enabled="false"/>""").RemoteDisplay
+
 VboxBIOS = ovf.xobj.parse("""\
 <BIOS>
   <ACPI enabled="true"/>
@@ -389,13 +396,15 @@ class VboxAttachedDevice(object):
 
 class VboxHardware(object):
     _xobj = ovf.xobj.XObjMetadata(
-            elements=[ 'CPU', 'Memory', 'Chipset', 'BIOS', 'Network' ],
+            elements=[ 'CPU', 'Memory', 'Chipset', 'Display', 'RemoteDisplay', 'BIOS', 'Network' ],
             attributes=dict(version=int))
     def __init__(self, cpuCount, memory):
         self.version = 2
         self.CPU = VboxCPU(cpuCount)
         self.Memory = VboxMemory(memory)
         self.Chipset = VboxChipset()
+        self.Display = VboxDisplay
+        self.RemoteDisplay = VboxRemoteDisplay
         self.BIOS = VboxBIOS
         self.Network = VboxNetwork
 

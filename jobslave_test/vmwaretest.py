@@ -182,6 +182,8 @@ class VMwareImageTest(JobSlaveHelper):
         <CPU count="1" hotplug="false"/>
         <Memory RAMSize="256" PageFusion="false"/>
         <Chipset type="ICH9"/>
+        <Display VRAMSize="16" monitorCount="1" accelerate3D="false" accelerate2DVideo="false"/>
+        <RemoteDisplay enabled="false"/>
         <BIOS>
           <ACPI enabled="true"/>
           <IOAPIC enabled="true"/>
