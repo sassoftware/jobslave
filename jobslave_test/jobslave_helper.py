@@ -44,7 +44,7 @@ class DummyResponse(object):
 
 class JobSlaveHelper(TestCase):
 
-    data = {
+    Data = {
         'protocolVersion'   : 1,
         'type'              : 'build',
         'project'           : {'name'       : 'Foo',
@@ -122,6 +122,9 @@ class JobSlaveHelper(TestCase):
             return d
         tempfile.mkdtemp = fakeMkdtemp
 
+        data = self.data = copy.deepcopy(self.Data)
+        data['project']['conaryCfg'] = 'root %s/_ROOT_' % self.cfg.root
+
     def tearDown(self):
         self.suppressOutput(util.rmtree, self.finishedDir, ignore_errors = True)
         self.suppressOutput(util.rmtree, self.entDir, ignore_errors = True)
@@ -149,11 +152,10 @@ class JobSlaveHelper(TestCase):
         TestCase.tearDown(self)
 
     def getHandler(self, buildType):
-        data = copy.deepcopy(self.data)
-        data['buildType'] = buildType
+        self.data['buildType'] = buildType
         if buildType == buildtypes.AMI:
-            data.update(self.amiData)
-        handler = jobhandler.getHandler(self.slaveCfg, data)
+            self.data.update(self.amiData)
+        handler = jobhandler.getHandler(self.slaveCfg, self.data)
         handler.response = DummyResponse()
         return handler
 

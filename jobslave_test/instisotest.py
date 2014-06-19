@@ -128,7 +128,7 @@ class InstallableIsoTest(jobslave_helper.JobSlaveHelper):
         ii = self.getHandler(buildtypes.INSTALLABLE_ISO)
 
         # check the returned conary client cfg for sanity
-        cc = ii.getConaryClient('/', '1#x86')
+        cc = ii.getConaryClient(self.cfg.root, '1#x86')
         self.failUnlessEqual(str(cc.cfg.installLabelPath), "[Label('conary.rpath.com@rpl:1')]")
 
     def checkSha1(self, fileName, sum):
