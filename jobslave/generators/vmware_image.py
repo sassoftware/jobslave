@@ -153,8 +153,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'ADAPTERDEV': self.adapter == 'lsilogic' and 'scsi' or 'ide',
             'SNAPSHOT': str(not self.vmSnapshots).upper(),
             'GUESTOS': self.getGuestOS(),
-            'SIZE': str(self.vmdkSize),
-            'CAPACITY': str(self.capacity),
             }
 
         #write the file to the proper location
@@ -207,7 +205,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
         # TODO: Add progress to raw2vmdk and pass it to creatingDisk()
         callback.creatingDisk(None, None)
         self.createVMDK(disk.image, vmdkPath, self.capacity)
-        self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
 
         # TODO: Add progress to self.gzip() and pass it to creatingArchive()
@@ -255,7 +252,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.vmSnapshots = self.getBuildData('vmSnapshots')
         self.vmMemory = self.getBuildData('vmMemory')
         self.vmCPUs = self.getBuildData('vmCPUs')
-        self.vmdkSize = None
         self.capacity = None
 
     def getGuestOS(self):
@@ -348,7 +344,6 @@ class VMwareESXImage(VMwareImage):
         # TODO: Add progress to raw2vmdk and pass it to creatingDisk()
         callback.creatingDisk(None, None)
         self.createOvfVMDK(disk.image, vmdkPath, disk.totalSize)
-        self.vmdkSize = os.stat(vmdkPath)[stat.ST_SIZE]
         disk.destroy()
         return vmdkPath
 
