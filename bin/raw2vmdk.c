@@ -7,7 +7,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <alloca.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +22,7 @@
 #endif
 
 /* Program version */
-#define VER                 "0.1"
+#define VER                 "0.2"
 
 #define CID_NOPARENT        0x0
 #define SPARSE_MAGICNUMBER  0x564d444b /* 'V' 'M' 'D' 'K' */
@@ -69,13 +69,16 @@
 /* define GTE/GDE entry size as a constant */
 #define OFFSETSIZE  sizeof(u_int32_t)
 
+#define MAX_EXTENT_SIZE_MB 4095 /* Megabytes */
+#define VMDKFILETMPL "-s%03d"
+
 u_int8_t zerograin[GRAINSIZE];
 u_int32_t zerogt[GTEPERGT];
 
 typedef u_int64_t  SectorType;
 typedef u_int8_t   Bool;
 
-int zeropad(off_t numbytes, FILE * file);
+off_t zeropad(off_t numbytes, FILE * file);
 
 #pragma pack(1)
 
@@ -154,7 +157,7 @@ int gdSize(int numgts) {
     return GRAINSECTORS * ceil((double)numgts / GRAINSECTORS);
 }
 
-void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
+void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize, SectorType descriptorSize) {
     memset(hd, 0, sizeof(SparseExtentHeader));
     size_t numgts = numGTs(outsize);
     size_t gt0offset = GT0Offset(numgts);
@@ -163,8 +166,8 @@ void SparseExtentHeader_init(SparseExtentHeader *hd, off_t outsize) {
     hd->flags =             (vmdkType == MONOLITHIC_SPARSE ? FLAGS : SOFLAGS );
     hd->capacity =          SECTORS(outsize);
     hd->grainSize =         SECTORS(GRAINSIZE);
-    hd->descriptorOffset =  1;
-    hd->descriptorSize   =  20;
+    hd->descriptorOffset =  (descriptorSize == 0 ? 0 : 1);
+    hd->descriptorSize   =  descriptorSize;
     hd->numGTEsPerGT =      GTEPERGT;
     hd->rgdOffset =         (vmdkType == MONOLITHIC_SPARSE ? hd->descriptorSize + hd->descriptorOffset : 0);
 
@@ -200,18 +203,16 @@ size_t _fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     }
 }
 
-int writeDescriptorFile(FILE * of, const off_t outsize,
-                        const char * outfile,
+SectorType writeDescriptorFile(FILE * of, const off_t * outsizes,
+                        char ** outfiles,
+                        u_int16_t outfilesCount,
                         const u_int32_t cylinders,
                         const u_int8_t heads,
                         const u_int8_t sectors,
                         const char * adapter) {
-    size_t len = strlen(outfile);
-    char * cpoutfile = (char*)malloc(sizeof(char)*(len + 1));
-    const char *extentType;
-    strncpy(cpoutfile, outfile, strlen(outfile));
-    cpoutfile[len] = '\0';
-    int returner = 0;
+    int i;
+    const char * extentType;
+    SectorType returner = 0;
 
     if (vmdkType == MONOLITHIC_SPARSE) {
         extentType = "RW";
@@ -226,10 +227,17 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
             "parentCID=ffffffff \n"
             "createType=\"%s\" \n"
             "\n"
-            "# Extent description\n"
+            "# Extent description\n",
+            VMDKTYPE(vmdkType));
+    for (i = 0; i < outfilesCount; i++) {
+        /* Need to copy the string, just because of basename */
+        char * cpout = strdup(outfiles[i]);
+        returner += fprintf(of,
             "%s %lld SPARSE \"%s\"\n",
-            VMDKTYPE(vmdkType), extentType,
-            (long long)SECTORS(outsize), basename(cpoutfile));
+            extentType,
+            (long long)SECTORS(outsizes[i]), basename(cpout));
+        free(cpout);
+    }
 
     returner += fprintf(of, "\n"
         "# The Disk Data Base \n"
@@ -242,7 +250,6 @@ int writeDescriptorFile(FILE * of, const off_t outsize,
         "ddb.toolsVersion = \"8193\"\n"
         "ddb.virtualHWVersion = \"7\"\n", adapter, cylinders, heads, sectors);
 
-    free(cpoutfile);
     return returner;
 }
 
@@ -385,6 +392,26 @@ int writeGrainTableData(const SparseExtentHeader * header, u_int32_t * grainTabl
     return returner;
 }
 
+Bool isZeroBlock(const u_int8_t buf[], size_t count)
+{
+    u_int64_t zero = 0L;
+    int i, rem, stop;
+    rem = count % sizeof(u_int64_t);
+    stop = count - rem;
+    for(i=0; i < stop; i+=sizeof(u_int64_t)) {
+        //Check one u_int64_t at a time
+        //memcmp
+        if (memcmp(&buf[i], &zero, sizeof(u_int64_t)))
+            return 0;
+    }
+    if (rem) {
+        if(memcmp(&buf[i], &zero, rem)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 off_t copyData(const char* infile, const off_t outsize,
              const SparseExtentHeader * header, FILE * of) {
     FILE *in;
@@ -405,40 +432,23 @@ off_t copyData(const char* infile, const off_t outsize,
     off_t returner = 0;
     u_int32_t currentSector = header->overHead;
     u_int32_t pos = 0;
-    u_int64_t zero = 0L;
     u_int8_t buf[GRAINSIZE];
     size_t read;
-    u_int32_t numGrains = (outsize / GRAINSIZE) + ((outsize % GRAINSIZE) ? 1 : 0);
-    u_int32_t curGrain = 0;
-    while((read = fread(buf, sizeof(u_int8_t), GRAINSIZE, in))) {
-        VPRINT("Copying grain %d of %d", ++curGrain, numGrains);
-        /* Check to make sure it's not all zeros */
-        int i, rem, stop;
-        Bool blank = 1;
-        rem = read % sizeof(u_int64_t);
-        stop = read - rem;
-        for(i=0; i < stop; i+=sizeof(u_int64_t))
-        {
-            //Check one u_int64_t at a time
-            //memcmp
-            if (memcmp(&buf[i], &zero, sizeof(u_int64_t))) {
-                blank = 0;
-                break;
-            }
+    u_int32_t numGrains = PAD(outsize, GRAINSIZE) / GRAINSIZE;
+    u_int32_t curGrain;
+    for (curGrain = 0; curGrain < numGrains; curGrain++) {
+        VPRINT("Copying grain %d of %d", curGrain + 1, numGrains);
+        read = fread(buf, sizeof(u_int8_t), GRAINSIZE, in);
+        if (!read) {
+            fprintf(stderr, "\nShort read\n");
+            break;
         }
-        if(blank && rem){
-            if(memcmp(&buf[i], &zero, rem)) {
-                blank = 0;
-            }
-        }
-
+        Bool blank = isZeroBlock(buf, read);
         /* Pad the file to be grain aligned (RBL-3487) */
         if (read < GRAINSIZE) {
             VPRINT("\nPadding end of file to align to grain by %lld bytes.",
                     (long long)(GRAINSIZE-read));
-            for (i=read; i<GRAINSIZE; i+=sizeof(u_int64_t))
-                buf[i] = zero;
-            read = GRAINSIZE;
+            memset(buf + read, '\0', GRAINSIZE - read);
         }
 
         //Finally, if it's not blank, write it, and add an entry in the grainTable
@@ -473,24 +483,49 @@ static void usage(char * name)
             "-A  Adapter: legal values are ide, lsilogic or buslogic\n"
             "-l  Size of the input image (optional if input is a file)\n"
             "-s  Use streamOptimized format rather than monolithicSparse\n"
+            "-Z  Maximum size of an extent file, in megabytes (default: %d); ignored for streamOptimized\n"
             "infile.img    RAW disk image, or - for standard input\n"
             "outfile.vmdk  VMware virtual disk\n\n",
-            name);
+            name, MAX_EXTENT_SIZE_MB);
 }
 
-int zeropad(off_t numbytes, FILE * file)
+off_t zeropad(off_t numbytes, FILE * file)
 {
-    off_t i;
-    for( i = 0; i < numbytes; i++) {
-        fputc(0, file);
+    if (numbytes <= 0)
+        return 0;
+    if (numbytes > 1)
+        fseek(file, numbytes - 1, SEEK_CUR);
+    fputc(0, file);
+    return numbytes;
+}
+
+char * vmdkFileTemplate(const char *outfile)
+{
+    /* Return a template for naming multiple files.
+     * file.ext -> file-s%03d.ext
+     * file-with-no-ext -> file-with-no-ext-s%03d */
+    int outfileLen = strlen(outfile);
+    char *template = (char *)malloc(outfileLen + 7);
+    char *ptr;
+    template = strncpy(template, outfile, outfileLen);
+    ptr = strrchr(template, '.');
+    if (ptr == NULL) {
+        /* No extension; just append -s%03d */
+        strcat(template, VMDKFILETMPL);
+        return template;
     }
-    return i;
+    const char *ext = outfile + (ptr - template);
+    strcpy(ptr, VMDKFILETMPL);
+    ptr += strlen(VMDKFILETMPL);
+    strcpy(ptr, ext);
+    return template;
 }
 
 int main(int argc, char ** argv) {
     SparseExtentHeader header;
     int c;
     long long fileSize = -1;
+    u_int32_t extentSizeMB = MAX_EXTENT_SIZE_MB;
     u_int8_t heads = 0x10, sectors = 0x3f;
     u_int32_t cylinders = 0x0;
     char adapter[256];
@@ -502,7 +537,7 @@ int main(int argc, char ** argv) {
 
     // Parse command line options
     do {
-        c = getopt(argc, argv, "C:H:S:A:l:vs");
+        c = getopt(argc, argv, "C:H:S:A:l:Z:vs");
         switch (c) {
             case 'C': cylinders = atoi(optarg); break;
             case 'H': heads = atoi(optarg); break;
@@ -510,6 +545,7 @@ int main(int argc, char ** argv) {
             case 'v': verbose = 1; break;
             case 'A': strncpy(adapter, optarg, 255); break;
             case 'l': fileSize = atoll(optarg); break;
+            case 'Z': extentSizeMB = atol(optarg); break;
             case 's': vmdkType = STREAM_OPTIMIZED; break;
         }
     } while (c >= 0);
@@ -543,43 +579,91 @@ int main(int argc, char ** argv) {
         fileSize = istat.st_size;
     }
     VPRINT("Source file is %llu bytes\n", fileSize);
-    off_t padding = SECTORSIZE - (fileSize % SECTORSIZE);
-    off_t outsize = fileSize + (padding == SECTORSIZE ? 0: padding);
+    off_t outsize = PAD(fileSize, SECTORSIZE);
     VPRINT("Padding %llu bytes\n", (unsigned long long)(outsize - fileSize));
-    VPRINT("Total size of the destination image: %llu\n",
-            (unsigned long long)outsize);
     size_t numgts = numGTs(outsize);
 
-    VPRINT("Creating the sparse extent header\n");
-    SparseExtentHeader_init(&header, outsize);
-
-    FILE * of = fopen(outfile, "wb");
-    if(of) {
-        // Write descriptor file, to compute its length (it is cheap)
-        FILE *devnull = fopen("/dev/null", "wb");
-        if (devnull) {
-            int descriptorSize =  writeDescriptorFile(devnull, outsize, outfile, cylinders, heads, sectors, adapter);
-            fclose(devnull);
-            header.descriptorSize = SECTORS(descriptorSize) + 1;
+    char ** outfiles;
+    off_t * outsizes;
+    u_int16_t outfilesCount, fileNo;
+    if (vmdkType == MONOLITHIC_SPARSE) {
+        int i;
+        off_t extentSizeBytes = extentSizeMB * 1024 * 1024;
+        off_t sizeLeft = outsize;
+        const char * template = vmdkFileTemplate(outfile);
+        int templateLen = strlen(template);
+        outfilesCount = PAD(outsize, extentSizeBytes) / extentSizeBytes;
+        outfiles = (char **)alloca(outfilesCount * sizeof(char *));
+        outsizes = (off_t *)alloca(outfilesCount * sizeof(off_t));
+        for (i = 0; i < outfilesCount; i++) {
+            outsizes[i] = sizeLeft > extentSizeBytes ? extentSizeBytes : sizeLeft;
+            sizeLeft -= extentSizeBytes;
+            outfiles[i] = (char *)alloca(templateLen + 1);
+            sprintf(outfiles[i], template, i);
         }
+        /* First file should always be the original one */
+        outfiles[0] = outfile;
+    } else {
+        outsizes = (off_t *)alloca(sizeof(off_t));
+        outsizes[0] = outsize;
+        outfiles = (char **)alloca(sizeof(char*));
+        outfiles[0] = outfile;
+        outfilesCount = 1;
+    }
+
+    for (fileNo = 0; fileNo < outfilesCount; fileNo++) {
+        VPRINT("File %d/%d: %lld bytes: %s\n", fileNo + 1, outfilesCount,
+                (unsigned long long)outsizes[fileNo], outfiles[fileNo]);
+    }
+
+    FILE *devnull = fopen("/dev/null", "wb");
+    if (!devnull) {
+        fprintf(stderr, "Error opening %s: %s\n", "/dev/null",
+                strerror(errno));
+        return 2;
+    }
+
+    for (fileNo = 0; fileNo < outfilesCount; fileNo++) {
+        VPRINT("Creating the sparse extent header for %s (%d/%d)\n",
+                outfiles[fileNo], fileNo+1, outfilesCount);
+        FILE * of = fopen(outfiles[fileNo], "wb");
+        if (!of) {
+            fprintf(stderr, "Error opening %s: %s\n", outfiles[fileNo],
+                    strerror(errno));
+            continue;
+        }
+        SectorType descriptorSize = 0;
+        if (fileNo == 0) {
+            // We only write the descriptor in the first vmdk file; so only
+            // attempt to compute it in that case
+            // Write descriptor file, to compute its length (it is cheap)
+            descriptorSize = writeDescriptorFile(devnull, outsizes, outfiles,
+                    outfilesCount, cylinders, heads, sectors, adapter);
+            descriptorSize = SECTORS(PAD(descriptorSize, SECTORSIZE));
+        }
+        SparseExtentHeader_init(&header, outsizes[fileNo], descriptorSize);
 
         // Write the header
         VPRINT("Writing the header\n");
         _fwrite((void*)&header, sizeof(SparseExtentHeader), 1, of);
 
-        // Write the descriptor
-        VPRINT("Padding to the first sector\n");
-        zeropad(BYTES(header.descriptorSize) - writeDescriptorFile(of, outsize, outfile, cylinders, heads, sectors, adapter), of);
+        if (descriptorSize) {
+            // Write the descriptor
+            VPRINT("Padding to the first sector\n");
+            zeropad(BYTES(header.descriptorSize) -
+                    writeDescriptorFile(of, outsizes, outfiles, outfilesCount,
+                        cylinders, heads, sectors, adapter), of);
+        }
         if (vmdkType == MONOLITHIC_SPARSE) {
             // Write the rGDE
             VPRINT("Writing the redundant Grain Directory\n");
             // Skip to the rgd position first, this will zero-pad
             fseek(of, BYTES(header.rgdOffset), SEEK_SET);
-            writeGrainDirectory(header.rgdOffset, outsize, of);
+            writeGrainDirectory(header.rgdOffset, outsizes[fileNo], of);
 
             VPRINT("Writing the Grain Directory\n");
             fseek(of, BYTES(header.gdOffset), SEEK_SET);
-            writeGrainDirectory(header.gdOffset, outsize, of);
+            writeGrainDirectory(header.gdOffset, outsizes[fileNo], of);
 
             // Align to grain; write a zero byte just to make sure we have at
             // least overHead bytes in the image (corner case for a
@@ -589,7 +673,7 @@ int main(int argc, char ** argv) {
 
             // Write the grains. This also writes the grain tables
             VPRINT("Copying the data\n");
-            if (copyData(infile, outsize, &header, of) < 0) {
+            if (copyData(infile, outsizes[fileNo], &header, of) < 0) {
                 return 1;
             }
         } else {
@@ -639,9 +723,10 @@ int main(int argc, char ** argv) {
             writeFooter(&header, of);
             writeEndOfStream(of);
         }
-    }
-    if(of)
+        VPRINT("Closing %s\n", outfiles[fileNo]);
         fclose(of);
+    }
+    fclose(devnull);
     VPRINT("Finished\n");
     return 0;
 }
