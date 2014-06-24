@@ -130,13 +130,14 @@ class VMDK(object):
         if reconstruct:
             fout.seek(self.header.capacity * self._SECT)
             fout.truncate()
-        # skip to descriptor
-        self._fobj.read(self._SECT * (self.header.descriptorOffset - 1))
-        self.descriptor = self._fobj.read(self._SECT * self.header.descriptorSize)
-        print self.descriptor
+        if self.header.descriptorSize > 0:
+            # skip to descriptor
+            self._fobj.read(self._SECT * (self.header.descriptorOffset - 1))
+            self.descriptor = self._fobj.read(self._SECT * self.header.descriptorSize)
+            print self.descriptor
         if self.header.gdOffset != self.GrainDirectory.GD_AT_END:
             self.assertEquals(self.header.compressAlgorithm, 0)
-            return self.inspectNonStreamOptimized()
+            return self.inspectNonStreamOptimized(fout)
 
         # skip over the overhead
         self._fobj.seek(self.header.overHead * self._SECT, 0)
@@ -176,7 +177,7 @@ class VMDK(object):
         eosMarker = self._readMarker()
         self.assertEquals(eosMarker.type, self.Marker.EOS)
 
-    def inspectNonStreamOptimized(self):
+    def inspectNonStreamOptimized(self, fout):
         grainTable = self.GrainTable()
         grainDirectory = self.GrainDirectory()
 
@@ -193,6 +194,7 @@ class VMDK(object):
         rgrainDirectory = self.GrainDirectory.fromData(self._fobj.read(gdSize * 4))
         #self.assertEquals(grainDirectory.map, rgrainDirectory.map)
 
+        grainSizeBytes = self.header.grainSize * self._SECT
         for gtNum in range(gdSize):
             self._fobj.seek(grainDirectory.map[gtNum] * self._SECT, 0)
             gt = self.GrainTable.fromData(self._fobj.read(512 * 4))
@@ -211,6 +213,13 @@ class VMDK(object):
                 data = self._fobj.read(4)
                 gteOther = struct.unpack("<I", data)[0]
                 self.assertEquals(gte, gteOther)
+
+                if fout and gte > 0:
+                    self._fobj.seek(gte * self._SECT)
+                    fout.seek((gtNum * 512 + gteNum) * grainSizeBytes)
+                    data = self._fobj.read(grainSizeBytes)
+                    assert len(data) == grainSizeBytes
+                    fout.write(data)
 
             if (gtNum + 1) * self.header.numGTEsPerGT > numGTs:
                 break
