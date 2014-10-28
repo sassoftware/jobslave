@@ -124,6 +124,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
                 '-H', str(self.geometry.heads),
                 '-S', str(self.geometry.sectors),
                 '-A', self.adapter,
+                '-V', str(self.hwVersion),
                 ]
         if streaming:
             args += ['-s']
@@ -153,6 +154,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
             'ADAPTERDEV': self.adapter == 'lsilogic' and 'scsi' or 'ide',
             'SNAPSHOT': str(not self.vmSnapshots).upper(),
             'GUESTOS': self.getGuestOS(),
+            'VIRTUAL_HARDWARE_VERSION' : self.hwVersion,
             }
 
         #write the file to the proper location
@@ -235,11 +237,14 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         # Insert OS info.
         self.ovfClass.osInfo = self.getGuestOSInfo()
+        # Insert hardware version
+        self.ovfClass.hwVersion = self.hwVersion
 
         self.ovaPath = self.createOvf(self.basefilename,
                 self.jobData['description'], constants.VMDK, vmdkPath,
                 capacity, diskCompressed=self.WithCompressedDisks,
-                workingDir=self.workingDir, outputDir=self.outputDir)
+                workingDir=self.workingDir, outputDir=self.outputDir,
+                hwVersion=self.hwVersion)
         self.outputFileList.append((self.ovaPath,
             self.productName + ' %s' % constants.OVFIMAGETAG))
 
@@ -253,6 +258,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
         self.vmMemory = self.getBuildData('vmMemory')
         self.vmCPUs = self.getBuildData('vmCPUs')
         self.capacity = None
+        # APPENG-3232
+        if self.vmMemory > 32 * 1024 or self.vmCPUs > 8:
+            self.hwVersion = 10
+        else:
+            self.hwVersion = 7
 
     def getGuestOS(self):
         # vmwareOs hook used for windows builds.

@@ -237,7 +237,7 @@ class ImageGenerator(Generator):
 
     def createOvf(self, imageName, imageDescription, diskFormat,
                   diskFilePath, diskCapacity, diskCompressed,
-                  workingDir, outputDir):
+                  workingDir, outputDir, hwVersion=7):
 
         if self.ovfClass is None:
             self.ovfClass = ovf_image.OvfImage
@@ -256,6 +256,7 @@ class ImageGenerator(Generator):
             cpuCount=self.getBuildData('vmCPUs'),
             workingDir=workingDir,
             outputDir=outputDir,
+            hwVersion=hwVersion,
             )
 
         ovfObj = self.ovfImage.createOvf()

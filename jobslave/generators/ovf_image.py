@@ -62,7 +62,7 @@ class OvfImage(object):
 
     def __init__(self, imageName, imageDescription, diskFormat,
                  diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-                 memorySize, cpuCount, workingDir, outputDir):
+                 memorySize, cpuCount, workingDir, outputDir, hwVersion=7):
         self.imageName = imageName
         self.imageDescription = imageDescription
         self.diskFormat = diskFormat
@@ -74,6 +74,7 @@ class OvfImage(object):
         self.cpuCount = cpuCount
         self.workingDir = workingDir
         self.outputDir = outputDir
+        self.hwVersion = hwVersion
 
         self.diskFileName = os.path.split(self.diskFilePath)[1]
 
@@ -139,7 +140,7 @@ class OvfImage(object):
         # vhws.System.VirtualSystemIdentifier = self.imageName
         vhws.System.ElementName = 'Virtual Hardware Family'
         vhws.System.InstanceID = self._getInstanceId()
-        vhws.System.VirtualSystemType = 'vmx-07'
+        vhws.System.VirtualSystemType = 'vmx-%02d' % self.hwVersion
 
         virtualSystem.addVirtualHardwareSection(vhws)
 

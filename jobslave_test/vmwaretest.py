@@ -2,6 +2,7 @@
 # Copyright (c) SAS Institute Inc.
 #
 
+from lxml import etree
 import os
 from testutils import mock
 
@@ -78,34 +79,7 @@ class VMwareTest(JobSlaveHelper):
                 'other26xlinux-64')
 
 class VMwareImageTest(JobSlaveHelper):
-    def testOvfProductSection(self):
-        self.constants.templateDir = os.path.join(self.testDir, '..',
-                'templates')
-        disk = mock.MockObject()
-        def mockMakeHDImage(image):
-            buf = ''.join(chr(x) for x in range(32, 128))
-            f = file(image, "w")
-            for i in range(1024*1024):
-                f.write(buf)
-            f.flush()
-            disk._mock.set(totalSize=f.tell(), image=image)
-            return disk
-        def mockCreateVMDK(hdImage, outfile, size, streaming=False):
-            assert os.path.exists(hdImage)
-            with open(outfile, 'w') as f:
-                f.seek(1000000)
-                f.truncate()
-
-        self.data['data'].update(buildOVF10=True)
-        self.data.update(description='Blabbedy')
-        img = vmware_image.VMwareImage(self.slaveCfg, self.data)
-        img.makeHDImage = mockMakeHDImage
-        img._createVMDK = mockCreateVMDK
-
-        mock.mockMethod(img.downloadChangesets)
-        mock.mockMethod(img.postOutput)
-        img.write()
-        self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), """\
+    OVF_XML = """\
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:vbox="http://www.virtualbox.org/ovf/machine">
   <ovf:References>
@@ -213,4 +187,126 @@ class VMwareImageTest(JobSlaveHelper):
     </vbox:Machine>
   </ovf:VirtualSystem>
 </ovf:Envelope>
-""")
+"""
+
+    def testOvfProductSection(self):
+        self.constants.templateDir = os.path.join(self.testDir, '..',
+                'templates')
+        disk = mock.MockObject()
+        def mockMakeHDImage(image):
+            buf = ''.join(chr(x) for x in range(32, 128))
+            f = file(image, "w")
+            for i in range(1024*1024):
+                f.write(buf)
+            f.flush()
+            disk._mock.set(totalSize=f.tell(), image=image)
+            return disk
+        def mockCreateVMDK(hdImage, outfile, size, streaming=False):
+            assert os.path.exists(hdImage)
+            with open(outfile, 'w') as f:
+                f.seek(1000000)
+                f.truncate()
+
+        self.data['data'].update(buildOVF10=True)
+        self.data.update(description='Blabbedy')
+        img = vmware_image.VMwareImage(self.slaveCfg, self.data)
+        img.makeHDImage = mockMakeHDImage
+        img._createVMDK = mockCreateVMDK
+
+        mock.mockMethod(img.downloadChangesets)
+        mock.mockMethod(img.postOutput)
+        img.write()
+        self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), self.OVF_XML)
+
+    def testVirtualHardwareVersion(self):
+        self.constants.templateDir = os.path.join(self.testDir, '..',
+                'templates')
+        disk = mock.MockObject()
+        def mockMakeHDImage(image):
+            buf = ''.join(chr(x) for x in range(32, 128))
+            f = file(image, "w")
+            for i in range(1024*1024):
+                f.write(buf)
+            f.flush()
+            disk._mock.set(totalSize=f.tell(), image=image)
+            return disk
+
+        origLogCall = vmware_image.logCall
+        logCallArgs = []
+        def mockLogCall(cmd, **kw):
+            logCallArgs.append((cmd, kw))
+            if cmd[0] != '/usr/bin/raw2vmdk':
+                return origLogCall(cmd, **kwargs)
+            hdImage = cmd[-2]
+            outfile = cmd[-1]
+            assert os.path.exists(hdImage)
+            with open(outfile, 'w') as f:
+                f.seek(1000000)
+                f.truncate()
+        self.mock(vmware_image, 'logCall', mockLogCall)
+
+        self.data['data'].update(buildOVF10=True, vmCPUs=12)
+        self.data.update(description='Blabbedy')
+        img = vmware_image.VMwareImage(self.slaveCfg, self.data)
+        img.makeHDImage = mockMakeHDImage
+
+        mock.mockMethod(img.downloadChangesets)
+        mock.mockMethod(img.postOutput)
+        img.write()
+
+        et = etree.fromstring(self.OVF_XML)
+        nsmap = dict(ovf='http://schemas.dmtf.org/ovf/envelope/1',
+                vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData",
+                rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData",
+                vbox="http://www.virtualbox.org/ovf/machine")
+        virtHwSect = et.xpath('/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection',
+                namespaces=nsmap)[0]
+        vsystype = virtHwSect.xpath('ovf:System/vssd:VirtualSystemType', namespaces=nsmap)[0]
+        vsystype.text = 'vmx-10'
+        # Find instance 1, with the label
+
+        item = virtHwSect.xpath('ovf:Item[rasd:InstanceID = 1]', namespaces=nsmap)[0]
+        item.xpath('rasd:Caption', namespaces=nsmap)[0].text = "12 CPUs"
+        item.xpath('rasd:VirtualQuantity', namespaces=nsmap)[0].text = "12"
+
+        vboxMachine = et.xpath('/ovf:Envelope/ovf:VirtualSystem/vbox:Machine',
+                namespaces=nsmap)[0]
+        vboxMachine.xpath('Hardware/CPU')[0].attrib['count'] = '12'
+
+        xml = etree.tostring(et)
+        self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), xml)
+        self.assertEquals(logCallArgs[-1],
+                (['/usr/bin/raw2vmdk', '-C', '96', '-H', '64', '-S', '32',
+                    '-A', 'lsilogic', '-V', '10',
+                    '/tmp/mint.rpath.local-build-25/foo-1.0.1-x86.hdd',
+                    '/tmp/mint.rpath.local-build-25/foo-1.0.1-x86/foo-1.0.1-x86.vmdk'],
+                    {}),)
+
+        # More memory
+        self.data['data'].update(buildOVF10=True, vmCPUs=1, vmMemory=65536)
+        # Force hwVersion to be recomputed
+        img.configure()
+
+        img.write()
+        et = etree.fromstring(self.OVF_XML)
+        virtHwSect = et.xpath('/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection',
+                namespaces=nsmap)[0]
+        vsystype = virtHwSect.xpath('ovf:System/vssd:VirtualSystemType', namespaces=nsmap)[0]
+        vsystype.text = 'vmx-10'
+        item = virtHwSect.xpath('ovf:Item[rasd:InstanceID = 2]', namespaces=nsmap)[0]
+        item.xpath('rasd:Caption', namespaces=nsmap)[0].text = "65536 MB of Memory"
+        item.xpath('rasd:VirtualQuantity', namespaces=nsmap)[0].text = "65536"
+
+        vboxMachine = et.xpath('/ovf:Envelope/ovf:VirtualSystem/vbox:Machine',
+                namespaces=nsmap)[0]
+        vboxMachine.xpath('Hardware/Memory')[0].attrib['RAMSize'] = '65536'
+
+        xml = etree.tostring(et)
+        self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), xml)
+
+        # No need to re-test raw2vmdk invocation, we've validated that
+        # hwVersion was properly set
+
+        vmxPath = os.path.join(img.workingDir, 'foo-1.0.1-x86.vmx')
+        f = file(vmxPath)
+        self.assertIn('virtualHW.version = "10"', f.read())

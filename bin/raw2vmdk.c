@@ -76,6 +76,8 @@
 #define MAX_MONOLITHIC_SIZE ((off_t)4095 * 1024 * 1024)
 #define VMDKFILETMPL "-s%03d"
 
+#define VM_HARDWARE_VERSION 7
+
 u_int8_t zerograin[GRAINSIZE];
 u_int32_t zerogt[GTEPERGT];
 
@@ -214,7 +216,8 @@ SectorType writeDescriptorFile(FILE * of, const off_t * outsizes,
                         const u_int32_t cylinders,
                         const u_int8_t heads,
                         const u_int8_t sectors,
-                        const char * adapter) {
+                        const char * adapter,
+                        const u_int8_t hwVersion) {
     int i;
     const char * extentType;
     SectorType returner = 0;
@@ -253,7 +256,8 @@ SectorType writeDescriptorFile(FILE * of, const off_t * outsizes,
         "ddb.geometry.heads = \"%d\"\n"
         "ddb.geometry.sectors = \"%d\"\n"
         "ddb.toolsVersion = \"8193\"\n"
-        "ddb.virtualHWVersion = \"7\"\n", adapter, cylinders, heads, sectors);
+        "ddb.virtualHWVersion = \"%d\"\n", adapter, cylinders, heads, sectors,
+        hwVersion);
 
     return returner;
 }
@@ -476,9 +480,11 @@ static void usage(char * name)
             "-A  Adapter: legal values are ide, lsilogic or buslogic\n"
             "-l  Size of the input image (optional if input is a file)\n"
             "-s  Use streamOptimized format rather than monolithicSparse\n"
+            "-V  Virtual hardware version: 7, 8, 9 or 10 (default: %d)\n"
             "infile.img    RAW disk image, or - for standard input\n"
             "outfile.vmdk  VMware virtual disk\n\n",
-            name);
+            name,
+            VM_HARDWARE_VERSION);
 }
 
 off_t zeropad(off_t numbytes, FILE * file)
@@ -519,6 +525,7 @@ int main(int argc, char ** argv) {
     long long fileSize = -1;
     u_int8_t heads = 0x10, sectors = 0x3f;
     u_int32_t cylinders = 0x0;
+    u_int8_t hwVersion = VM_HARDWARE_VERSION;
     char adapter[256];
     memset(adapter, 0, 256);
     strncpy(adapter, "ide", 3);
@@ -528,7 +535,7 @@ int main(int argc, char ** argv) {
 
     // Parse command line options
     do {
-        c = getopt(argc, argv, "C:H:S:A:l:vs");
+        c = getopt(argc, argv, "C:H:S:A:l:vsV:");
         switch (c) {
             case 'C': cylinders = atoi(optarg); break;
             case 'H': heads = atoi(optarg); break;
@@ -537,6 +544,7 @@ int main(int argc, char ** argv) {
             case 'A': strncpy(adapter, optarg, 255); break;
             case 'l': fileSize = atoll(optarg); break;
             case 's': vmdkType = STREAM_OPTIMIZED; break;
+            case 'V': hwVersion = atoi(optarg); break;
         }
     } while (c >= 0);
 
@@ -547,6 +555,10 @@ int main(int argc, char ** argv) {
     if (strcmp(adapter, "ide") && \
           strcmp(adapter, "lsilogic") && \
           strcmp(adapter, "buslogic")) {
+        usage(argv[0]);
+        return -1;
+    }
+    if (hwVersion < 7) {
         usage(argv[0]);
         return -1;
     }
@@ -631,7 +643,7 @@ int main(int argc, char ** argv) {
             return 3;
         }
         writeDescriptorFile(of, outsizes, outfiles, outfilesCount,
-            cylinders, heads, sectors, adapter);
+            cylinders, heads, sectors, adapter, hwVersion);
         fclose(of);
     }
 
@@ -650,7 +662,7 @@ int main(int argc, char ** argv) {
             // Write descriptor file, to compute its length (it is cheap)
             assert(outfilesCount == 1);
             descriptorSize = writeDescriptorFile(devnull, outsizes, outfiles,
-                    outfilesCount, cylinders, heads, sectors, adapter);
+                    outfilesCount, cylinders, heads, sectors, adapter, hwVersion);
             descriptorSize = SECTORS(PAD(descriptorSize, SECTORSIZE));
         }
         SparseExtentHeader_init(&header, outsizes[fileNo], descriptorSize);
@@ -664,7 +676,7 @@ int main(int argc, char ** argv) {
             VPRINT("Padding to the first sector\n");
             zeropad(BYTES(header.descriptorSize) -
                     writeDescriptorFile(of, outsizes, outfiles, outfilesCount,
-                        cylinders, heads, sectors, adapter), of);
+                        cylinders, heads, sectors, adapter, hwVersion), of);
         }
         if (vmdkType != STREAM_OPTIMIZED) {
             // Write the rGDE
