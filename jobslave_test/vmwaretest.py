@@ -275,11 +275,12 @@ class VMwareImageTest(JobSlaveHelper):
 
         xml = etree.tostring(et)
         self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), xml)
+        diskImagePath = disk.image
+        vmdkPath = os.path.join(os.path.dirname(diskImagePath),
+                    'foo-1.0.1-x86/foo-1.0.1-x86.vmdk')
         self.assertEquals(logCallArgs[-1],
                 (['/usr/bin/raw2vmdk', '-C', '96', '-H', '64', '-S', '32',
-                    '-A', 'lsilogic', '-V', '10',
-                    '/tmp/mint.rpath.local-build-25/foo-1.0.1-x86.hdd',
-                    '/tmp/mint.rpath.local-build-25/foo-1.0.1-x86/foo-1.0.1-x86.vmdk'],
+                    '-A', 'lsilogic', '-V', '10', diskImagePath, vmdkPath, ],
                     {}),)
 
         # More memory
