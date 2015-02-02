@@ -26,6 +26,7 @@ validBuildTypes = {
     'APPLIANCE_ISO'    : 16,
     'IMAGELESS'        : 17,
     'VMWARE_OVF_IMAGE' : 18,  # unused
+    'DOCKER_IMAGE'     : 22,
     }
 
 TYPES = validBuildTypes.values()
@@ -63,6 +64,7 @@ typeNames = {
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Installable ISO",
     IMAGELESS:          "Online Update",
+    DOCKER_IMAGE:       "Docker Image",
 }
 
 typeNamesShort = {
@@ -84,6 +86,7 @@ typeNamesShort = {
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Inst",
     IMAGELESS:          "Online Update",
+    DOCKER_IMAGE:       "Docker",
 }
 
 typeNamesMarketing = {
@@ -105,4 +108,5 @@ typeNamesMarketing = {
     UPDATE_ISO:         "Update CD/DVD",
     APPLIANCE_ISO:      "Appliance Installable ISO",
     IMAGELESS:          "Online Update",
+    DOCKER_IMAGE:       "Docker Image",
 }
