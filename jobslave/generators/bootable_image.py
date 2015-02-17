@@ -298,7 +298,7 @@ class BootableImage(ImageGenerator):
         self.scsiModules = False
 
         ImageGenerator.__init__(self, cfg, jobData)
-        log.info('building trove: %s=%s[%s]' % self.baseTup)
+        log.info('building trove: %s' % self.baseTup.asString())
 
         # Settings
         self.workingDir = os.path.join(self.workDir, self.basefilename)

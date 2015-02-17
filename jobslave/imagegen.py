@@ -16,6 +16,7 @@ from conary.conaryclient.cml import CML
 from conary.deps import deps
 from conary.lib import formattrace
 from conary.lib import util, log as conaryLog
+from conary.trovetup import TroveTuple
 
 from jobslave import jobstatus
 from jobslave import response
@@ -123,12 +124,19 @@ class Generator(object):
             self.logger.close()
             self.logger = None
 
-    def status(self, message, status=jobstatus.RUNNING):
-        log.info("Sending job status: %d %s", status, message)
-        self.response.sendStatus(status, message)
+    def _response(self, forJobData):
+        if forJobData:
+            return response.ResponseProxy(self.cfg.masterUrl, forJobData)
+        return self.response
 
-    def postOutput(self, fileList, attributes=None):
-        self.response.postOutput(fileList, attributes=attributes)
+    def status(self, message, status=jobstatus.RUNNING, forJobData=None):
+        log.info("Sending job status: %d %s", status, message)
+        response = self._response(forJobData)
+        response.sendStatus(status, message)
+
+    def postOutput(self, fileList, attributes=None, forJobData=None):
+        response = self._response(forJobData)
+        response.postOutput(fileList, attributes=attributes)
 
     def _sendStackTrace(self, e_type, e_value, e_tb):
         # Scrub the most likely place for user passwords to appear.
@@ -164,7 +172,7 @@ class ImageGenerator(Generator):
                 self.jobData['troveVersion'].encode('utf8'))
         self.baseFlavor = deps.ThawFlavor(
                 self.jobData['troveFlavor'].encode('utf8'))
-        self.baseTup = self.baseTrove, self.baseVersion, self.baseFlavor
+        self.baseTup = TroveTuple(self.baseTrove, self.baseVersion, self.baseFlavor)
         self.baseTroveObj = None
         self.isDomU = self.baseFlavor.stronglySatisfies(
                 deps.parseFlavor('domU'))
@@ -173,20 +181,8 @@ class ImageGenerator(Generator):
         self.platformTags = set()
         self._loadProddef()
 
-        try:
-            self.arch = \
-                self.baseFlavor.members[deps.DEP_CLASS_IS].members.keys()[0]
-        except KeyError:
-            self.arch = ""
-
-        basefilename = self.getBuildData('baseFileName') or ''
-        if basefilename:
-            basefilename = re.sub('[^a-zA-Z0-9.-]', '_', basefilename)
-        else:
-            basefilename = '-'.join((self.jobData['project']['hostname'],
-                self.baseVersion.trailingRevision().version, self.arch))
-
-        self.basefilename = basefilename.encode('utf8')
+        self.arch = self.getArchFromFlavor(self.baseFlavor)
+        self.basefilename = self.getBaseFileName()
         self.buildOVF10 = self.getBuildData('buildOVF10') or self.alwaysOvf10
 
         self.cml = CML(self.conarycfg)
@@ -198,6 +194,32 @@ class ImageGenerator(Generator):
                     self.baseVersion.trailingRevision(),
                     self.baseFlavor)]
         self.cml.parse([str(x) for x in imageModel])
+
+    @classmethod
+    def getArchFromFlavor(cls, flv):
+        try:
+            return flv.members[deps.DEP_CLASS_IS].members.keys()[0]
+        except KeyError:
+            return ""
+
+    def getBaseFileName(self, version=None, arch=None, jobData=None):
+        if jobData is None:
+            jobData = self.jobData
+        if arch is None:
+            arch = self.arch
+        if version is None:
+            version = self.baseVersion
+        basefilename = jobData.getBuildData('baseFileName') or ''
+        if basefilename:
+            basefilename = self.sanitizeBaseFileName(basefilename)
+        else:
+            basefilename = '-'.join((jobData['project']['hostname'],
+                version.trailingRevision().version, arch))
+        return basefilename.encode('utf8')
+
+    @classmethod
+    def sanitizeBaseFileName(cls, basefilename):
+        return re.sub('[^a-zA-Z0-9.-]', '_', basefilename)
 
     def _getLabelPath(self, cclient, trove):
         repos = cclient.getRepos()
