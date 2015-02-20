@@ -5,6 +5,7 @@
 # python standard library imports
 import datetime
 import hashlib
+import io
 import json
 import logging
 import os
@@ -16,6 +17,7 @@ import weakref
 from jobslave import jobstatus
 from jobslave.generators import bootable_image, constants
 from jobslave.util import logCall
+from collections import namedtuple
 
 from conary.deps import deps
 from conary.lib import util
@@ -51,9 +53,10 @@ class DockerImage(bootable_image.BootableImage):
         util.mkdirChain(outputDir)
         #from conary.lib import epdb; epdb.st()
         imgspec = ImageSpec.deserialize(self.jobData['data']['dockerBuildTree'],
+                defaults=dict(repository=self.Repository),
                 mainJobData=self.jobData)
-        # XXX This should come from the proddef, probably
-        imgspec.repository = self.Repository
+        if imgspec.repository is None:
+            imgspec.repository = self.Repository
         imgsToBuild = self.findImagesToBuild(imgspec)
         # Base is potentially first; reverse the list so we can use it as a
         # stack
@@ -161,7 +164,8 @@ class DockerImage(bootable_image.BootableImage):
             ovldir = mountResources.pop()
             logCall(["umount", "-f", ovldir])
 
-        self.writeLayer(basePath, layersDir, imgSpec)
+        thisLayerDir = os.path.join(unpackDir, imgSpec.dockerImageId)
+        self.writeLayer(thisLayerDir, layersDir, imgSpec)
 
     def _downloadParentImage(self, imgSpec, unpackDir, layersDir):
         self.status('Downloading parent image')
@@ -211,22 +215,28 @@ class DockerImage(bootable_image.BootableImage):
         else:
             arch = '386'
         config = dict(
-                Cmd=["conary", "update", imgSpec.nvf.asString()],
+                Env=[ "PATH=/usr/sbin:/usr/bin:/sbin:/bin" ]
                 )
+        if imgSpec._parsedDockerfile:
+            if imgSpec.parent:
+                imgSpec._parsedDockerfile.merge(imgSpec.parent._parsedDockerfile)
 
         self.status('Creating manifest')
         manifest = Manifest(id=layerId, Size=layerSize,
+                Comment="Created by Conary command: conary update '%s'" % imgSpec.nvf.asString(),
                 created=layerCtime,
-                Config=config,
+                config=config,
                 os='linux',
                 docker_version='1.3.2',
                 checksum=TarSum.checksum(tarball, formatted=True),
                 Architecture=arch,
                 comment="Created by the SAS App Engine",
-                container_config=dict(Cmd=config['Cmd'],)
+                container_config=dict(),
                 )
         if parentLayerId:
             manifest.update(parent=parentLayerId)
+        if imgSpec._parsedDockerfile:
+            imgSpec._parsedDockerfile.toManifest(manifest)
         mfile = file(os.path.join(layerDir, "json"), "w")
         manifest.save(mfile)
         return layerId
@@ -289,7 +299,8 @@ class TarSum(object):
 
 class ImageSpec(object):
     __slots__ = [ 'name', 'nvf', 'url', 'dockerImageId', 'jobData', 'children',
-            'parent', 'repository', '__weakref__', ]
+            'parent', 'repository', 'dockerfile', '_parsedDockerfile',
+            '__weakref__', ]
     def __init__(self, **kwargs):
         for slot in self.__slots__:
             if slot.startswith('__'):
@@ -297,27 +308,45 @@ class ImageSpec(object):
             setattr(self, slot, kwargs.get(slot, None))
 
     @classmethod
-    def deserialize(cls, dictobj, **extraArgs):
+    def deserialize(cls, dictobj, defaults=None, mainJobData=None, **extraArgs):
         if isinstance(dictobj, basestring):
             params = json.loads(dictobj)
         else:
             params = dict(dictobj)
-        mainJobData = extraArgs.pop('mainJobData', None)
-        if params.get('url') is None and extraArgs.get('parent') is None:
+        if params.get('buildData') is None:
             assert mainJobData is not None
             # This is the top-level build. Insert jobData
             params['buildData'] = mainJobData
         params.update(extraArgs)
+        if defaults is None:
+            defaults = {}
+        # Do not overwrite params with defaults
+        for k, v in defaults.iteritems():
+            params.setdefault(k, v)
         nvf = params.pop('nvf', None)
         if nvf is not None:
             params['nvf'] = TroveTuple(str(nvf))
         buildData = params.pop('buildData')
-        params['jobData'] = buildData
-        params['name'] = buildData['name']
+        if buildData is not None:
+            params['jobData'] = buildData
+            params['name'] = buildData['name']
+            dockerfile = buildData.get('data', {}).get('dockerfile')
+            if dockerfile is not None:
+                params['dockerfile'] = dockerfile
+                params['_parsedDockerfile'] = Dockerfile().parse(dockerfile)
+            repository = buildData.get('data', {}).get('dockerRepositoryName',
+                    defaults.get('repository'))
+            if repository is not None:
+                params['repository'] = repository
         children = params.pop('children', None) or []
         obj = cls(**params)
         wobj = weakref.proxy(obj)
-        obj.children = [ cls.deserialize(x, parent=wobj) for x in children ]
+        childArgs = dict(defaults=defaults, parent=wobj)
+        if obj.url:
+            # Need to pass down the main job data
+            assert mainJobData is not None
+            childArgs.update(mainJobData=mainJobData)
+        obj.children = [ cls.deserialize(x, **childArgs) for x in children ]
         return obj
 
     @property
@@ -331,3 +360,149 @@ class ImageSpec(object):
     @property
     def tag(self):
         return str(self.nvf.version.trailingRevision())
+
+class QuotedString(str):
+    pass
+
+class QuotedList(list):
+    pass
+
+class DockerfileInstruction(namedtuple("BaseInstruction", "instruction args")):
+    pass
+
+class DockerfileParseError(Exception):
+    pass
+
+class Dockerfile(object):
+    MultiCommands = ['EXPOSE', ]
+    SP = ' '
+    DQ = '"'
+    def __init__(self):
+        self._directives = {}
+
+    def parse(self, stream):
+        if not hasattr(stream, 'readline'):
+            stream = io.StringIO(stream)
+        for line in stream:
+            line = line.strip()
+            if not line or line[0].startswith('#'):
+                continue
+            line = self.parseLine(line)
+            if line.instruction in self.MultiCommands:
+                self._directives.setdefault(line.instruction, []).append(line)
+            else:
+                self._directives[line.instruction] = line
+        return self
+
+    @classmethod
+    def parseLine(cls, line):
+        instr, sep, rest = line.partition(cls.SP)
+        if sep != cls.SP:
+            return None
+        instr = instr.upper()
+        if rest.startswith(cls.DQ):
+            if not rest.endswith(cls.DQ):
+                raise DockerfileParseError("Error parsing line '%s'" % line)
+            args = QuotedString(rest[1:-1])
+        elif rest.startswith('['):
+            if not rest.endswith(']'):
+                raise DockerfileParseError("Error parsing line '%s'" % line)
+            rest = rest[1:-1].strip()
+            args = cls.parseQuoted(rest)
+        elif instr in cls.MultiCommands:
+            args = rest.split(' ')
+        else:
+            args = rest
+        return DockerfileInstruction(instr, args)
+
+    @classmethod
+    def parseQuoted(cls, line):
+        ret = QuotedList()
+        if line == '':
+            return ret
+        if not line.startswith(cls.DQ):
+            raise DockerfileParseError("Error parsing line '%s'" % line)
+        line = line[1:]
+        arg, sep, rest = line.partition(cls.DQ)
+        if sep != cls.DQ:
+            raise DockerfileParseError("Error parsing line '%s'" % line)
+        ret.append(QuotedString(arg))
+        rest = rest.lstrip()
+        if rest:
+            if rest[0] != ',':
+                raise DockerfileParseError("Error parsing line '%s'" % line)
+            rest = rest[1:].lstrip()
+        ret.extend(cls.parseQuoted(rest))
+        return ret
+
+    @property
+    def exposedPorts(self):
+        ret = set()
+        instructions = self._directives.get('EXPOSE')
+        if not instructions:
+            return ret
+        for instr in instructions:
+            args = instr.args
+            if isinstance(args, str):
+                args = [args]
+            for arg in args:
+                if '/' not in arg:
+                    arg += '/tcp'
+                ret.add(arg)
+        return sorted(ret)
+
+    @property
+    def entrypoint(self):
+        return self._getCommand('ENTRYPOINT')
+
+    @property
+    def cmd(self):
+        return self._getCommand('CMD')
+
+    @property
+    def author(self):
+        instr = self._directives.get('MAINTAINER')
+        if instr is None:
+            return None
+        params = instr.args
+        if not params:
+            return None
+        return params
+
+    def _getCommand(self, cmdName):
+        instr = self._directives.get(cmdName)
+        if instr is None:
+            return None
+        params = instr.args
+        if isinstance(params, QuotedList):
+            return params
+        if isinstance(params, basestring):
+            return ['/bin/sh', '-c', params]
+        return params
+
+    def merge(self, other):
+        if other is None:
+            return self
+        # When merging a parent layer with a child layer, we only copy the
+        # exposed ports
+        for instrName in self.MultiCommands:
+            instr = other._directives.get(instrName)
+            if instr is None:
+                continue
+            self._directives.setdefault(instrName, []).extend(instr)
+        return self
+
+    def toManifest(self, manifest):
+        config = manifest.setdefault('config', {})
+        exposedPorts = self.exposedPorts
+        if exposedPorts:
+            config['ExposedPorts'] = dict((x, {}) for x in exposedPorts)
+        entrypoint = self.entrypoint
+        if entrypoint:
+            config['Entrypoint'] = entrypoint
+        cmd = self.cmd
+        if cmd:
+            config['Cmd'] = cmd
+        author = self.author
+        if author:
+            manifest['author'] = author
