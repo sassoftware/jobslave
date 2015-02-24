@@ -78,14 +78,14 @@ class DockerTest(JobSlaveHelper):
         self.assertEquals(
                 [x[0][0] for x in img.installFilesInExistingTree._mock.calls],
                 ['/tmp/mint.rpath.local-build-25/docker-image/unpacked/131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'])
-        self.assertEquals([ [x.name for x in docker.tarfile.open(t)] for t in
+        self.assertEquals([ sorted(x.name for x in docker.tarfile.open(t)) for t in
             tarballs ],
                 [[
-                    'repositories',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                    '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
+                    '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
+                    'repositories',
                     ]])
 
     def testChildImage(self):
@@ -116,18 +116,18 @@ class DockerTest(JobSlaveHelper):
                     '/tmp/mint.rpath.local-build-25/docker-image/unpacked/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972.ovffs',
                     ])
 
-        self.assertEquals([[x.name for x in docker.tarfile.open(t)] for t in
+        self.assertEquals([sorted(x.name for x in docker.tarfile.open(t)) for t in
             tarballs ],
                 [[
-                    'repositories',
-                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
-                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
-                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
-                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/layer.tar',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                    '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
+                    '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
+                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
+                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
+                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
+                    '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/layer.tar',
+                    'repositories',
                     ]])
 
         # Call again, just to make sure we don't re-download
@@ -172,33 +172,33 @@ class DockerTest(JobSlaveHelper):
                     '/tmp/mint.rpath.local-build-25/docker-image/unpacked/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313.ovffs',
                     ])
 
-        self.assertEquals([ [x.name for x in docker.tarfile.open(t)] for t in tarballs ],
+        self.assertEquals([sorted(x.name for x in docker.tarfile.open(t)) for t in tarballs ],
                 [
                     [
-                        'repositories',
-                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
-                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
-                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
-                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/layer.tar',
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
+                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
+                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
+                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
+                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
+                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/layer.tar',
+                        'repositories',
                         ],
                     [
-                        'repositories',
+                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
+                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
+                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
+                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
                         '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313',
-                        '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/json',
                         '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/VERSION',
+                        '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/json',
                         '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/layer.tar',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
-                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
+                        '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/layer.tar',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
+                        'repositories',
                         ],
                     ],
                 )
