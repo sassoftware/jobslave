@@ -195,3 +195,14 @@ class RawHdImage(bootable_image.BootableImage):
 
         self.outputFileList.append((finalImage, 'Raw Hard Disk Image'),)
         self.postOutput(self.outputFileList)
+
+    def preTagScripts(self):
+        super(RawHdImage, self).preTagScripts()
+        # APPENG-3382: disable the zeroconf route
+        fpath = os.path.join(self.root, 'etc', 'sysconfig', 'network')
+        contents = file(fpath).read().rstrip()
+        f = file(fpath, "w")
+        f.write(contents)
+        f.write("\nNOZEROCONF=yes\n")
+        f.close()
+
