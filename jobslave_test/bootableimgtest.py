@@ -218,7 +218,7 @@ class BootableImageTest(jobslave_helper.JobSlaveHelper):
         jobslave_helper.JobSlaveHelper.setUp(self)
 
         constants.finishedDir = "/tmp"
-        bootable_image.BootableImage.status = lambda *args, **kwargs: None
+        self.mock(bootable_image.BootableImage, 'status', lambda *args, **kwargs: None)
         self.bootable = bootable_image.BootableImage(self.slaveCfg, self.data)
         self.bootable.swapSize = 40960
 
