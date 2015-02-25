@@ -110,11 +110,13 @@ class DummyIso(installable_iso.InstallableIso):
 class KeyTest(JobSlaveHelper):
 
     def setUp(self):
+        JobSlaveHelper.setUp(self)
         self._call = installable_iso.call
         installable_iso.call = lambda *args, **kwargs: None
 
     def tearDown(self):
         installable_iso.call = self._call
+        JobSlaveHelper.tearDown(self)
 
     def testMissingKey(self):
         DummyRepos.findTrove = lambda *args, **kwargs: (('', '', ''),)

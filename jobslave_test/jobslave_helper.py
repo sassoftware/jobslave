@@ -91,8 +91,11 @@ class JobSlaveHelper(TestCase):
         self.slaveCfg.configLine('debugMode True')
         self.slaveCfg.configLine('masterUrl http://no.master/api/')
 
-        self.finishedDir = tempfile.mkdtemp(prefix="jobslave-test-finished-images")
-        self.entDir = tempfile.mkdtemp(prefix="jobslave-test-ent")
+        self.finishedDir = os.path.join(self.tmpDir, "finished-images")
+        self.entDir = os.path.join(self.tmpDir, "entitlements")
+        generators.constants.tmpDir = os.path.join(self.tmpDir, 'tmp')
+        for d in [ self.finishedDir, self.entDir, generators.constants.tmpDir ]:
+            util.mkdirChain(d)
         generators.constants.finishedDir = self.finishedDir
         generators.constants.entDir = self.entDir
         self.constants = generators.constants

@@ -77,7 +77,7 @@ class DockerTest(JobSlaveHelper):
         img.write()
         self.assertEquals(
                 [x[0][0] for x in img.installFilesInExistingTree._mock.calls],
-                ['/tmp/mint.rpath.local-build-25/docker-image/unpacked/131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'])
+                [img.workDir + '/docker-image/unpacked/131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'])
         self.assertEquals([ sorted(x.name for x in docker.tarfile.open(t)) for t in
             tarballs ],
                 [[
@@ -113,15 +113,13 @@ class DockerTest(JobSlaveHelper):
         self.assertEquals(
                 [x[0][0] for x in img.installFilesInExistingTree._mock.calls],
                 [
-                    '/tmp/mint.rpath.local-build-25/docker-image/unpacked/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972.ovffs',
+                    img.workDir + '/docker-image/unpacked/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972.ovffs',
                     ])
 
         self.assertEquals([sorted(x.name for x in docker.tarfile.open(t)) for t in
             tarballs ],
                 [[
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                    '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
-                    '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
                     '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
                     '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
@@ -167,17 +165,15 @@ class DockerTest(JobSlaveHelper):
 
         self.assertEquals(
                 [x[0][0] for x in img.installFilesInExistingTree._mock.calls],
-                [
-                    '/tmp/mint.rpath.local-build-25/docker-image/unpacked/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972.ovffs',
-                    '/tmp/mint.rpath.local-build-25/docker-image/unpacked/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313.ovffs',
-                    ])
+                    [ os.path.join(img.workDir, x) for x in [
+                    'docker-image/unpacked/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972.ovffs',
+                    'docker-image/unpacked/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313.ovffs',
+                    ]])
 
         self.assertEquals([sorted(x.name for x in docker.tarfile.open(t)) for t in tarballs ],
                 [
                     [
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
@@ -187,8 +183,6 @@ class DockerTest(JobSlaveHelper):
                         ],
                     [
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/VERSION',
-                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
                         '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313',
                         '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/VERSION',
@@ -226,6 +220,8 @@ class DockerTest(JobSlaveHelper):
         self.assertEquals(
                 [x[0] for x in img.status._mock.calls],
                 [
+                    ('Downloading parent image',),
+                    ('Unpacking parent image',),
                     ('Creating layer',),
                     ('Creating manifest',),
                     ('Packaging layers',),
@@ -238,7 +234,7 @@ class DockerTest(JobSlaveHelper):
         self.assertEquals(
                 [x[1] for x in img.status._mock.calls],
                 [
-                    (), (), (),
+                    (), (), (), (), (),
                     (('forJobData', dockerBuildTree['children'][0]['buildData']),),
                     (), (), (),
                     (('forJobData', dockerBuildTree['children'][0]['children'][0]['buildData']),),
@@ -291,11 +287,11 @@ CMD [ "-d" ]""",)
 
         self.assertEquals(
                 [x[0][0] for x in img.installFilesInExistingTree._mock.calls],
-                [
-                    '/tmp/mint.rpath.local-build-25/docker-image/unpacked/131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
-                    '/tmp/mint.rpath.local-build-25/docker-image/unpacked/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972.ovffs',
-                    '/tmp/mint.rpath.local-build-25/docker-image/unpacked/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313.ovffs',
-                    ])
+                [ os.path.join(img.workDir, x) for x in [
+                    'docker-image/unpacked/131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
+                    'docker-image/unpacked/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972.ovffs',
+                    'docker-image/unpacked/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313.ovffs',
+                    ]])
 
         # Look at the json files
         manifest = json.load(file('/tmp/mint.rpath.local-build-25/docker-image/layers/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/json'))
