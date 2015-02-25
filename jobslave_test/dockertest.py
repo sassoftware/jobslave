@@ -201,8 +201,8 @@ class DockerTest(JobSlaveHelper):
         self.assertEquals(
                 [x[0] for x in img.postOutput._mock.calls],
                 [
-                    ((('%s/mint.rpath.local-build-25/bar-64bit.tar.gz' % docker.constants.finishedDir, 'Tar File'),),),
-                    ((('%s/mint.rpath.local-build-25/baz-64bit.tar.gz' % docker.constants.finishedDir, 'Tar File'),),),
+                    ((('%s/%s/bar-64bit.tar.gz' % (docker.constants.finishedDir, img.UUID), 'Tar File'),),),
+                    ((('%s/%s/baz-64bit.tar.gz' % (docker.constants.finishedDir, img.UUID), 'Tar File'),),),
                     ]
                 )
         self.assertEquals(
@@ -294,20 +294,20 @@ CMD [ "-d" ]""",)
                     ]])
 
         # Look at the json files
-        manifest = json.load(file('/tmp/mint.rpath.local-build-25/docker-image/layers/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/json'))
+        manifest = json.load(file(img.workDir + '/docker-image/layers/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/json'))
         self.assertEquals(manifest.get('author'), None)
         self.assertEquals(manifest['config']['ExposedPorts'],
                 {'443/tcp' : {}, '80/tcp' : {}})
         self.assertEquals(manifest['Comment'],
                 "Created by Conary command: conary update 'group-baz=/my.example.com@ns:1/3-1-1[is: x86_64]'")
 
-        manifest = json.load(file('/tmp/mint.rpath.local-build-25/docker-image/layers/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json'))
+        manifest = json.load(file(img.workDir + '/docker-image/layers/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json'))
         self.assertEquals(manifest.get('author'), 'jean.valjean@paris.fr')
         self.assertEquals(manifest['config']['ExposedPorts'],
                 {'80/tcp': {}})
         self.assertEquals(manifest['Comment'],
                 "Created by Conary command: conary update 'group-bar=/my.example.com@ns:1/2-1-1[is: x86_64]'")
-        repos = json.load(file('/tmp/mint.rpath.local-build-25/docker-image/layers/repositories'))
+        repos = json.load(file(img.workDir + '/docker-image/layers/repositories'))
         self.assertEquals(repos, {
             'repository-for-bar/bar': {
                 '2-1-1': '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
