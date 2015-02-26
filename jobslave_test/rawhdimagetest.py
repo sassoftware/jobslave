@@ -29,7 +29,6 @@ class RawHdImage(JobSlaveHelper):
         mock.mockMethod(self.img._getLabelPath, returnValue='cny.tv@ns:1')
 
     def testSkelDir(self):
-        from conary.lib import epdb; epdb.serve()
         img = self.img
 
         img.preTagScripts()

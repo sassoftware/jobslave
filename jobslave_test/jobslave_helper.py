@@ -98,6 +98,7 @@ class JobSlaveHelper(TestCase):
             util.mkdirChain(d)
         generators.constants.finishedDir = self.finishedDir
         generators.constants.entDir = self.entDir
+        generators.constants.skelDir = os.path.abspath(os.path.dirname(__file__) + '/../skel')
         self.constants = generators.constants
 
         self.testDir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
