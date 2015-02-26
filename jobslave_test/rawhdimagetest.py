@@ -12,7 +12,6 @@ from conary.lib import util
 class RawHdImage(JobSlaveHelper):
     def testSkelDir(self):
         img = raw_hd_image.RawHdImage(self.slaveCfg, self.data)
-        util.rmtree(img.root)
         mock.mockMethod(img._getLabelPath, returnValue='cny.tv@ns:1')
         mock.mock(img, 'bootloader')
         img.swapSize = 1024*1024
@@ -57,7 +56,6 @@ NOZEROCONF=yes
             return sizes, sum(sizes.values())
 
         img = raw_hd_image.RawHdImage(self.slaveCfg, self.data)
-        util.rmtree(img.root, ignore_errors=True)
         util.mkdirChain(os.path.join(img.root, "root"))
         file(os.path.join(img.root, "root", "conary-tag-script.in"), "w").write(
                 "echo nothing here")
