@@ -99,6 +99,7 @@ class JobSlaveHelper(TestCase):
         generators.constants.finishedDir = self.finishedDir
         generators.constants.entDir = self.entDir
         generators.constants.skelDir = os.path.abspath(os.path.dirname(__file__) + '/../skel')
+        generators.constants.templateDir = os.path.abspath(os.path.dirname(__file__) + '/../templates')
         self.constants = generators.constants
 
         self.testDir = os.path.join(os.path.dirname(os.path.abspath(__file__)))

@@ -189,10 +189,11 @@ class VMwareImageTest(JobSlaveHelper):
 </ovf:Envelope>
 """
 
-    def testOvfProductSection(self):
-        self.constants.templateDir = os.path.join(self.testDir, '..',
-                'templates')
-        disk = mock.MockObject()
+    def _mock(self, data=None, buildData=None):
+        self.data.update(data or {})
+        self.data['data'].update(buildData or {})
+
+        self.vmwareDisk = disk = mock.MockObject()
         def mockMakeHDImage(image):
             buf = ''.join(chr(x) for x in range(32, 128))
             f = file(image, "w")
@@ -201,38 +202,12 @@ class VMwareImageTest(JobSlaveHelper):
             f.flush()
             disk._mock.set(totalSize=f.tell(), image=image)
             return disk
-        def mockCreateVMDK(hdImage, outfile, size, streaming=False):
-            assert os.path.exists(hdImage)
-            with open(outfile, 'w') as f:
-                f.seek(1000000)
-                f.truncate()
-
-        self.data['data'].update(buildOVF10=True)
-        self.data.update(description='Blabbedy')
         img = vmware_image.VMwareImage(self.slaveCfg, self.data)
+        img.swapSize = 4 * 1024 * 1024
         img.makeHDImage = mockMakeHDImage
-        img._createVMDK = mockCreateVMDK
-
-        mock.mockMethod(img.downloadChangesets)
-        mock.mockMethod(img.postOutput)
-        img.write()
-        self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), self.OVF_XML)
-
-    def testVirtualHardwareVersion(self):
-        self.constants.templateDir = os.path.join(self.testDir, '..',
-                'templates')
-        disk = mock.MockObject()
-        def mockMakeHDImage(image):
-            buf = ''.join(chr(x) for x in range(32, 128))
-            f = file(image, "w")
-            for i in range(1024*1024):
-                f.write(buf)
-            f.flush()
-            disk._mock.set(totalSize=f.tell(), image=image)
-            return disk
 
         origLogCall = vmware_image.logCall
-        logCallArgs = []
+        self.logCallArgs = logCallArgs = []
         def mockLogCall(cmd, **kw):
             logCallArgs.append((cmd, kw))
             if cmd[0] != '/usr/bin/raw2vmdk':
@@ -244,14 +219,28 @@ class VMwareImageTest(JobSlaveHelper):
                 f.seek(1000000)
                 f.truncate()
         self.mock(vmware_image, 'logCall', mockLogCall)
-
-        self.data['data'].update(buildOVF10=True, vmCPUs=12)
-        self.data.update(description='Blabbedy')
-        img = vmware_image.VMwareImage(self.slaveCfg, self.data)
-        img.makeHDImage = mockMakeHDImage
-
         mock.mockMethod(img.downloadChangesets)
         mock.mockMethod(img.postOutput)
+        self.img = img
+        return img
+
+    def testOvfProductSection(self):
+        self._mock(data=dict(description='Blabbedy'),
+                buildData=dict(buildOVF10=True))
+        def mockCreateVMDK(hdImage, outfile, size, streaming=False):
+            assert os.path.exists(hdImage)
+            with open(outfile, 'w') as f:
+                f.seek(1000000)
+                f.truncate()
+        img = self.img
+        img._createVMDK = mockCreateVMDK
+        img.write()
+        self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), self.OVF_XML)
+
+    def testVirtualHardwareVersion(self):
+        self._mock(data=dict(description='Blabbedy'),
+                buildData=dict(buildOVF10=True, vmCPUs=12))
+        img = self.img
         img.write()
 
         et = etree.fromstring(self.OVF_XML)
@@ -275,10 +264,10 @@ class VMwareImageTest(JobSlaveHelper):
 
         xml = etree.tostring(et)
         self.assertXMLEquals(file(img.ovfImage.ovfPath).read(), xml)
-        diskImagePath = disk.image
+        diskImagePath = self.vmwareDisk.image
         vmdkPath = os.path.join(os.path.dirname(diskImagePath),
                     'foo-1.0.1-x86/foo-1.0.1-x86.vmdk')
-        self.assertEquals(logCallArgs[-1],
+        self.assertEquals(self.logCallArgs[-1],
                 (['/usr/bin/raw2vmdk', '-C', '96', '-H', '64', '-S', '32',
                     '-A', 'lsilogic', '-V', '10', diskImagePath, vmdkPath, ],
                     {}),)
@@ -311,3 +300,15 @@ class VMwareImageTest(JobSlaveHelper):
         vmxPath = os.path.join(img.workingDir, 'foo-1.0.1-x86.vmx')
         f = file(vmxPath)
         self.assertIn('virtualHW.version = "10"', f.read())
+
+    def testNameInVMX(self):
+        # APPENG-3231
+        baseFileName = "obfuscated-orangutan"
+        self._mock(data=dict(description='Blabbedy'),
+                buildData=dict(baseFileName=baseFileName))
+        img = self.img
+        img.write()
+        vmxPath = os.path.join(img.workingDir, '%s.vmx' % baseFileName)
+        f = file(vmxPath)
+        self.assertIn('displayName = "%s"' % baseFileName, f.read())
+
