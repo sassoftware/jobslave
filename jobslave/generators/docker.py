@@ -45,6 +45,7 @@ class DockerImage(bootable_image.BootableImage):
         cclient.applyUpdateJob(updJob, replaceFiles=True, noRestart=True)
 
     def write(self):
+        self.swapSize = 0
         layersDir = os.path.join(self.workDir, "docker-image/layers")
         util.mkdirChain(layersDir)
         unpackDir = os.path.join(self.workDir, "docker-image/unpacked")
