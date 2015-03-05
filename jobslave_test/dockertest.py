@@ -16,7 +16,7 @@ class DockerTest(JobSlaveHelper):
         self.data['data'].update(dockerBuildTree=json.dumps(dockerBuildTree))
         self.slaveCfg.conaryProxy = "http://[fe80::250:56ff:fec0:1]/conary"
         origLogCall = docker.logCall
-        logCallArgs = []
+        self.logCallArgs = logCallArgs = []
         def mockLogCall(cmd, **kw):
             logCallArgs.append((cmd, kw))
             if cmd[0].startswith('mount') or cmd[0].startswith('umount'):
@@ -44,15 +44,33 @@ class DockerTest(JobSlaveHelper):
 
     def _mockURLOpener(self, img, dockerBuildTree):
         extractedLayerDir = os.path.join(self.workDir, "tests", "uncompressed-layer")
+        layersDir = os.path.join(self.workDir, 'tests', 'layers')
         docker.util.mkdirChain(extractedLayerDir)
         file(os.path.join(extractedLayerDir, "dummy"), "w").write("dummy")
-        layerDir = os.path.join(self.workDir, "tests", dockerBuildTree['dockerImageId'])
-        docker.util.mkdirChain(layerDir)
-        docker.logCall(["tar", "-C", extractedLayerDir, "-cf",
-                os.path.join(layerDir, "layer.tar"), "."])
+        dockerImageIds = [ dockerBuildTree['dockerImageId'] ]
+        dockerImageIds.extend(dockerBuildTree.get('_fakeParents', []))
+        dockerImageIds.reverse()
+
+        parent = None
+        repos = {}
+        for i, dockerImageId in enumerate(dockerImageIds):
+            layerDir = os.path.join(layersDir, dockerImageId)
+            docker.util.mkdirChain(layerDir)
+            docker.logCall(["tar", "-C", extractedLayerDir, "-cf",
+                    os.path.join(layerDir, "layer.tar"), "."])
+            meta = dict()
+            if parent is not None:
+                meta['parent'] = parent
+            json.dump(meta, file(os.path.join(layerDir, 'json'), "w"))
+            repos['my-super-repo/img-%d' % i] = { 'latest' : dockerImageId }
+            repos['my-lame-repo/img-%d' % (100+i)] =  { "tag-%02d" % i : dockerImageId }
+            # Same name with different tags for different images
+            repos.setdefault('my-release-repo/conflict', {})['image-%02d' % i] = dockerImageId
+            parent = dockerImageId
+        json.dump(repos, file(os.path.join(layersDir, 'repositories'), "w"))
         parentImage = os.path.join(self.workDir, "tests", "parent.tar.gz")
-        docker.logCall(["tar", "-C", os.path.join(self.workDir, "tests"),
-                "-zcf", parentImage, dockerBuildTree['dockerImageId']])
+        docker.logCall(["tar", "-C", layersDir,
+                "-zcf", parentImage, 'repositories', ] + dockerImageIds)
 
         class URLOpener(object):
             def __init__(slf, *args, **kwargs):
@@ -120,6 +138,7 @@ class DockerTest(JobSlaveHelper):
             tarballs ],
                 [[
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
+                    '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                     '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
                     '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
                     '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
@@ -135,6 +154,7 @@ class DockerTest(JobSlaveHelper):
         dockerBuildTree = dict(
                 nvf="group-foo=/my.example.com@ns:1/12345.67:1-1-1[is: x86_64]",
                 url="http://example.com/downloadFile?id=123",
+                _fakeParents = ["dockerImageIdFakeParent-1", "dockerImageIdFakeParent-0"],
                 dockerImageId="131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800",
                 buildData=self.Data,
                 children=[
@@ -174,15 +194,23 @@ class DockerTest(JobSlaveHelper):
                 [
                     [
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
+                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/layer.tar',
+                        'dockerImageIdFakeParent-0',
+                        'dockerImageIdFakeParent-0/json',
+                        'dockerImageIdFakeParent-0/layer.tar',
+                        'dockerImageIdFakeParent-1',
+                        'dockerImageIdFakeParent-1/json',
+                        'dockerImageIdFakeParent-1/layer.tar',
                         'repositories',
                         ],
                     [
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
+                        '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/json',
                         '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800/layer.tar',
                         '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313',
                         '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/VERSION',
@@ -192,6 +220,12 @@ class DockerTest(JobSlaveHelper):
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/VERSION',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json',
                         '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/layer.tar',
+                        'dockerImageIdFakeParent-0',
+                        'dockerImageIdFakeParent-0/json',
+                        'dockerImageIdFakeParent-0/layer.tar',
+                        'dockerImageIdFakeParent-1',
+                        'dockerImageIdFakeParent-1/json',
+                        'dockerImageIdFakeParent-1/layer.tar',
                         'repositories',
                         ],
                     ],
@@ -239,6 +273,25 @@ class DockerTest(JobSlaveHelper):
                     (), (), (),
                     (('forJobData', dockerBuildTree['children'][0]['children'][0]['buildData']),),
                 ])
+
+        repos = json.load(file(img.workDir + '/docker-image/layers/repositories'))
+        self.assertEquals(repos, {
+            'my-super-repo/img-0': {'latest': 'dockerImageIdFakeParent-0'},
+            'appeng-test/foo': {'1-1-1': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'},
+            'my-super-repo/img-1': {'latest': 'dockerImageIdFakeParent-1'},
+            'appeng-test/baz': {'3-1-1': '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313'},
+            'my-super-repo/img-2': {'latest': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'},
+            'appeng-test/bar': {'2-1-1': '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972'},
+            'my-lame-repo/img-102': {'tag-02': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'},
+            'my-lame-repo/img-101': {'tag-01': 'dockerImageIdFakeParent-1'},
+            'my-lame-repo/img-100': {'tag-00': 'dockerImageIdFakeParent-0'},
+            'my-release-repo/conflict' : {
+                'image-00' : 'dockerImageIdFakeParent-0',
+                'image-01' : 'dockerImageIdFakeParent-1',
+                'image-02' : '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
+                }
+            })
+
 
     def testDeepHierarchy(self):
         dockerBuildTree = dict(

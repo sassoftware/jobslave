@@ -85,7 +85,8 @@ class DockerImage(bootable_image.BootableImage):
         img = imgSpec
         while img:
             toArchive.append(img.dockerImageId)
-            reposData[img.fullName] = { img.tag : img.dockerImageId }
+            for name, tagToId in img.tags.items():
+                reposData.setdefault(name, {}).update(tagToId)
             img = img.parent
 
         json.dump(reposData, file(os.path.join(layersDir, 'repositories'), "w"))
@@ -157,6 +158,7 @@ class DockerImage(bootable_image.BootableImage):
                     prevMount, thisLayerDir, ovlWorkDir)])
 
             mountResources.append(ovlfsDir)
+            prevMount = ovlfsDir
 
         basePath = mountResources[-1]
         self.installFilesInExistingTree(basePath, imgSpec.nvf)
@@ -192,6 +194,23 @@ class DockerImage(bootable_image.BootableImage):
             util.mkdirChain(dest)
             logCall(["tar", "-C", dest, "-xf",
                 os.path.join(layersDir, layerId, "layer.tar")])
+            mf = json.load(file(os.path.join(layersDir, layerId, 'json')))
+            parent = mf.get('parent')
+            if parent is not None and not layer.parent:
+                layer.parent = ImageSpec(dockerImageId=parent)
+            layer = layer.parent
+        idToNameTags = {}
+        reposFile = os.path.join(layersDir, 'repositories')
+        if os.path.isfile(reposFile):
+            repos = json.load(file(reposFile))
+            for name, tagToId in repos.iteritems():
+                for tag, imgid in tagToId.iteritems():
+                    idToNameTags.setdefault(imgid, set()).add((name, tag))
+        # Walk list again, to compute tags
+        layer = imgSpec
+        while layer is not None:
+            layerId = layer.dockerImageId
+            layer.updateNamesAndTags(idToNameTags.get(layerId))
             layer = layer.parent
 
     def writeLayer(self, basePath, layersDir, imgSpec):
@@ -301,8 +320,9 @@ class TarSum(object):
 class ImageSpec(object):
     __slots__ = [ 'name', 'nvf', 'url', 'dockerImageId', 'jobData', 'children',
             'parent', 'repository', 'dockerfile', '_parsedDockerfile',
-            '__weakref__', ]
+            '_nameToTags', '__weakref__', ]
     def __init__(self, **kwargs):
+        kwargs.setdefault('_nameToTags', set())
         for slot in self.__slots__:
             if slot.startswith('__'):
                 continue
@@ -351,6 +371,15 @@ class ImageSpec(object):
         return obj
 
     @property
+    def tags(self):
+        if self.repository and self.nvf:
+            self._nameToTags.add((self.fullName, self.tag))
+        ret = {}
+        for name, tag in self._nameToTags:
+            ret.setdefault(name, {})[tag] = self.dockerImageId
+        return ret
+
+    @property
     def fullName(self):
         return "%s/%s" % (self.repository, self.layerName)
 
@@ -361,6 +390,9 @@ class ImageSpec(object):
     @property
     def tag(self):
         return str(self.nvf.version.trailingRevision())
+
+    def updateNamesAndTags(self, namesToTags):
+        self._nameToTags.update(namesToTags or [])
 
 class QuotedString(str):
     pass
