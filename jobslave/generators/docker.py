@@ -69,7 +69,6 @@ class DockerImage(bootable_image.BootableImage):
                 self.writeBase(unpackDir, layersDir, imgSpec)
             else:
                 self.writeChild(unpackDir, layersDir, imgSpec)
-            imgsToBuild.extend(imgSpec.children)
 
             tarball = self._package(outputDir, layersDir, imgSpec)
 
@@ -104,8 +103,9 @@ class DockerImage(bootable_image.BootableImage):
             if img.url is None:
                 # We need to build this (and all its children)
                 ret.append(img)
-                continue
-            stack.extend(img.children)
+            stack.extend(reversed(img.children))
+            if img.children:
+                img.children[-1]._lastChild = True
         return ret
 
     def isBaseGroup(self, trv):
@@ -114,53 +114,103 @@ class DockerImage(bootable_image.BootableImage):
                 return False
         return True
 
+    @classmethod
+    def _path(cls, path):
+        # Strip out the leading part of a path, since it's not as interesting
+        # for debugging
+        ret = ['...']
+        ret.extend(path.rsplit('/', 2)[-2:])
+        return '/'.join(ret)
+
+    @classmethod
+    def mountOverlayFs(cls, unpackDir, thisLayerId, prevMount):
+        thisLayerDir = os.path.join(unpackDir, thisLayerId)
+        ovlfsDir = thisLayerDir + '.ovffs'
+        ovlWorkDir = thisLayerDir + '.work'
+        util.mkdirChain(ovlfsDir)
+        util.mkdirChain(ovlWorkDir)
+
+        log.debug("Mounting layer %s on top of %s", thisLayerId,
+                cls._path(prevMount))
+        logCall(["mount", "-t", "overlay", os.path.basename(ovlfsDir),
+            ovlfsDir, "-olowerdir={0},upperdir={1},workdir={2}".format(
+                prevMount, thisLayerDir, ovlWorkDir)])
+        return ovlfsDir
+
     def writeBase(self, unpackDir, layersDir, imgSpec):
         # Copied from tarfile
         dockerImageId = imgSpec.dockerImageId = self.getImageId(imgSpec.nvf)
+        log.debug("Building base image %s, layer %s", imgSpec.name,
+                dockerImageId)
         basePath = os.path.join(unpackDir, dockerImageId)
         util.mkdirChain(basePath)
         self.installFilesInExistingTree(basePath, imgSpec.nvf)
         self.writeLayer(basePath, layersDir, imgSpec)
+        imgSpec._unpackDir = basePath
         return imgSpec
 
     def writeChild(self, unpackDir, layersDir, imgSpec):
         if imgSpec.parent.url:
-            parentLayerDir = os.path.join(layersDir, imgSpec.parent.dockerImageId)
+            pImageId = imgSpec.parent.dockerImageId
+            parentLayerDir = os.path.join(layersDir, pImageId)
             if not os.path.exists(parentLayerDir):
                 # First child image in this hierarchy to be built
                 self._downloadParentImage(imgSpec.parent, unpackDir, layersDir)
-        # At this point, the parent layer should be on the filesystem
+            else:
+                imgSpec.parent._unpackDir = os.path.join(unpackDir, pImageId)
+                assert os.path.isdir(imgSpec.parent._unpackDir)
+        # At this point, the parent layer should be on the filesystem, and
+        # should have been unpacked
 
+#        if imgSpec.name == 'docker-demo-baseconsul':
+#            from conary.lib import epdb; epdb.st()
         dockerImageId = imgSpec.dockerImageId = self.getImageId(imgSpec.nvf)
+        log.debug("Building child image %s, layer %s", imgSpec.name,
+                imgSpec.dockerImageId)
 
         thisLayerContent = os.path.join(unpackDir, dockerImageId)
         util.mkdirChain(thisLayerContent)
 
-        imgHierarchy = [dockerImageId]
+        imgHierarchy = [imgSpec]
         img = imgSpec.parent
         while img:
-            imgHierarchy.append(img.dockerImageId)
+            imgHierarchy.append(img)
+            if img._unpackDir is not None:
+                break
             img = img.parent
-        # Mount overlay dirs
         mountResources = []
         # The base doesn't need to be unioned
-        prevMount = os.path.join(unpackDir, imgHierarchy.pop())
+        prevMount = imgHierarchy.pop()._unpackDir
         while imgHierarchy:
-            thisLayerId = imgHierarchy.pop()
-            thisLayerDir = os.path.join(unpackDir, thisLayerId)
-            ovlfsDir = thisLayerDir + '.ovffs'
-            ovlWorkDir = thisLayerDir + '.work'
-            util.mkdirChain(ovlfsDir)
-            util.mkdirChain(ovlWorkDir)
-
-            logCall(["mount", "-t", "overlay", os.path.basename(ovlfsDir),
-                ovlfsDir, "-olowerdir={0},upperdir={1},workdir={2}".format(
-                    prevMount, thisLayerDir, ovlWorkDir)])
-
+            thisLayer = imgHierarchy.pop()
+            thisLayerId = thisLayer.dockerImageId
+            if thisLayerId != imgSpec.dockerImageId:
+                # Itermediate image
+                layerFile = os.path.join(layersDir, thisLayerId, 'layer.tar')
+                if thisLayer._lastChild:
+                    # Uncompress this image onto the parent
+                    log.debug("Extracting layer %s on %s", thisLayerId,
+                            self._path(prevMount))
+                    self._extractLayer(prevMount, layerFile)
+                    thisLayer._unpackDir = prevMount
+                    continue
+                # Did we already set up an overlay?
+                if mountResources:
+                    # Uncompress this layer on top of the overlay
+                    prevMount = mountResources[0]
+                    log.debug("Extracting layer %s on %s", thisLayerId,
+                            self._path(prevMount))
+                    self._extractLayer(prevMount, layerFile)
+                    continue
+            # If no other overlay was set up, or it's the current image, set
+            # one up
+            ovlfsDir = self.mountOverlayFs(unpackDir, thisLayerId, prevMount)
             mountResources.append(ovlfsDir)
             prevMount = ovlfsDir
 
         basePath = mountResources[-1]
+        log.debug("Installing %s into %s", imgSpec.nvf.asString(),
+                self._path(basePath))
         self.installFilesInExistingTree(basePath, imgSpec.nvf)
 
         while mountResources:
@@ -171,6 +221,7 @@ class DockerImage(bootable_image.BootableImage):
         self.writeLayer(thisLayerDir, layersDir, imgSpec)
 
     def _downloadParentImage(self, imgSpec, unpackDir, layersDir):
+        log.debug('Downloading parent image %s', imgSpec.dockerImageId)
         self.status('Downloading parent image')
         conaryProxyHost = util.urlSplit(self.cfg.conaryProxy)[3]
         urlPieces = list(util.urlSplit(imgSpec.url))
@@ -186,19 +237,30 @@ class DockerImage(bootable_image.BootableImage):
         errcode, stdout, stderr = logCall(["tar", "-C", layersDir,
                 "-zxf", "-"], stdin=tmpf)
         tmpf.close()
+        parentImageDir = os.path.join(unpackDir,
+                imgSpec.dockerImageId)
+
+        log.debug('Unpacking parent image as %s', self._path(parentImageDir))
+        layerFilesStack = []
         # Unpack the layers in some temporary directories
         layer = imgSpec
         while layer is not None:
             layerId = layer.dockerImageId
-            dest = os.path.join(unpackDir, layerId)
-            util.mkdirChain(dest)
-            logCall(["tar", "-C", dest, "-xf",
-                os.path.join(layersDir, layerId, "layer.tar")])
+            layer._unpackDir = parentImageDir
+            layerFilesStack.append(
+                    (layerId, os.path.join(layersDir, layerId, "layer.tar")))
             mf = json.load(file(os.path.join(layersDir, layerId, 'json')))
             parent = mf.get('parent')
             if parent is not None and not layer.parent:
                 layer.parent = ImageSpec(dockerImageId=parent)
+                layer.parent.children.append(layer)
             layer = layer.parent
+        # We now extract all layers, top-to-bottom, in the same directory.
+        while layerFilesStack:
+            layerId, layerFile = layerFilesStack.pop()
+            log.debug("  Extracting parent layer %s on %s", layerId,
+                    self._path(parentImageDir))
+            self._extractLayer(parentImageDir, layerFile)
         idToNameTags = {}
         reposFile = os.path.join(layersDir, 'repositories')
         if os.path.isfile(reposFile):
@@ -212,6 +274,10 @@ class DockerImage(bootable_image.BootableImage):
             layerId = layer.dockerImageId
             layer.updateNamesAndTags(idToNameTags.get(layerId))
             layer = layer.parent
+
+    def _extractLayer(self, unpackDir, tarFile):
+        util.mkdirChain(unpackDir)
+        logCall(["tar", "-C", unpackDir, "-xf", tarFile])
 
     def writeLayer(self, basePath, layersDir, imgSpec):
         layerId = imgSpec.dockerImageId
@@ -320,9 +386,11 @@ class TarSum(object):
 class ImageSpec(object):
     __slots__ = [ 'name', 'nvf', 'url', 'dockerImageId', 'jobData', 'children',
             'parent', 'repository', 'dockerfile', '_parsedDockerfile',
+            '_unpackDir', '_lastChild',
             '_nameToTags', '__weakref__', ]
     def __init__(self, **kwargs):
         kwargs.setdefault('_nameToTags', set())
+        kwargs.setdefault('children', [])
         for slot in self.__slots__:
             if slot.startswith('__'):
                 continue

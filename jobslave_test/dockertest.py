@@ -10,8 +10,23 @@ from jobslave.job_data import JobData
 from jobslave.generators import docker
 from jobslave_test.jobslave_helper import JobSlaveHelper
 from conary.deps import deps
+import logging
 
 class DockerTest(JobSlaveHelper):
+    def setUp(self):
+        super(DockerTest, self).setUp()
+        self.origLogHandlers = logging.root.handlers
+        logging.root.handlers = []
+        self.logFile = os.path.join(self.workDir, "build.log")
+        logging.basicConfig(filename=self.logFile, filemode="w",
+                format="%(filename)s/%(funcName)s: %(message)s", level=logging.DEBUG)
+
+    def tearDown(self):
+        for handler in logging.root.handlers:
+            handler.close()
+        logging.root.handlers = self.origLogHandlers
+        super(DockerTest, self).tearDown()
+
     def _mock(self, img, dockerBuildTree, withURLOpener=False):
         self.data['data'].update(dockerBuildTree=json.dumps(dockerBuildTree))
         self.slaveCfg.conaryProxy = "http://[fe80::250:56ff:fec0:1]/conary"
@@ -292,6 +307,159 @@ class DockerTest(JobSlaveHelper):
                 }
             })
 
+
+    def testOverlayfsLimits(self):
+        # APPENG-3414
+        dockerBuildTree = dict(
+                nvf="group-foo=/my.example.com@ns:1/12345.67:1-1-1[is: x86_64]",
+                url="http://example.com/downloadFile?id=123",
+                _fakeParents = ["dockerImageIdFakeParent-2", "dockerImageIdFakeParent-1"],
+                dockerImageId="DockerImageIdFakeParent-0",
+                buildData=self.Data,
+                children=[
+                    dict(
+                        nvf="group-A=/my.example.com@ns:1/12345.67:2-1-1[is: x86_64]",
+                        buildData=dict(
+                            buildId=10,
+                            name='A-64bit',
+                            outputToken='OUTPUT-TOKEN-A',
+                            ),
+                        children=[
+                            dict(
+                                nvf="group-AA=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                buildData=dict(
+                                    buildId=100,
+                                    name='AA-64bit',
+                                    outputToken='OUTPUT-TOKEN-AA',
+                                    ),
+                                children = [
+                                    dict(
+                                        nvf="group-AAA=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                        buildData=dict(
+                                            buildId=1000,
+                                            name='AAA-64bit',
+                                            outputToken='OUTPUT-TOKEN-AAA',
+                                            ),
+                                        children = [
+                                            dict(
+                                                nvf="group-AAAA=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                                buildData=dict(
+                                                    buildId=10000,
+                                                    name='AAAA-64bit',
+                                                    outputToken='OUTPUT-TOKEN-AAAA',
+                                                    ),
+                                                ),
+                                            dict(
+                                                nvf="group-AAAB=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                                buildData=dict(
+                                                    buildId=10001,
+                                                    name='AAAB-64bit',
+                                                    outputToken='OUTPUT-TOKEN-AAAB',
+                                                    ),
+                                                ),
+                                            ],
+                                        ),
+                                    dict(
+                                        nvf="group-AAB=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                        buildData=dict(
+                                            buildId=1001,
+                                            name='AAB-64bit',
+                                            outputToken='OUTPUT-TOKEN-AAB',
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            dict(
+                                nvf="group-AB=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                buildData=dict(
+                                    buildId=101,
+                                    name='AB-64bit',
+                                    outputToken='OUTPUT-TOKEN-AB',
+                                    ),
+                                children = [
+                                    dict(
+                                        nvf="group-ABA=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                        buildData=dict(
+                                            buildId=1010,
+                                            name='ABA-64bit',
+                                            outputToken='OUTPUT-TOKEN-ABA',
+                                            ),
+                                        children = [
+                                            dict(
+                                                nvf="group-ABAA=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                                buildData=dict(
+                                                    buildId=10100,
+                                                    name='ABAA-64bit',
+                                                    outputToken='OUTPUT-TOKEN-ABAA',
+                                                    ),
+                                                ),
+                                            dict(
+                                                nvf="group-ABAB=/my.example.com@ns:1/12345.67:3-1-1[is: x86_64]",
+                                                buildData=dict(
+                                                    buildId=10101,
+                                                    name='ABAB-64bit',
+                                                    outputToken='OUTPUT-TOKEN-ABAB',
+                                                    ),
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                )
+        img = docker.DockerImage(self.slaveCfg, self.data)
+        tarballs = self._mock(img, dockerBuildTree, withURLOpener=True)
+
+        img.write()
+        lines = [ x for x in file(self.logFile) if x.startswith('docker.py/') ]
+        self.assertEquals(''.join(lines), """\
+docker.py/_downloadParentImage: Downloading parent image DockerImageIdFakeParent-0
+docker.py/_downloadParentImage: Unpacking parent image as .../unpacked/DockerImageIdFakeParent-0
+docker.py/_downloadParentImage:   Extracting parent layer dockerImageIdFakeParent-1 on .../unpacked/DockerImageIdFakeParent-0
+docker.py/_downloadParentImage:   Extracting parent layer dockerImageIdFakeParent-2 on .../unpacked/DockerImageIdFakeParent-0
+docker.py/_downloadParentImage:   Extracting parent layer DockerImageIdFakeParent-0 on .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Building child image A-64bit, layer c6026eee80a1779cf07c46d57e628cf324bbc59f30f01b2c5828a7f7cc80a957
+docker.py/mountOverlayFs: Mounting layer c6026eee80a1779cf07c46d57e628cf324bbc59f30f01b2c5828a7f7cc80a957 on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Installing group-A=/my.example.com@ns:1/2-1-1[is: x86_64] into .../unpacked/c6026eee80a1779cf07c46d57e628cf324bbc59f30f01b2c5828a7f7cc80a957.ovffs
+docker.py/writeChild: Building child image AA-64bit, layer d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c
+docker.py/writeChild: Extracting layer c6026eee80a1779cf07c46d57e628cf324bbc59f30f01b2c5828a7f7cc80a957 on .../unpacked/DockerImageIdFakeParent-0
+docker.py/mountOverlayFs: Mounting layer d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Installing group-AA=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c.ovffs
+docker.py/writeChild: Building child image AAA-64bit, layer ba3eb7b677b067cc3e9d96b9ae4cd7a26147bfcafd279216920ac93140a7c8b3
+docker.py/mountOverlayFs: Mounting layer d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/mountOverlayFs: Mounting layer ba3eb7b677b067cc3e9d96b9ae4cd7a26147bfcafd279216920ac93140a7c8b3 on top of .../unpacked/d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c.ovffs
+docker.py/writeChild: Installing group-AAA=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/ba3eb7b677b067cc3e9d96b9ae4cd7a26147bfcafd279216920ac93140a7c8b3.ovffs
+docker.py/writeChild: Building child image AAAA-64bit, layer 4d23ee7e0cf3673936bae6e79573d66ee5c8b6eda70bf2cb8d4660b6c446d5d9
+docker.py/mountOverlayFs: Mounting layer d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Extracting layer ba3eb7b677b067cc3e9d96b9ae4cd7a26147bfcafd279216920ac93140a7c8b3 on .../unpacked/d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c.ovffs
+docker.py/mountOverlayFs: Mounting layer 4d23ee7e0cf3673936bae6e79573d66ee5c8b6eda70bf2cb8d4660b6c446d5d9 on top of .../unpacked/d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c.ovffs
+docker.py/writeChild: Installing group-AAAA=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/4d23ee7e0cf3673936bae6e79573d66ee5c8b6eda70bf2cb8d4660b6c446d5d9.ovffs
+docker.py/writeChild: Building child image AAAB-64bit, layer 50923db68d510024b722c3f35508636d5bbafe66ff937a530846b1c1e185d4c9
+docker.py/mountOverlayFs: Mounting layer d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Extracting layer ba3eb7b677b067cc3e9d96b9ae4cd7a26147bfcafd279216920ac93140a7c8b3 on .../unpacked/d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c.ovffs
+docker.py/mountOverlayFs: Mounting layer 50923db68d510024b722c3f35508636d5bbafe66ff937a530846b1c1e185d4c9 on top of .../unpacked/d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c.ovffs
+docker.py/writeChild: Installing group-AAAB=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/50923db68d510024b722c3f35508636d5bbafe66ff937a530846b1c1e185d4c9.ovffs
+docker.py/writeChild: Building child image AAB-64bit, layer 48c4efe6960fa63f9b180dfaa9c07f1022da209358dd346958a6d35f6ad51b3b
+docker.py/mountOverlayFs: Mounting layer d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/mountOverlayFs: Mounting layer 48c4efe6960fa63f9b180dfaa9c07f1022da209358dd346958a6d35f6ad51b3b on top of .../unpacked/d42a05e6082c032fe6f3316848be3e6bb4918147860f3c2da0f9b0957048bc8c.ovffs
+docker.py/writeChild: Installing group-AAB=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/48c4efe6960fa63f9b180dfaa9c07f1022da209358dd346958a6d35f6ad51b3b.ovffs
+docker.py/writeChild: Building child image AB-64bit, layer de97564729559f69824a96665ddb4698982408dd13db98f4616c2fb5ffec0a99
+docker.py/mountOverlayFs: Mounting layer de97564729559f69824a96665ddb4698982408dd13db98f4616c2fb5ffec0a99 on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Installing group-AB=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/de97564729559f69824a96665ddb4698982408dd13db98f4616c2fb5ffec0a99.ovffs
+docker.py/writeChild: Building child image ABA-64bit, layer 89e7b6f17c593889b68757edd7bdd8efdf373f337c1d275f68faaa38d6133601
+docker.py/writeChild: Extracting layer de97564729559f69824a96665ddb4698982408dd13db98f4616c2fb5ffec0a99 on .../unpacked/DockerImageIdFakeParent-0
+docker.py/mountOverlayFs: Mounting layer 89e7b6f17c593889b68757edd7bdd8efdf373f337c1d275f68faaa38d6133601 on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Installing group-ABA=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/89e7b6f17c593889b68757edd7bdd8efdf373f337c1d275f68faaa38d6133601.ovffs
+docker.py/writeChild: Building child image ABAA-64bit, layer 8089ffec4b48c8ac03e31974edfd3df6886920fbce323130debf15f23095bd80
+docker.py/writeChild: Extracting layer 89e7b6f17c593889b68757edd7bdd8efdf373f337c1d275f68faaa38d6133601 on .../unpacked/DockerImageIdFakeParent-0
+docker.py/mountOverlayFs: Mounting layer 8089ffec4b48c8ac03e31974edfd3df6886920fbce323130debf15f23095bd80 on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Installing group-ABAA=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/8089ffec4b48c8ac03e31974edfd3df6886920fbce323130debf15f23095bd80.ovffs
+docker.py/writeChild: Building child image ABAB-64bit, layer 380be0952033bb90c7f7924f1461fc746fea8461f09866e272d9874439cee697
+docker.py/mountOverlayFs: Mounting layer 380be0952033bb90c7f7924f1461fc746fea8461f09866e272d9874439cee697 on top of .../unpacked/DockerImageIdFakeParent-0
+docker.py/writeChild: Installing group-ABAB=/my.example.com@ns:1/3-1-1[is: x86_64] into .../unpacked/380be0952033bb90c7f7924f1461fc746fea8461f09866e272d9874439cee697.ovffs
+""")
 
     def testDeepHierarchy(self):
         dockerBuildTree = dict(
