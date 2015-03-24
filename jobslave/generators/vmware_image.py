@@ -139,7 +139,7 @@ class VMwareImage(raw_hd_image.RawHdImage):
     @bootable_image.timeMe
     def createVMX(self, outfile, type='vmx'):
         # Escape ", #, |, <, and >, strip out control characters
-        displayName = self.getBuildData('baseFileName')
+        displayName = self.basefilename
         description = self.jobData.get('description', '')
 
         variables = {
