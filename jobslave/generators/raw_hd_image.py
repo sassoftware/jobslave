@@ -180,6 +180,7 @@ class RawHdImage(bootable_image.BootableImage):
         self.capacity = disk.totalSize
 
         finalImage = os.path.join(self.outputDir, self.basefilename + '.hdd.gz')
+        imageSize = os.stat(image).st_size
 
         self.status('Compressing hard disk image')
         outFile = self.gzip(image, finalImage)
@@ -194,7 +195,8 @@ class RawHdImage(bootable_image.BootableImage):
 
 
         self.outputFileList.append((finalImage, 'Raw Hard Disk Image'),)
-        self.postOutput(self.outputFileList)
+        self.postOutput(self.outputFileList,
+                attributes={'uncompressed_size': imageSize})
 
     def preTagScripts(self):
         super(RawHdImage, self).preTagScripts()
