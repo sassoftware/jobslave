@@ -16,6 +16,7 @@ import time
 from conary.lib import digestlib
 from conary.lib.http import http_error
 from conary.lib.http import opener
+from conary.lib.http.request import URL
 from xml.etree import ElementTree as ET
 from jobslave import jobstatus
 
@@ -33,13 +34,17 @@ class BaseResponseProxy(object):
     def postOutput(self, fileList, withMetadata=True, attributes=None):
         pass
 
+    def getImage(self, imageUrl):
+        pass
+
 
 class ResponseProxy(BaseResponseProxy):
     def __init__(self, masterUrl, jobData):
+        self.masterUrl = URL(masterUrl)
         self.imageBase = '%sapi/v1/images/%d' % (masterUrl, jobData['buildId'])
         self.uploadBase = '%suploadBuild/%d/' % (masterUrl, jobData['buildId'])
         self.outputToken = jobData['outputToken']
-        self.opener = opener.URLOpener(connectAttempts=2)
+        self.opener = opener.URLOpener(connectAttempts=2, followRedirects=True)
 
         # Create a logger for things that are inside the log sending path, so
         # we can log to console without causing an infinite loop.
@@ -121,6 +126,11 @@ class ResponseProxy(BaseResponseProxy):
 
         if withMetadata:
             self.post('PUT', 'build_files', body=ET.tostring(root))
+
+    def getImage(self, imageUrl):
+        imageUrl = URL(str(imageUrl))
+        imageUrl = self.masterUrl.join(imageUrl.path)
+        return self.opener.open(imageUrl)
 
 
 class LogHandler(threading.Thread, logging.Handler):

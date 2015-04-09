@@ -6,11 +6,10 @@ import json
 import os
 from testutils import mock
 
-from jobslave.job_data import JobData
 from jobslave.generators import docker
 from jobslave_test.jobslave_helper import JobSlaveHelper
-from conary.deps import deps
 import logging
+
 
 class DockerTest(JobSlaveHelper):
     def setUp(self):
@@ -87,17 +86,12 @@ class DockerTest(JobSlaveHelper):
         docker.logCall(["tar", "-C", layersDir,
                 "-zcf", parentImage, 'repositories', ] + dockerImageIds)
 
-        class URLOpener(object):
-            def __init__(slf, *args, **kwargs):
-                pass
-            def open(slf, url):
-                f = file(parentImage)
-                # Make sure we don't download it again
-                os.unlink(parentImage)
-                return f
-
-        self.mock(docker, 'URLOpener', URLOpener)
-
+        def getImage(url):
+            f = file(parentImage)
+            # Make sure we don't download it again
+            os.unlink(parentImage)
+            return f
+        img.response.getImage = getImage
 
     def testBaseImage(self):
         dockerBuildTree = dict(

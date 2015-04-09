@@ -21,7 +21,6 @@ from collections import namedtuple
 
 from conary.deps import deps
 from conary.lib import util
-from conary.lib.http import opener
 from conary.trovetup import TroveTuple
 from jobslave import buildtypes
 
@@ -223,12 +222,7 @@ class DockerImage(bootable_image.BootableImage):
     def _downloadParentImage(self, imgSpec, unpackDir, layersDir):
         log.debug('Downloading parent image %s', imgSpec.dockerImageId)
         self.status('Downloading parent image')
-        conaryProxyHost = util.urlSplit(self.cfg.conaryProxy)[3]
-        urlPieces = list(util.urlSplit(imgSpec.url))
-        urlPieces[3] = conaryProxyHost
-        url = util.urlUnsplit(urlPieces)
-        op = URLOpener(connectAttempts=2)
-        resp = op.open(url)
+        resp = self.response.getImage(imgSpec.url)
         tmpf = tempfile.TemporaryFile(dir=self.workDir)
         util.copyfileobj(resp, tmpf)
         tmpf.seek(0)
@@ -337,12 +331,6 @@ class Manifest(dict):
     def save(self, stream):
         json.dump(self, stream, sort_keys=True)
 
-class URLOpener(opener.URLOpener):
-    def _handleError(self, req, response):
-        if response.status != 301:
-            return opener.URLOpener._handleError(self, req, response)
-        newUrl = response.getheader('Location')
-        return self.open(newUrl)
 
 class TarSum(object):
     Version = "v1"
