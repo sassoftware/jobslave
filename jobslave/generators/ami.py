@@ -16,9 +16,6 @@ class AMIImage(raw_hd_image.RawHdImage):
     fileType = buildtypes.typeNames[buildtypes.AMI]
 
     def write(self):
-        # We don't need swap files, aws provides a swap partition for this
-        # purpose
-        self.swapSize = 0
         if not self.jobData['data'].get('ebsBacked'):
             obj = tarball.Tarball(self.cfg, self.jobData)
             return obj.write()
