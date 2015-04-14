@@ -9,6 +9,7 @@ import io
 import json
 import logging
 import os
+import stat
 import tarfile
 import tempfile
 import weakref
@@ -217,7 +218,7 @@ class DockerImage(bootable_image.BootableImage):
             logCall(["umount", "-f", ovldir])
 
         thisLayerDir = os.path.join(unpackDir, imgSpec.dockerImageId)
-        self.writeLayer(thisLayerDir, layersDir, imgSpec)
+        self.writeLayer(thisLayerDir, layersDir, imgSpec, withDeletions=True)
 
     def _downloadParentImage(self, imgSpec, unpackDir, layersDir):
         log.debug('Downloading parent image %s', imgSpec.dockerImageId)
@@ -271,9 +272,21 @@ class DockerImage(bootable_image.BootableImage):
 
     def _extractLayer(self, unpackDir, tarFile):
         util.mkdirChain(unpackDir)
+        # Walk the files in the tar file, looking for .wh.*
+        tf = tarfile.open(tarFile)
+        toDeleteAfter = set()
+        for tinfo in tf:
+            bname = os.path.basename(tinfo.name)
+            if bname.startswith('.wh.') and tinfo.mode == 0:
+                util.rmtree(util.joinPaths(unpackDir,
+                    os.path.dirname(tinfo.name), bname[4:]),
+                        ignore_errors=True)
+                toDeleteAfter.add(util.joinPaths(unpackDir, tinfo.name))
         logCall(["tar", "-C", unpackDir, "-xf", tarFile])
+        for fname in toDeleteAfter:
+            util.removeIfExists(fname)
 
-    def writeLayer(self, basePath, layersDir, imgSpec):
+    def writeLayer(self, basePath, layersDir, imgSpec, withDeletions=False):
         layerId = imgSpec.dockerImageId
         if imgSpec.parent:
             parentLayerId = imgSpec.parent.dockerImageId
@@ -283,7 +296,11 @@ class DockerImage(bootable_image.BootableImage):
         util.mkdirChain(layerDir)
         tarball = os.path.join(layerDir, 'layer.tar')
         self.status('Creating layer')
+        if withDeletions:
+            ovlfs2docker(basePath)
         logCall('tar -C %s -cpPsf %s .' % (basePath, tarball))
+        if withDeletions:
+            docker2ovlfs(basePath)
         file(os.path.join(layerDir, "VERSION"), "w").write("1.0")
         # XXX for some reason the layer sizes reported by docker are smaller
         # than the tar file
@@ -595,3 +612,22 @@ class Dockerfile(object):
         author = self.author
         if author:
             manifest['author'] = author
+
+def docker2ovlfs(dirName):
+    for dirPath, dirNames, fileNames in os.walk(dirName):
+        for fileName in fileNames:
+            if fileName.startswith('.wh.'):
+                fPath = os.path.join(dirPath, fileName)
+                newName = os.path.join(dirPath, fileName[4:])
+                os.unlink(fPath)
+                os.mknod(newName, stat.S_IFCHR, os.makedev(0, 0))
+
+def ovlfs2docker(dirName):
+    for dirPath, dirNames, fileNames in os.walk(dirName):
+        for fileName in fileNames:
+            fPath = os.path.join(dirPath, fileName)
+            st = os.stat(fPath)
+            if (st.st_mode & stat.S_IFCHR) == stat.S_IFCHR and st.st_rdev == 0:
+                newName = os.path.join(dirPath, '.wh.' + fileName)
+                os.unlink(fPath)
+                os.open(newName, os.O_CREAT | os.O_WRONLY, 0)

@@ -535,6 +535,64 @@ CMD [ "-d" ]""",)
                 },
             })
 
+    def testWriteLayerWithDeletions(self):
+        img = docker.DockerImage(self.slaveCfg, self.data)
+        mock.mockMethod(img.status)
+        layersDir = os.path.join(img.workDir, "docker-image/layers")
+        unpackDir = os.path.join(img.workDir, "docker-image/unpacked")
+        explodedDir = os.path.join(self.workDir, "exploded")
+        docker.util.mkdirChain(explodedDir)
+        regularFilePath = os.path.join(explodedDir, 'regular-file')
+        deletedFilePath = os.path.join(explodedDir, 'deleted-file')
+        file(regularFilePath, "w").write('a')
+        file(deletedFilePath, "w")
+
+        unpackDir2 = os.path.join(self.workDir, 'unpacked')
+        docker.util.mkdirChain(os.path.join(unpackDir2, 'deleted-file'))
+
+        origStat = os.stat
+        def mockStat(fname):
+            if fname.endswith('deleted-file'):
+                obj = mock.MockObject(st_mode=docker.stat.S_IFCHR,
+                        st_rdev=0)
+                return obj
+            return origStat(fname)
+        self.mock(os, 'stat', mockStat)
+        origOpen = os.open
+        def mockOpen(fname, mode, perms=0644):
+            if fname.endswith('deleted-file'):
+                perms = 0755
+            return origOpen(fname, mode, perms)
+        self.mock(os, 'open', mockOpen)
+        def mockMknod(fname, mode, dev):
+            file(fname, "w").write("Mocked")
+        self.mock(os, 'mknod', mockMknod)
+
+        imgSpec = docker.ImageSpec(name='foo', dockerImageId='aaaa-bb-cc',
+                nvf=docker.TroveTuple('group-foo=/cny.tv@ns:1/123.45:1-2-3[is: x86_64]'))
+
+        img.writeLayer(explodedDir, layersDir, imgSpec, withDeletions=True)
+        # Make sure we've reverted back to the ovf-marked deleted file
+        self.assertEqual(file(deletedFilePath).read(), "Mocked")
+        # Make sure the tarball has a .wh.deleted-file
+        tarfilePath = os.path.join(layersDir, imgSpec.dockerImageId, 'layer.tar')
+        tf = docker.tarfile.open(tarfilePath)
+        deleted = [ x for x in tf if x.name == './.wh.deleted-file' ]
+        self.assertEqual([ x.mode for x in deleted ], [ 0755 ])
+
+        # Now try to extract the layer
+        self.unmock()
+        mockTF = mock.MockObject()
+        mockTF._mock._dict[0] = mock.MockObject(name='./regular-file')
+        mockTF._mock._dict[1] = mock.MockObject(name='./.wh.deleted-file',
+                mode=0)
+        def mockOpen(fpath):
+            return mockTF
+        self.mock(docker.tarfile, 'open', mockOpen)
+        img._extractLayer(unpackDir2, tarfilePath)
+        # We should have only the regular file
+        self.assertEqual(os.listdir(unpackDir2), ['regular-file'])
+
 class DockerfileTest(JobSlaveHelper):
     def testParseDockerFile(self):
         txt = """
