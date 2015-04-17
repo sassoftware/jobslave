@@ -673,3 +673,47 @@ EXPOSE 211
                 },
             'author': 'jean.valjean@paris.fr'
             })
+
+    def testDockerFileMerge_Entrypoint_CMD(self):
+        # Parent dockerfile, child dockerfile, expected entrypoint, expected cmd
+        combinations = [
+                ('ENTRYPOINT [ "/bin/echo", "foo" ]', 'CMD [ "/bin/bash" ]',
+                    [ "/bin/echo", "foo" ], [ "/bin/bash" ]),
+                ('CMD [ "/bin/bash" ]', 'ENTRYPOINT [ "/bin/echo", "foo" ]',
+                    [ "/bin/echo", "foo" ], None),
+                ('ENTRYPOINT [ "/bin/echo" ]\nCMD ["foo"]', 'CMD [ "/bin/bash" ]',
+                    [ "/bin/echo" ], [ "foo", "/bin/bash" ]),
+                ('ENTRYPOINT [ "/bin/echo" ]\nCMD ["foo"]',
+                    'ENTRYPOINT [ "/bin/echo" ]\nCMD [ "/bin/bash" ]',
+                    [ "/bin/echo" ], [ "foo", "/bin/bash" ]),
+                ('ENTRYPOINT [ "/bin/echo" ]\nCMD ["foo"]',
+                    'ENTRYPOINT [ "/bin/bash" ]\nCMD [ "-x" ]',
+                    [ "/bin/bash" ], [ "-x" ]),
+                ]
+        for parentDF, childDF, expEntrypoint, expCmd in combinations:
+            parent = docker.Dockerfile()
+            parent.parse(parentDF)
+            child = docker.Dockerfile()
+            child.parse(childDF)
+            child.merge(parent)
+            self.assertEquals(child.entrypoint, expEntrypoint)
+            self.assertEquals(child.cmd, expCmd)
+
+        txt = """
+CMD [ "/bin/bash" ]
+"""
+        df1 = docker.Dockerfile()
+        df1.parse(txt)
+
+        txt = """
+ENTRYPOINT [ "/bin/echo", "foo" ]
+"""
+        df2 = docker.Dockerfile()
+        df2.parse(txt)
+
+        self.assertEquals(df1.cmd, ['/bin/bash', ])
+        self.assertEquals(df1.entrypoint, None)
+
+        df1.merge(df2)
+        self.assertEquals(df1.cmd, ['/bin/bash', ])
+        self.assertEquals(df1.entrypoint, [ "/bin/echo", "foo", ])

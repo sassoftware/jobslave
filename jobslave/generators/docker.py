@@ -596,6 +596,26 @@ class Dockerfile(object):
             if instr is None:
                 continue
             self._directives.setdefault(instrName, []).extend(instr)
+        if other.entrypoint is None:
+            entrypoint = self.entrypoint
+            if entrypoint:
+                cmd = self.cmd
+            else:
+                cmd = self.cmd or other.cmd
+        else:
+            # The parent image has defined an entrypoint. If different from the
+            # child entrypoint, then invalidate otherCmd
+            if self.entrypoint is not None and (self.entrypoint != other.entrypoint):
+                cmd = None
+                entrypoint = self.entrypoint
+            else:
+                entrypoint = self.entrypoint or other.entrypoint
+                cmd = list(other.cmd or [])
+                cmd.extend(self.cmd or [])
+        if entrypoint is not None:
+            self._directives['ENTRYPOINT'] = DockerfileInstruction('ENTRYPOINT', entrypoint)
+        if cmd:
+            self._directives['CMD'] = DockerfileInstruction('CMD', cmd)
         return self
 
     def toManifest(self, manifest):
