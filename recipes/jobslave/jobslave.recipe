@@ -59,3 +59,5 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         r.Requires('/usr/bin/pngtopnm', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/ppmtolss16', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/zip', '.*/generators/bootable_image\.py.*')
+        r.Requires('/usr/bin/implantisomd5', '.*/generators/installable_iso\.py.*')
+        r.Requires('bitstream-vera-fonts:data', '.*/generators/installable_iso\.py.*')
