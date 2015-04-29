@@ -49,10 +49,6 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         r.MakeInstall()
         r.CompilePython('%(prefix)s')
 
-        r.Create('/etc/conary/config.d/jobslave.conf',
-                contents='includeConfigFile /tmp/etc/conaryrc\n',
-                package='jobslave-runtime')
-
         r.Requires('/bin/tar', '.*/generators/installable_iso\.py.*')
         r.Requires('/sbin/mkfs.xfs', '.*/generators/bootable_image\.py.*')
         r.Requires('/usr/bin/gpg', '.*/generators/installable_iso\.py.*')
@@ -63,14 +59,3 @@ class Jobslave(CPackageRecipe, TestPackageRecipe):
         r.Requires('/usr/bin/pngtopnm', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/ppmtolss16', '.*/generators/installable_iso\.py.*')
         r.Requires('/usr/bin/zip', '.*/generators/bootable_image\.py.*')
-
-        # This file binds the freshly built jobslave to the system that will use it.
-        r.Create('/srv/rbuilder/jobmaster/config.d/05_trove.conf',
-            contents='troveVersion %(jobslave_version)s',
-            package='rbuilder-mcp')
-        r.Transient('/srv/rbuilder/jobmaster/')
-
-        r.PackageSpec('jobslave-runtime',
-            '%(bindir)s/jobslave',
-            '/etc/conary/config.d/',
-            )
