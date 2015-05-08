@@ -622,6 +622,24 @@ EXPOSE 53/udp 211/tcp
         self.assertEquals(df.entrypoint, None)
         self.assertEquals(df.cmd, ['/bin/sh', '-c', '/usr/sbin/httpd -X'])
 
+    def testParseDockerFile2(self):
+        txt = """
+# THIS is a comment
+ FROM aaa
+MAINTAINER jean.valjean@paris.fr
+CMD /usr/sbin/httpd -X
+EXPOSE 80
+EXPOSE "443/tcp"
+EXPOSE 53/udp 211/tcp
+ENV a=1 b=2 \\
+        c=3
+ENV d=4
+ENV e 5
+ENV f=6 g=two\ words
+"""
+        df = docker.Dockerfile()
+        df.parse(txt)
+
     def testCmdAndEntrypoint(self):
         txt = """
 ENTRYPOINT [ "/usr/sbin/httpd" , ]

@@ -9,6 +9,7 @@ import io
 import json
 import logging
 import os
+import shlex
 import stat
 import tarfile
 import tempfile
@@ -480,18 +481,45 @@ class DockerfileParseError(Exception):
     pass
 
 class Dockerfile(object):
-    MultiCommands = ['EXPOSE', ]
-    SP = ' '
+    MultiCommands = ['EXPOSE', 'ENV' ]
     DQ = '"'
     def __init__(self):
         self._directives = {}
 
     def parse(self, stream):
+        slex = shlex.shlex(stream, posix=True)
+        slex.wordchars += "/=-"
+        slex.whitespace = ' \t'
+        slex.quotes = '"'
+
+        line = []
+        print "XXX", slex.lineno
+        for tok in slex:
+            print "DEBUG", repr(tok)
+            if tok == '\n':
+                print line
+                line = []
+                continue
+            line.append(tok)
+        return
+
         if not hasattr(stream, 'readline'):
-            stream = io.StringIO(stream)
+            stream = io.StringIO(stream.encode("utf8"))
+        prevLine = None
         for line in stream:
-            line = line.strip()
-            if not line or line[0].startswith('#'):
+            import epdb; epdb.st()
+            slex.push_source(line.encode("utf8"))
+            line = []
+            for obj in slex:
+                line.append(obj)
+            if prevLine:
+                line = prevLine + line
+                prevLine = None
+            if not line:
+                continue
+            if line[-1] == '\n':
+                # Continuation char
+                prevLine = line
                 continue
             line = self.parseLine(line)
             if line.instruction in self.MultiCommands:
@@ -502,24 +530,9 @@ class Dockerfile(object):
 
     @classmethod
     def parseLine(cls, line):
-        instr, sep, rest = line.partition(cls.SP)
-        if sep != cls.SP:
-            return None
+        instr, rest = line[0], line[1:]
         instr = instr.upper()
-        if rest.startswith(cls.DQ):
-            if not rest.endswith(cls.DQ):
-                raise DockerfileParseError("Error parsing line '%s'" % line)
-            args = QuotedString(rest[1:-1])
-        elif rest.startswith('['):
-            if not rest.endswith(']'):
-                raise DockerfileParseError("Error parsing line '%s'" % line)
-            rest = rest[1:-1].strip()
-            args = cls.parseQuoted(rest)
-        elif instr in cls.MultiCommands:
-            args = rest.split(' ')
-        else:
-            args = rest
-        return DockerfileInstruction(instr, args)
+        return DockerfileInstruction(instr, rest)
 
     @classmethod
     def parseQuoted(cls, line):
@@ -540,6 +553,17 @@ class Dockerfile(object):
             rest = rest[1:].lstrip()
         ret.extend(cls.parseQuoted(rest))
         return ret
+
+    @property
+    def environment(self):
+        ret = dict()
+        instructions = self._directives.get('ENV')
+        if not instructions:
+            return ret
+        for instr in instructions:
+            args = instr.args
+            ret.update(args)
+        return sorted(ret.items())
 
     @property
     def exposedPorts(self):
