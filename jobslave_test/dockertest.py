@@ -550,14 +550,14 @@ CMD [ "-d" ]""",)
         unpackDir2 = os.path.join(self.workDir, 'unpacked')
         docker.util.mkdirChain(os.path.join(unpackDir2, 'deleted-file'))
 
-        origStat = os.stat
+        origStat = os.lstat
         def mockStat(fname):
             if fname.endswith('deleted-file'):
                 obj = mock.MockObject(st_mode=docker.stat.S_IFCHR,
                         st_rdev=0)
                 return obj
             return origStat(fname)
-        self.mock(os, 'stat', mockStat)
+        self.mock(os, 'lstat', mockStat)
         origOpen = os.open
         def mockOpen(fname, mode, perms=0644):
             if fname.endswith('deleted-file'):
