@@ -5,7 +5,6 @@
 # python standard library imports
 import datetime
 import hashlib
-import io
 import json
 import logging
 import os
@@ -19,11 +18,11 @@ import weakref
 from jobslave import jobstatus
 from jobslave.generators import bootable_image, constants
 from jobslave.util import logCall
-from collections import namedtuple
 
 from conary.deps import deps
 from conary.lib import util
 from conary.trovetup import TroveTuple
+from conary.dbstore.sqllib import CaselessDict
 from jobslave import buildtypes
 
 log = logging.getLogger(__name__)
@@ -245,7 +244,7 @@ class DockerImage(bootable_image.BootableImage):
             layer._unpackDir = parentImageDir
             layerFilesStack.append(
                     (layerId, os.path.join(layersDir, layerId, "layer.tar")))
-            mf = json.load(file(os.path.join(layersDir, layerId, 'json')))
+            layer._manifest = mf = Manifest(json.load(file(os.path.join(layersDir, layerId, 'json'))))
             parent = mf.get('parent')
             if parent is not None and not layer.parent:
                 layer.parent = ImageSpec(dockerImageId=parent)
@@ -312,15 +311,12 @@ class DockerImage(bootable_image.BootableImage):
             arch = 'amd64'
         else:
             arch = '386'
-        config = dict(
+        config = Manifest(
                 Env=[ "PATH=/usr/sbin:/usr/bin:/sbin:/bin" ]
                 )
-        if imgSpec._parsedDockerfile:
-            if imgSpec.parent:
-                imgSpec._parsedDockerfile.merge(imgSpec.parent._parsedDockerfile)
 
         self.status('Creating manifest')
-        manifest = Manifest(id=layerId, Size=layerSize,
+        manifest = imgSpec._manifest = Manifest(id=layerId, Size=layerSize,
                 Comment="Created by Conary command: conary update '%s'" % imgSpec.nvf.asString(),
                 created=layerCtime,
                 config=config,
@@ -332,9 +328,11 @@ class DockerImage(bootable_image.BootableImage):
                 container_config=dict(),
                 )
         if parentLayerId:
-            manifest.update(parent=parentLayerId)
+            manifest['parent'] = parentLayerId
         if imgSpec._parsedDockerfile:
             imgSpec._parsedDockerfile.toManifest(manifest)
+        if imgSpec.parent:
+            manifest.merge(imgSpec.parent._manifest)
         mfile = file(os.path.join(layerDir, "json"), "w")
         manifest.save(mfile)
         return layerId
@@ -345,10 +343,75 @@ class DockerImage(bootable_image.BootableImage):
         ctx.update(nvf.asString())
         return ctx.hexdigest()
 
-class Manifest(dict):
+class Manifest(CaselessDict):
+    def __init__(self, *args, **kwargs):
+        CaselessDict.__init__(self, *args)
+        self.update(kwargs)
+        if 'config' in self:
+            self['config'] = self.__class__(self.get('config', {}))
+
     def save(self, stream):
         json.dump(self, stream, sort_keys=True)
 
+    @property
+    def author(self):
+        return self.get('author')
+
+    @property
+    def entrypoint(self):
+        return self.get('config', {}).get('Entrypoint')
+
+    @property
+    def cmd(self):
+        return self.get('config', {}).get('Cmd')
+
+    @property
+    def exposedPorts(self):
+        return self.get('config', {}).get('ExposedPorts')
+
+    def merge(self, other):
+        """
+        Merge this manifest with a parent. The parent will not be changed.
+        """
+        if other is None:
+            return self
+        assert isinstance(other, Manifest)
+        # When merging a parent layer with a child layer, we only copy the
+        # exposed ports
+        thisConfig = self.get('config', self.__class__())
+        otherConfig  = other.get('config', {})
+
+        thisPorts = thisConfig.setdefault('ExposedPorts', {})
+        otherPorts = dict(otherConfig.get('ExposedPorts', {}))
+        for k, v in otherPorts.items():
+            thisPorts.setdefault(k, v)
+
+        envs = dict(x.split('=', 1) for x in otherConfig.get('Env', []))
+        envs.update(dict(x.split('=', 1) for x in thisConfig.get('Env', [])))
+        envs = ["%s=%s" % (x, v) for x, v in envs.items() ]
+        thisConfig['Env'] = sorted(envs)
+
+        if other.entrypoint is None:
+            entrypoint = self.entrypoint
+            if entrypoint:
+                cmd = self.cmd
+            else:
+                cmd = self.cmd or other.cmd
+        else:
+            # The parent image has defined an entrypoint. If different from the
+            # child entrypoint, then invalidate otherCmd
+            if self.entrypoint is not None and (self.entrypoint != other.entrypoint):
+                cmd = None
+                entrypoint = self.entrypoint
+            else:
+                entrypoint = self.entrypoint or other.entrypoint
+                cmd = list(other.cmd or [])
+                cmd.extend(self.cmd or [])
+        if entrypoint is not None:
+            thisConfig['Entrypoint'] = entrypoint
+        if cmd:
+            thisConfig['Cmd'] = cmd
+        return self
 
 class TarSum(object):
     Version = "v1"
@@ -392,7 +455,7 @@ class TarSum(object):
 class ImageSpec(object):
     __slots__ = [ 'name', 'nvf', 'url', 'dockerImageId', 'jobData', 'children',
             'parent', 'repository', 'dockerfile', '_parsedDockerfile',
-            '_unpackDir', '_lastChild',
+            '_manifest', '_unpackDir', '_lastChild',
             '_nameToTags', '__weakref__', ]
     def __init__(self, **kwargs):
         kwargs.setdefault('_nameToTags', set())
@@ -428,7 +491,8 @@ class ImageSpec(object):
             dockerfile = buildData.get('data', {}).get('dockerfile')
             if dockerfile is not None:
                 params['dockerfile'] = dockerfile
-                params['_parsedDockerfile'] = Dockerfile().parse(dockerfile)
+                params['_parsedDockerfile'] = D = Dockerfile().parse(dockerfile)
+                params['_manifest'] = D.toManifest()
             repository = buildData.get('data', {}).get('dockerRepositoryName',
                     defaults.get('repository'))
             if repository is not None:
@@ -474,111 +538,120 @@ class QuotedString(str):
 class QuotedList(list):
     pass
 
-class DockerfileInstruction(namedtuple("BaseInstruction", "instruction args")):
-    pass
-
 class DockerfileParseError(Exception):
     pass
 
 class Dockerfile(object):
-    MultiCommands = ['EXPOSE', 'ENV' ]
-    DQ = '"'
+    ListArgCommands = ['CMD', 'ENTRYPOINT']
+    MultiCommands = ['EXPOSE', ]
+    DictCommands = [ 'ENV' ]
     def __init__(self):
         self._directives = {}
 
     def parse(self, stream):
-        slex = shlex.shlex(stream, posix=True)
-        slex.wordchars += "/=-"
-        slex.whitespace = ' \t'
-        slex.quotes = '"'
+        if isinstance(stream, unicode):
+            stream = stream.encode('utf-8')
+        # Convert stream to StringIO if necessary
+        stream = shlex.shlex(stream).instream
+        # Create lexer, no data by default
+        lex = shlex.shlex("", posix=True)
+        lex.wordchars += "!$%&()*+-./:x<=>?@:"
+        lex.whitespace_split = False
+        lex.quotes = '"'
 
-        line = []
-        print "XXX", slex.lineno
-        for tok in slex:
-            print "DEBUG", repr(tok)
-            if tok == '\n':
-                print line
-                line = []
+        # Feed one line at the time
+        lines = []
+        prevline = []
+        for raw in stream:
+            lex.instream = shlex.StringIO(raw)
+            lex.state = ' '
+            newline = list(lex)
+            withContinuation = (newline[-1] == '\n') if newline else False
+            if withContinuation:
+                newline.pop()
+            if prevline:
+                prevline.extend(newline)
+                if not withContinuation:
+                    prevline = []
                 continue
-            line.append(tok)
-        return
-
-        if not hasattr(stream, 'readline'):
-            stream = io.StringIO(stream.encode("utf8"))
-        prevLine = None
-        for line in stream:
-            import epdb; epdb.st()
-            slex.push_source(line.encode("utf8"))
-            line = []
-            for obj in slex:
-                line.append(obj)
-            if prevLine:
-                line = prevLine + line
-                prevLine = None
+            if withContinuation:
+                prevline = newline
+            lines.append(newline)
+        # Filter out empty lines
+        for line in lines:
             if not line:
                 continue
-            if line[-1] == '\n':
-                # Continuation char
-                prevLine = line
-                continue
-            line = self.parseLine(line)
-            if line.instruction in self.MultiCommands:
-                self._directives.setdefault(line.instruction, []).append(line)
-            else:
-                self._directives[line.instruction] = line
+            self.parseLine(line)
         return self
 
-    @classmethod
-    def parseLine(cls, line):
+    def parseLine(self, line):
         instr, rest = line[0], line[1:]
         instr = instr.upper()
-        return DockerfileInstruction(instr, rest)
+        if rest[0] == '[':
+            if rest[-1] != ']':
+                raise DockerfileParseError("Error parsing: matching ']' missing")
+            rest = rest[1:-1]
+            if rest and rest[-1] == ',':
+                rest.pop()
+            if rest and rest[0] == ',':
+                raise DockerfileParseError("Error parsing: leading , in list")
+            rest.reverse()
+            commaFound = False
+            listArgs = QuotedList()
+            while rest:
+                obj = rest.pop()
+                if obj == ',':
+                    if commaFound:
+                        raise DockerfileParseError("Error parsing: consecutive ,")
+                    commaFound = True
+                    continue
+                if listArgs and not commaFound:
+                    raise DockerfileParseError("Error parsing: missing ,")
+                commaFound = False
+                listArgs.append(obj)
+            rest = listArgs
+        if instr in self.MultiCommands:
+            self._directives.setdefault(instr, []).extend(rest)
+        elif instr in self.DictCommands:
+            self._directives.setdefault(instr, {}).update(self._parseKV(rest))
+        elif instr in self.ListArgCommands:
+            if not isinstance(rest, QuotedList):
+                rest = " ".join(rest)
+            self._directives[instr] = rest
+        else:
+            self._directives[instr] = " ".join(rest)
 
     @classmethod
-    def parseQuoted(cls, line):
-        ret = QuotedList()
-        if line == '':
-            return ret
-        if not line.startswith(cls.DQ):
-            raise DockerfileParseError("Error parsing line '%s'" % line)
-        line = line[1:]
-        arg, sep, rest = line.partition(cls.DQ)
-        if sep != cls.DQ:
-            raise DockerfileParseError("Error parsing line '%s'" % line)
-        ret.append(QuotedString(arg))
-        rest = rest.lstrip()
-        if rest:
-            if rest[0] != ',':
-                raise DockerfileParseError("Error parsing line '%s'" % line)
-            rest = rest[1:].lstrip()
-        ret.extend(cls.parseQuoted(rest))
-        return ret
+    def _parseKV(cls, values):
+        kvdict = {}
+        values.reverse()
+        while values:
+            kv = values.pop()
+            k, sep, v = kv.partition('=')
+            if sep != '=':
+                # Not a "k v"
+                if not values:
+                    raise DockerfileParseError("Error parsing: expected 'k v'")
+                v = values.pop()
+            kvdict[k] = v
+        return kvdict
 
     @property
     def environment(self):
-        ret = dict()
-        instructions = self._directives.get('ENV')
-        if not instructions:
-            return ret
-        for instr in instructions:
-            args = instr.args
-            ret.update(args)
-        return sorted(ret.items())
+        instructions = self._directives.get('ENV', {})
+        return [ "%s=%s" % (x, y)
+                    for (x, y) in sorted(instructions.items()) ]
 
     @property
     def exposedPorts(self):
         ret = set()
-        instructions = self._directives.get('EXPOSE')
-        if not instructions:
+        vals = self._directives.get('EXPOSE')
+        if not vals:
             return ret
-        for instr in instructions:
-            args = instr.args
-            if isinstance(args, str):
-                args = [args]
-            for arg in args:
-                if '/' not in arg:
-                    arg += '/tcp'
-                ret.add(arg)
+        for val in vals:
+            if '/' not in val:
+                val += '/tcp'
+            ret.add(val)
         return sorted(ret)
 
     @property
@@ -591,59 +664,25 @@ class Dockerfile(object):
 
     @property
     def author(self):
-        instr = self._directives.get('MAINTAINER')
-        if instr is None:
+        param = self._directives.get('MAINTAINER')
+        if param is None:
             return None
-        params = instr.args
-        if not params:
-            return None
-        return params
+        return param
 
     def _getCommand(self, cmdName):
-        instr = self._directives.get(cmdName)
-        if instr is None:
+        params = self._directives.get(cmdName)
+        if params is None:
             return None
-        params = instr.args
         if isinstance(params, QuotedList):
             return params
         if isinstance(params, basestring):
             return ['/bin/sh', '-c', params]
         return params
 
-    def merge(self, other):
-        if other is None:
-            return self
-        # When merging a parent layer with a child layer, we only copy the
-        # exposed ports
-        for instrName in self.MultiCommands:
-            instr = other._directives.get(instrName)
-            if instr is None:
-                continue
-            self._directives.setdefault(instrName, []).extend(instr)
-        if other.entrypoint is None:
-            entrypoint = self.entrypoint
-            if entrypoint:
-                cmd = self.cmd
-            else:
-                cmd = self.cmd or other.cmd
-        else:
-            # The parent image has defined an entrypoint. If different from the
-            # child entrypoint, then invalidate otherCmd
-            if self.entrypoint is not None and (self.entrypoint != other.entrypoint):
-                cmd = None
-                entrypoint = self.entrypoint
-            else:
-                entrypoint = self.entrypoint or other.entrypoint
-                cmd = list(other.cmd or [])
-                cmd.extend(self.cmd or [])
-        if entrypoint is not None:
-            self._directives['ENTRYPOINT'] = DockerfileInstruction('ENTRYPOINT', entrypoint)
-        if cmd:
-            self._directives['CMD'] = DockerfileInstruction('CMD', cmd)
-        return self
-
-    def toManifest(self, manifest):
-        config = manifest.setdefault('config', {})
+    def toManifest(self, manifest=None):
+        if manifest is None:
+            manifest = Manifest()
+        config = manifest.setdefault('config', Manifest())
         exposedPorts = self.exposedPorts
         if exposedPorts:
             config['ExposedPorts'] = dict((x, {}) for x in exposedPorts)
@@ -656,6 +695,10 @@ class Dockerfile(object):
         author = self.author
         if author:
             manifest['author'] = author
+        environment = self.environment
+        if environment:
+            config['Env'] = environment
+        return manifest
 
 def docker2ovlfs(dirName):
     for dirPath, dirNames, fileNames in os.walk(dirName):

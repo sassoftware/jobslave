@@ -62,7 +62,14 @@ class DockerTest(JobSlaveHelper):
         docker.util.mkdirChain(extractedLayerDir)
         file(os.path.join(extractedLayerDir, "dummy"), "w").write("dummy")
         dockerImageIds = [ dockerBuildTree['dockerImageId'] ]
-        dockerImageIds.extend(dockerBuildTree.get('_fakeParents', []))
+        fakeParents = [(x['id'], x) for x in
+                dockerBuildTree.get('_fakeParents', [])]
+        dockerImageIds.extend(x[0] for x in fakeParents)
+
+        fakeParents = dict(fakeParents)
+        fakeParents[dockerBuildTree['dockerImageId']] = dict(
+                manifest=dockerBuildTree.pop('manifest', {}))
+
         dockerImageIds.reverse()
 
         parent = None
@@ -72,7 +79,8 @@ class DockerTest(JobSlaveHelper):
             docker.util.mkdirChain(layerDir)
             docker.logCall(["tar", "-C", extractedLayerDir, "-cf",
                     os.path.join(layerDir, "layer.tar"), "."])
-            meta = dict()
+            # If a manifest is present in the "fake" parents, use it
+            meta = fakeParents.get(dockerImageId, {}).get('manifest', {})
             if parent is not None:
                 meta['parent'] = parent
             json.dump(meta, file(os.path.join(layerDir, 'json'), "w"))
@@ -163,7 +171,20 @@ class DockerTest(JobSlaveHelper):
         dockerBuildTree = dict(
                 nvf="group-foo=/my.example.com@ns:1/12345.67:1-1-1[is: x86_64]",
                 url="http://example.com/downloadFile?id=123",
-                _fakeParents = ["dockerImageIdFakeParent-1", "dockerImageIdFakeParent-0"],
+                _fakeParents = [
+                    dict(
+                        id="dockerImageIdFakeParent-1",
+                        manifest=dict(
+                          config=dict(
+                            Env=["FP1=1"], ExposedPorts={"21/ssh":{}}),
+                            ),
+                          ),
+                    dict(
+                        id="dockerImageIdFakeParent-0",
+                            ),
+                    ],
+                manifest=dict(config=dict(Entrypoint=["/bin/bash"], Cmd="-x",
+                    Env=["FP1=1"], ExposedPorts={"22/ssh":{}})),
                 dockerImageId="131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800",
                 buildData=self.Data,
                 children=[
@@ -301,13 +322,27 @@ class DockerTest(JobSlaveHelper):
                 }
             })
 
+        manif = json.load(file(img.workDir + '/docker-image/layers/5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972/json'))
+        self.assertEquals(manif['config']['Entrypoint'],
+                ['/bin/bash'])
+        self.assertEquals(manif['config']['Env'],
+                ['FP1=1', 'PATH=/usr/sbin:/usr/bin:/sbin:/bin'])
+        self.assertEquals(manif['config']['ExposedPorts'],
+                {'22/ssh': {}})
+
+        manif = json.load(file(img.workDir + '/docker-image/layers/18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313/json'))
+        self.assertEquals(manif['config']['Env'],
+                ['FP1=1', 'PATH=/usr/sbin:/usr/bin:/sbin:/bin'])
+        self.assertEquals(manif['config']['ExposedPorts'],
+                {'22/ssh': {}})
 
     def testOverlayfsLimits(self):
         # APPENG-3414
         dockerBuildTree = dict(
                 nvf="group-foo=/my.example.com@ns:1/12345.67:1-1-1[is: x86_64]",
                 url="http://example.com/downloadFile?id=123",
-                _fakeParents = ["dockerImageIdFakeParent-2", "dockerImageIdFakeParent-1"],
+                _fakeParents = [dict(id="dockerImageIdFakeParent-2"),
+                    dict(id="dockerImageIdFakeParent-1")],
                 dockerImageId="DockerImageIdFakeParent-0",
                 buildData=self.Data,
                 children=[
@@ -604,41 +639,44 @@ EXPOSE 80
 EXPOSE "443/tcp"
 EXPOSE 53/udp 211/tcp
 """
-        I = docker.DockerfileInstruction
         df = docker.Dockerfile()
         df.parse(txt)
-        items = df._directives.items()
-        self.assertEquals(sorted(items),
-                [
-                    ('CMD', I('CMD', '/usr/sbin/httpd -X')),
-                    ('EXPOSE', [ I('EXPOSE', ['80']),
-                        I('EXPOSE', '443/tcp'),
-                        I('EXPOSE', ['53/udp', '211/tcp']),
-                        ]),
-                    ('FROM', I('FROM', 'aaa')),
-                    ('MAINTAINER', I('MAINTAINER', 'jean.valjean@paris.fr')),
-                    ])
-        self.assertEquals(df.exposedPorts, ['211/tcp', '443/tcp', '53/udp', '80/tcp', ])
-        self.assertEquals(df.entrypoint, None)
-        self.assertEquals(df.cmd, ['/bin/sh', '-c', '/usr/sbin/httpd -X'])
+        manif = docker.Manifest()
+        df.toManifest(manif)
+        self.assertEquals(manif,
+            docker.Manifest(
+                config=docker.Manifest(
+                    Cmd=['/bin/sh', '-c', '/usr/sbin/httpd -X'],
+                    ExposedPorts={'211/tcp': {}, '443/tcp': {}, '80/tcp': {},
+                        '53/udp': {}},
+                    ),
+                author="jean.valjean@paris.fr",
+            ))
 
     def testParseDockerFile2(self):
         txt = """
 # THIS is a comment
  FROM aaa
-MAINTAINER jean.valjean@paris.fr
-CMD /usr/sbin/httpd -X
+MAINTAINER <jean.valjean@paris.fr>
+ENTRYPOINT ["/usr/sbin/httpd", "-D", "a b", ]
+CMD -X
 EXPOSE 80
 EXPOSE "443/tcp"
 EXPOSE 53/udp 211/tcp
 ENV a=1 b=2 \\
         c=3
-ENV d=4
+ENV d=4 # With a comment
 ENV e 5
-ENV f=6 g=two\ words
+ENV f=6 c 33 g=two\ words h=localhost:80
 """
         df = docker.Dockerfile()
         df.parse(txt)
+        self.assertEquals(df.environment,
+                ['a=1', 'b=2', 'c=33', 'd=4', 'e=5', 'f=6', 'g=two words',
+                    'h=localhost:80'])
+        self.assertEquals(df.exposedPorts,
+                ['211/tcp', '443/tcp', '53/udp', '80/tcp'])
+        self.assertEquals(df.entrypoint, ["/usr/sbin/httpd", "-D", "a b",])
 
     def testCmdAndEntrypoint(self):
         txt = """
@@ -665,6 +703,7 @@ ENTRYPOINT [ "/usr/sbin/httpd" ]
 CMD [ "-X" ]
 EXPOSE 80
 EXPOSE "443/tcp"
+ENV a=1 b=2
 """
         df1 = docker.Dockerfile()
         df1.parse(txt)
@@ -674,23 +713,26 @@ MAINTAINER insp.javert@paris.fr
 CMD /usr/sbin/a
 EXPOSE "443/tcp"
 EXPOSE 211
+ENV b=3 c=4
 """
         df2 = docker.Dockerfile()
         df2.parse(txt)
-        df1.merge(df2)
-        self.assertEquals(df1.exposedPorts, ['211/tcp', '443/tcp', '80/tcp', ])
-        self.assertEquals(df1.author, 'jean.valjean@paris.fr')
 
-        manifest = {}
-        df1.toManifest(manifest)
-        self.assertEqual(manifest, {
-            'config': {
+        child = df1.toManifest()
+        child.merge(df2.toManifest())
+        self.assertEquals(child.exposedPorts,
+                {'211/tcp':{},  '443/tcp':{}, '80/tcp':{}, })
+        self.assertEquals(child.author, 'jean.valjean@paris.fr')
+
+        self.assertEqual(child, docker.Manifest(
+            config = docker.Manifest({
                 'Cmd': ['-X'],
                 'Entrypoint': ['/usr/sbin/httpd'],
                 'ExposedPorts': { '211/tcp' : {}, '443/tcp' : {}, '80/tcp' : {}},
-                },
-            'author': 'jean.valjean@paris.fr'
-            })
+                'Env' : [ "a=1", "b=2", "c=4" ],
+                }),
+            author = 'jean.valjean@paris.fr',
+            ))
 
     def testDockerFileMerge_Entrypoint_CMD(self):
         # Parent dockerfile, child dockerfile, expected entrypoint, expected cmd
@@ -711,11 +753,13 @@ EXPOSE 211
         for parentDF, childDF, expEntrypoint, expCmd in combinations:
             parent = docker.Dockerfile()
             parent.parse(parentDF)
+            pManif = parent.toManifest()
             child = docker.Dockerfile()
             child.parse(childDF)
-            child.merge(parent)
-            self.assertEquals(child.entrypoint, expEntrypoint)
-            self.assertEquals(child.cmd, expCmd)
+            cManif = child.toManifest()
+            cManif.merge(pManif)
+            self.assertEquals(cManif.entrypoint, expEntrypoint)
+            self.assertEquals(cManif.cmd, expCmd)
 
         txt = """
 CMD [ "/bin/bash" ]
@@ -732,6 +776,7 @@ ENTRYPOINT [ "/bin/echo", "foo" ]
         self.assertEquals(df1.cmd, ['/bin/bash', ])
         self.assertEquals(df1.entrypoint, None)
 
-        df1.merge(df2)
-        self.assertEquals(df1.cmd, ['/bin/bash', ])
-        self.assertEquals(df1.entrypoint, [ "/bin/echo", "foo", ])
+        child = df1.toManifest()
+        child.merge(df2.toManifest())
+        self.assertEquals(child.cmd, ['/bin/bash', ])
+        self.assertEquals(child.entrypoint, [ "/bin/echo", "foo", ])
