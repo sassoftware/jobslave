@@ -73,7 +73,10 @@ class DockerImage(bootable_image.BootableImage):
             tarball = self._package(outputDir, layersDir, imgSpec)
 
             self.postOutput(((tarball, 'Tar File'),),
-                    attributes={'docker_image_id' : imgSpec.dockerImageId},
+                    attributes={'docker_image_id' : imgSpec.dockerImageId,
+                        'installed_size' : imgSpec.computedSize,
+                        'manifest' : json.dumps(imgSpec._manifest,
+                            sort_keys=True)},
                     forJobData=imgSpec.jobData)
             self.status('Build done', jobstatus.FINISHED,
                     forJobData=imgSpec.jobData)
@@ -159,6 +162,7 @@ class DockerImage(bootable_image.BootableImage):
             else:
                 imgSpec.parent._unpackDir = os.path.join(unpackDir, pImageId)
                 assert os.path.isdir(imgSpec.parent._unpackDir)
+                self._setLayerSize(imgSpec.parent, layersDir)
         # At this point, the parent layer should be on the filesystem, and
         # should have been unpacked
 
@@ -220,6 +224,15 @@ class DockerImage(bootable_image.BootableImage):
         thisLayerDir = os.path.join(unpackDir, imgSpec.dockerImageId)
         self.writeLayer(thisLayerDir, layersDir, imgSpec, withDeletions=True)
 
+    def _setLayerSize(self, imgSpec, layersDir):
+        img = imgSpec
+        while img:
+            if img.layerSize is not None:
+                break
+            layerTarFile = os.path.join(layersDir, img.dockerImageId, "layer.tar")
+            img.layerSize = os.stat(layerTarFile).st_size
+            img = img.parent
+
     def _downloadParentImage(self, imgSpec, unpackDir, layersDir):
         log.debug('Downloading parent image %s', imgSpec.dockerImageId)
         self.status('Downloading parent image')
@@ -244,7 +257,9 @@ class DockerImage(bootable_image.BootableImage):
             layer._unpackDir = parentImageDir
             layerFilesStack.append(
                     (layerId, os.path.join(layersDir, layerId, "layer.tar")))
+            layer.layerSize = os.stat(layerFilesStack[-1][1]).st_size
             layer._manifest = mf = Manifest(json.load(file(os.path.join(layersDir, layerId, 'json'))))
+            mf = json.load(file(os.path.join(layersDir, layerId, 'json')))
             parent = mf.get('parent')
             if parent is not None and not layer.parent:
                 layer.parent = ImageSpec(dockerImageId=parent)
@@ -305,7 +320,7 @@ class DockerImage(bootable_image.BootableImage):
         # XXX for some reason the layer sizes reported by docker are smaller
         # than the tar file
         st = os.stat(tarball)
-        layerSize = st.st_size
+        imgSpec.layerSize = layerSize = st.st_size
         layerCtime = datetime.datetime.utcfromtimestamp(st.st_ctime).isoformat() + 'Z'
         if imgSpec.nvf.flavor.satisfies(deps.parseFlavor('is: x86_64')):
             arch = 'amd64'
@@ -455,6 +470,7 @@ class TarSum(object):
 class ImageSpec(object):
     __slots__ = [ 'name', 'nvf', 'url', 'dockerImageId', 'jobData', 'children',
             'parent', 'repository', 'dockerfile', '_parsedDockerfile',
+            'layerSize',
             '_manifest', '_unpackDir', '_lastChild',
             '_nameToTags', '__weakref__', ]
     def __init__(self, **kwargs):
@@ -531,6 +547,13 @@ class ImageSpec(object):
 
     def updateNamesAndTags(self, namesToTags):
         self._nameToTags.update(namesToTags or [])
+
+    @property
+    def computedSize(self):
+        size = self.layerSize
+        if self.parent:
+            size += self.parent.computedSize
+        return size
 
 class QuotedString(str):
     pass
