@@ -274,18 +274,20 @@ class DockerTest(JobSlaveHelper):
         for call in calls:
             manif = json.loads(call[1][0][1]['manifest'])
             del manif['created']
+            # File ownership makes this unpredictable too
+            del manif['checksum']
             call[1][0][1]['manifest'] = json.dumps(manif, sort_keys=True)
         self.assertEquals(
                 [x[1] for x in img.postOutput._mock.calls],
                 [
                     (
                         ('attributes', {'docker_image_id': '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972', 'installed_size': 40960,
-                            'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-bar=/my.example.com@ns:1/2-1-1[is: x86_64]\'", "Size": 10240, "checksum": "tarsum.v1+sha256:2e5fd0c3e63c85288c9a8f7d4b774ba5721f9e09cffe4b81f8d43593c2a2bbae", "config": {"Cmd": ["-", "x"], "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.3.2", "id": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972", "os": "linux", "parent": "131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800"}'}),
+                            'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-bar=/my.example.com@ns:1/2-1-1[is: x86_64]\'", "Size": 10240, "config": {"Cmd": ["-", "x"], "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.3.2", "id": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972", "os": "linux", "parent": "131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800"}'}),
                         ('forJobData', dockerBuildTree['children'][0]['buildData']),
                         ),
                     (
                         ('attributes', {'docker_image_id': '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313', 'installed_size': 51200,
-                        'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-baz=/my.example.com@ns:1/3-1-1[is: x86_64]\'", "Size": 10240, "checksum": "tarsum.v1+sha256:2e5fd0c3e63c85288c9a8f7d4b774ba5721f9e09cffe4b81f8d43593c2a2bbae", "config": {"Cmd": ["-", "x"], "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.3.2", "id": "18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313", "os": "linux", "parent": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972"}'}),
+                        'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-baz=/my.example.com@ns:1/3-1-1[is: x86_64]\'", "Size": 10240, "config": {"Cmd": ["-", "x"], "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.3.2", "id": "18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313", "os": "linux", "parent": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972"}'}),
                         ('forJobData', dockerBuildTree['children'][0]['children'][0]['buildData']),
                         ),
                     ])
