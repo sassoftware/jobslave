@@ -35,6 +35,23 @@ class DockerImage(bootable_image.BootableImage):
         pass
 
     def installFilesInExistingTree(self, root, nvf):
+        # We need to fork, since rpm doesn't properly set the root in the
+        # transaction set object, and subsequent builds will attempt to use
+        # previous roots
+        pid = os.fork()
+        if pid:
+            while 1:
+                pid, status = os.waitpid(pid, 0)
+                if not os.WIFEXITED(status):
+                    continue
+                if os.WEXITSTATUS(status):
+                    raise RuntimeError('Failed to install')
+                return
+        else:
+            self._installFilesInExistingTree(root, nvf)
+            os._exit(0)
+
+    def _installFilesInExistingTree(self, root, nvf):
         self.status('Installing image contents')
         self.loadRPM()
         cclient = self._openClient(root)
@@ -52,7 +69,6 @@ class DockerImage(bootable_image.BootableImage):
         util.mkdirChain(unpackDir)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
-        #from conary.lib import epdb; epdb.st()
         imgspec = ImageSpec.deserialize(self.jobData['data']['dockerBuildTree'],
                 defaults=dict(repository=self.Repository),
                 mainJobData=self.jobData)
@@ -166,8 +182,6 @@ class DockerImage(bootable_image.BootableImage):
         # At this point, the parent layer should be on the filesystem, and
         # should have been unpacked
 
-#        if imgSpec.name == 'docker-demo-baseconsul':
-#            from conary.lib import epdb; epdb.st()
         dockerImageId = imgSpec.dockerImageId = self.getImageId(imgSpec.nvf)
         log.debug("Building child image %s, layer %s", imgSpec.name,
                 imgSpec.dockerImageId)
@@ -740,4 +754,5 @@ def ovlfs2docker(dirName):
             if (st.st_mode & stat.S_IFCHR) == stat.S_IFCHR and st.st_rdev == 0:
                 newName = os.path.join(dirPath, '.wh.' + fileName)
                 os.unlink(fPath)
-                os.open(newName, os.O_CREAT | os.O_WRONLY, 0)
+                fd = os.open(newName, os.O_CREAT | os.O_WRONLY, 0)
+                os.close(fd)
