@@ -751,7 +751,7 @@ def ovlfs2docker(dirName):
         for fileName in fileNames:
             fPath = os.path.join(dirPath, fileName)
             st = os.lstat(fPath)
-            if (st.st_mode & stat.S_IFCHR) == stat.S_IFCHR and st.st_rdev == 0:
+            if stat.S_ISCHR(st.st_mode) and st.st_rdev == 0:
                 newName = os.path.join(dirPath, '.wh.' + fileName)
                 os.unlink(fPath)
                 fd = os.open(newName, os.O_CREAT | os.O_WRONLY, 0)

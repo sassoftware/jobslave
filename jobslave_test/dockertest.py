@@ -589,8 +589,10 @@ CMD [ "-d" ]""",)
         docker.util.mkdirChain(explodedDir)
         regularFilePath = os.path.join(explodedDir, 'regular-file')
         deletedFilePath = os.path.join(explodedDir, 'deleted-file')
+        symlinkFile = os.path.join(explodedDir, 'symlink-file')
         file(regularFilePath, "w").write('a')
         file(deletedFilePath, "w")
+        os.symlink("regular-file", symlinkFile)
 
         unpackDir2 = os.path.join(self.workDir, 'unpacked')
         docker.util.mkdirChain(os.path.join(unpackDir2, 'deleted-file'))
@@ -636,7 +638,8 @@ CMD [ "-d" ]""",)
         self.mock(docker.tarfile, 'open', mockOpen)
         img._extractLayer(unpackDir2, tarfilePath)
         # We should have only the regular file
-        self.assertEqual(os.listdir(unpackDir2), ['regular-file'])
+        self.assertEqual(sorted(os.listdir(unpackDir2)),
+                [ 'regular-file', 'symlink-file', ])
 
 class DockerfileTest(JobSlaveHelper):
     def testParseDockerFile(self):
