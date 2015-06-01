@@ -25,6 +25,7 @@ import shlex
 import stat
 import tarfile
 import tempfile
+import sys
 import weakref
 
 # jobslave imports
@@ -91,24 +92,37 @@ class DockerImage(bootable_image.BootableImage):
         # Base is potentially first; reverse the list so we can use it as a
         # stack
         imgsToBuild.reverse()
+        excRaised = None
         while imgsToBuild:
             imgSpec = imgsToBuild.pop()
-            if imgSpec.parent is None:
-                # Base layer
-                self.writeBase(unpackDir, layersDir, imgSpec)
+            if excRaised is not None:
+                self.status('Build failed', jobstatus.FAILED,
+                    forJobData=imgSpec.jobData)
+                continue
+            try:
+                if imgSpec.parent is None:
+                    # Base layer
+                    self.writeBase(unpackDir, layersDir, imgSpec)
+                else:
+                    self.writeChild(unpackDir, layersDir, imgSpec)
+
+                tarball = self._package(outputDir, layersDir, imgSpec)
+
+                self.postOutput(((tarball, 'Tar File'),),
+                        attributes={'docker_image_id' : imgSpec.dockerImageId,
+                            'installed_size' : imgSpec.computedSize,
+                            'manifest' : json.dumps(imgSpec._manifest,
+                                sort_keys=True)},
+                        forJobData=imgSpec.jobData)
+            except:
+                excRaised = sys.exc_info()
+                self.status('Build failed', jobstatus.FAILED,
+                        forJobData=imgSpec.jobData)
             else:
-                self.writeChild(unpackDir, layersDir, imgSpec)
-
-            tarball = self._package(outputDir, layersDir, imgSpec)
-
-            self.postOutput(((tarball, 'Tar File'),),
-                    attributes={'docker_image_id' : imgSpec.dockerImageId,
-                        'installed_size' : imgSpec.computedSize,
-                        'manifest' : json.dumps(imgSpec._manifest,
-                            sort_keys=True)},
-                    forJobData=imgSpec.jobData)
-            self.status('Build done', jobstatus.FINISHED,
-                    forJobData=imgSpec.jobData)
+                self.status('Build done', jobstatus.FINISHED,
+                        forJobData=imgSpec.jobData)
+        if excRaised is not None:
+            raise excRaised[0], excRaised[1], excRaised[2]
 
     def _package(self, outputDir, layersDir, imgSpec):
         reposData = {}
