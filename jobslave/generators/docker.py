@@ -766,6 +766,7 @@ def ovlfs2docker(dirName):
             st = os.lstat(fPath)
             if stat.S_ISCHR(st.st_mode) and st.st_rdev == 0:
                 newName = os.path.join(dirPath, '.wh.' + fileName)
+                log.debug("Renaming %s to %s", fPath, newName)
                 os.unlink(fPath)
                 fd = os.open(newName, os.O_CREAT | os.O_WRONLY, 0)
                 os.close(fd)
