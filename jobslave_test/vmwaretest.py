@@ -91,7 +91,53 @@ class VMwareTest(JobSlaveHelper):
         self._testGuestOS(vmware_image.VMwareESXImage, '', 'is: x86_64',
                 'other26xlinux-64')
 
-class VMwareImageTest(JobSlaveHelper):
+class BaseVmwareImageTest(JobSlaveHelper):
+    GeneratorClass = None
+    OvfNsMap = dict(ovf='http://schemas.dmtf.org/ovf/envelope/1',
+                vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData",
+                rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData",
+                vbox="http://www.virtualbox.org/ovf/machine")
+    def _mock(self, data=None, buildData=None):
+        self.data.update(data or {})
+        self.data['data'].update(buildData or {})
+
+        self.vmwareDisk = disk = mock.MockObject()
+        def mockMakeHDImage(image):
+            buf = ''.join(chr(x) for x in range(32, 128))
+            f = file(image, "w")
+            for i in range(1024*1024):
+                f.write(buf)
+            f.flush()
+            disk._mock.set(totalSize=f.tell(), image=image)
+            return disk
+        img = self.GeneratorClass(self.slaveCfg, self.data)
+        img.swapSize = 4 * 1024 * 1024
+        img.makeHDImage = mockMakeHDImage
+
+        origLogCall = vmware_image.logCall
+        self.logCallArgs = logCallArgs = []
+        def mockLogCall(cmd, **kw):
+            logCallArgs.append((cmd, kw))
+            if cmd[0] != '/usr/bin/raw2vmdk':
+                return origLogCall(cmd, **kwargs)
+            hdImage = cmd[-2]
+            outfile = cmd[-1]
+            assert os.path.exists(hdImage)
+            with open(outfile, 'w') as f:
+                f.seek(1000000)
+                f.truncate()
+        self.mock(vmware_image, 'logCall', mockLogCall)
+        mock.mockMethod(img.downloadChangesets)
+        mock.mockMethod(img.postOutput)
+        self.img = img
+        return img
+
+    @classmethod
+    def _xpath(cls, et, path):
+        return et.xpath(path, namespaces=cls.OvfNsMap)
+
+class VMwareImageTest(BaseVmwareImageTest):
+    GeneratorClass = vmware_image.VMwareImage
     OVF_XML = """\
 <?xml version='1.0' encoding='UTF-8'?>
 <ovf:Envelope xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:vbox="http://www.virtualbox.org/ovf/machine">
@@ -202,41 +248,6 @@ class VMwareImageTest(JobSlaveHelper):
 </ovf:Envelope>
 """
 
-    def _mock(self, data=None, buildData=None):
-        self.data.update(data or {})
-        self.data['data'].update(buildData or {})
-
-        self.vmwareDisk = disk = mock.MockObject()
-        def mockMakeHDImage(image):
-            buf = ''.join(chr(x) for x in range(32, 128))
-            f = file(image, "w")
-            for i in range(1024*1024):
-                f.write(buf)
-            f.flush()
-            disk._mock.set(totalSize=f.tell(), image=image)
-            return disk
-        img = vmware_image.VMwareImage(self.slaveCfg, self.data)
-        img.swapSize = 4 * 1024 * 1024
-        img.makeHDImage = mockMakeHDImage
-
-        origLogCall = vmware_image.logCall
-        self.logCallArgs = logCallArgs = []
-        def mockLogCall(cmd, **kw):
-            logCallArgs.append((cmd, kw))
-            if cmd[0] != '/usr/bin/raw2vmdk':
-                return origLogCall(cmd, **kwargs)
-            hdImage = cmd[-2]
-            outfile = cmd[-1]
-            assert os.path.exists(hdImage)
-            with open(outfile, 'w') as f:
-                f.seek(1000000)
-                f.truncate()
-        self.mock(vmware_image, 'logCall', mockLogCall)
-        mock.mockMethod(img.downloadChangesets)
-        mock.mockMethod(img.postOutput)
-        self.img = img
-        return img
-
     def testOvfProductSection(self):
         self._mock(data=dict(description='Blabbedy'),
                 buildData=dict(buildOVF10=True))
@@ -261,18 +272,16 @@ class VMwareImageTest(JobSlaveHelper):
                 vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData",
                 rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData",
                 vbox="http://www.virtualbox.org/ovf/machine")
-        virtHwSect = et.xpath('/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection',
-                namespaces=nsmap)[0]
-        vsystype = virtHwSect.xpath('ovf:System/vssd:VirtualSystemType', namespaces=nsmap)[0]
+        virtHwSect = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection')[0]
+        vsystype = self._xpath(virtHwSect, 'ovf:System/vssd:VirtualSystemType')[0]
         vsystype.text = 'vmx-10'
         # Find instance 1, with the label
 
-        item = virtHwSect.xpath('ovf:Item[rasd:InstanceID = 1]', namespaces=nsmap)[0]
-        item.xpath('rasd:Caption', namespaces=nsmap)[0].text = "12 CPUs"
-        item.xpath('rasd:VirtualQuantity', namespaces=nsmap)[0].text = "12"
+        item = self._xpath(virtHwSect, 'ovf:Item[rasd:InstanceID = 1]')[0]
+        self._xpath(item, 'rasd:Caption')[0].text = "12 CPUs"
+        self._xpath(item, 'rasd:VirtualQuantity')[0].text = "12"
 
-        vboxMachine = et.xpath('/ovf:Envelope/ovf:VirtualSystem/vbox:Machine',
-                namespaces=nsmap)[0]
+        vboxMachine = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/vbox:Machine')[0]
         vboxMachine.xpath('Hardware/CPU')[0].attrib['count'] = '12'
 
         xml = etree.tostring(et)
@@ -292,16 +301,14 @@ class VMwareImageTest(JobSlaveHelper):
 
         img.write()
         et = etree.fromstring(self.OVF_XML)
-        virtHwSect = et.xpath('/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection',
-                namespaces=nsmap)[0]
-        vsystype = virtHwSect.xpath('ovf:System/vssd:VirtualSystemType', namespaces=nsmap)[0]
+        virtHwSect = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection')[0]
+        vsystype = self._xpath(virtHwSect, 'ovf:System/vssd:VirtualSystemType')[0]
         vsystype.text = 'vmx-10'
-        item = virtHwSect.xpath('ovf:Item[rasd:InstanceID = 2]', namespaces=nsmap)[0]
-        item.xpath('rasd:Caption', namespaces=nsmap)[0].text = "65536 MB of Memory"
-        item.xpath('rasd:VirtualQuantity', namespaces=nsmap)[0].text = "65536"
+        item = self._xpath(virtHwSect, 'ovf:Item[rasd:InstanceID = 2]')[0]
+        self._xpath(item, 'rasd:Caption')[0].text = "65536 MB of Memory"
+        self._xpath(item, 'rasd:VirtualQuantity')[0].text = "65536"
 
-        vboxMachine = et.xpath('/ovf:Envelope/ovf:VirtualSystem/vbox:Machine',
-                namespaces=nsmap)[0]
+        vboxMachine = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/vbox:Machine')[0]
         vboxMachine.xpath('Hardware/Memory')[0].attrib['RAMSize'] = '65536'
 
         xml = etree.tostring(et)
@@ -324,3 +331,27 @@ class VMwareImageTest(JobSlaveHelper):
         vmxPath = os.path.join(img.workingDir, '%s.vmx' % baseFileName)
         f = file(vmxPath)
         self.assertIn('displayName = "%s"' % baseFileName, f.read())
+
+    def testNatNetworking(self):
+        baseFileName = "obfuscated-orangutan"
+        self._mock(data=dict(description='Blabbedy'),
+                buildData=dict(buildOVF10=True, natNetworking=True,
+                    baseFileName=baseFileName))
+        img = self.img
+        img.write()
+        ovfPath = os.path.join(img.workingDir, '%s.ovf' % baseFileName)
+        f = file(ovfPath)
+
+        et = etree.parse(f)
+        virtHwSect = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection')[0]
+        itemsResourceType = self._xpath(virtHwSect, 'ovf:Item/rasd:ResourceType/text()')
+        self.assertEquals(itemsResourceType, ['3', '4', '10', '17', '6', ])
+        nwItem = self._xpath(virtHwSect, 'ovf:Item')[2]
+        conn = self._xpath(nwItem, 'rasd:Connection/text()')
+        self.assertEquals(conn, ['nat'])
+
+        nwNames = self._xpath(et, '/ovf:Envelope/ovf:NetworkSection/ovf:Network/@ovf:name')
+        self.assertEquals(nwNames, ['nat'])
+
+class VMwareESXImageTest(BaseVmwareImageTest):
+    GeneratorClass = vmware_image.VMwareESXImage

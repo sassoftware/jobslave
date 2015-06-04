@@ -295,11 +295,15 @@ class ImageGenerator(Generator):
             )
 
         ovfObj = self.ovfImage.createOvf()
+        self.customizeOvf(self.ovfImage)
         ovfXml = self.ovfImage.writeOvf()
         self.ovfImage.createManifest()
         ovaPath = self.ovfImage.createOva()
 
         return ovaPath
+
+    def customizeOvf(self, ovfImage):
+        pass
 
     def _loadProddef(self):
         proddefLabel = self.jobData.get('proddefLabel')

@@ -337,6 +337,14 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         return OSInfo(ovfId, version, platformName, osType)
 
+    def customizeOvf(self, ovfImage):
+        if self.getBuildData('natNetworking'):
+            ovfImage.ovf.ovf_NetworkSection.ovf_Network[0].name = 'nat'
+            nwobjs = [ x
+                    for x in ovfImage.ovf.ovf_VirtualSystem.ovf_VirtualHardwareSection[0].ovf_Item
+                    if x.rasd_ResourceType == '10' ]
+            for nwobj in nwobjs:
+                nwobj.rasd_Connection = 'nat'
 
 class VMwareESXImage(VMwareImage):
 
