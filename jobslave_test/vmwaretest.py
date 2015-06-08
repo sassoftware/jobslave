@@ -332,6 +332,22 @@ class VMwareImageTest(BaseVmwareImageTest):
         f = file(vmxPath)
         self.assertIn('displayName = "%s"' % baseFileName, f.read())
 
+    def testNameInVMXWithSpaces(self):
+        # APPENG-3541
+        baseFileName = "obfuscated orangutan"
+        baseFileNameUnderscores = baseFileName.replace(' ', '_')
+        self._mock(data=dict(description='Blabbedy'),
+                buildData=dict(baseFileName=baseFileName))
+        img = self.img
+        img.write()
+        vmxPath = os.path.join(img.workingDir, '%s.vmx' % baseFileNameUnderscores)
+        f = file(vmxPath)
+        vmx = f.read()
+        # displayName still has spaces
+        self.assertIn('displayName = "%s"' % baseFileName, vmx)
+        # other uses of basefilename have spaces replaced by underscores
+        self.assertIn('nvram = "%s.nvram"' % baseFileNameUnderscores, vmx)
+
     def testNatNetworking(self):
         baseFileName = "obfuscated-orangutan"
         self._mock(data=dict(description='Blabbedy'),

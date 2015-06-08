@@ -195,7 +195,7 @@ class ImageGenerator(Generator):
         self._loadProddef()
 
         self.arch = self.getArchFromFlavor(self.baseFlavor)
-        self.basefilename = self.getBaseFileName()
+        (self.basefilename, self.original_basefilename) = self.getBaseFileName()
         self.buildOVF10 = self.getBuildData('buildOVF10') or self.alwaysOvf10
 
         self.cml = CML(self.conarycfg)
@@ -224,11 +224,13 @@ class ImageGenerator(Generator):
             version = self.baseVersion
         basefilename = jobData.getBuildData('baseFileName') or ''
         if basefilename:
+            orig_basefilename = basefilename
             basefilename = self.sanitizeBaseFileName(basefilename)
         else:
             basefilename = '-'.join((jobData['project']['hostname'],
                 version.trailingRevision().version, arch))
-        return basefilename.encode('utf8')
+            orig_basefilename = basefilename
+        return (basefilename.encode('utf8'), orig_basefilename.encode('utf8'))
 
     @classmethod
     def sanitizeBaseFileName(cls, basefilename):
