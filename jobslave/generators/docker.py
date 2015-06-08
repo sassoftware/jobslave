@@ -1,6 +1,19 @@
 #
 # Copyright (c) SAS Institute Inc.
 #
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 
 # python standard library imports
 import datetime
@@ -12,6 +25,7 @@ import shlex
 import stat
 import tarfile
 import tempfile
+import sys
 import weakref
 
 # jobslave imports
@@ -35,6 +49,23 @@ class DockerImage(bootable_image.BootableImage):
         pass
 
     def installFilesInExistingTree(self, root, nvf):
+        # We need to fork, since rpm doesn't properly set the root in the
+        # transaction set object, and subsequent builds will attempt to use
+        # previous roots
+        pid = os.fork()
+        if pid:
+            while 1:
+                pid, status = os.waitpid(pid, 0)
+                if not os.WIFEXITED(status):
+                    continue
+                if os.WEXITSTATUS(status):
+                    raise RuntimeError('Failed to install')
+                return
+        else:
+            self._installFilesInExistingTree(root, nvf)
+            os._exit(0)
+
+    def _installFilesInExistingTree(self, root, nvf):
         self.status('Installing image contents')
         self.loadRPM()
         cclient = self._openClient(root)
@@ -52,7 +83,6 @@ class DockerImage(bootable_image.BootableImage):
         util.mkdirChain(unpackDir)
         outputDir = os.path.join(constants.finishedDir, self.UUID)
         util.mkdirChain(outputDir)
-        #from conary.lib import epdb; epdb.st()
         imgspec = ImageSpec.deserialize(self.jobData['data']['dockerBuildTree'],
                 defaults=dict(repository=self.Repository),
                 mainJobData=self.jobData)
@@ -62,21 +92,37 @@ class DockerImage(bootable_image.BootableImage):
         # Base is potentially first; reverse the list so we can use it as a
         # stack
         imgsToBuild.reverse()
+        excRaised = None
         while imgsToBuild:
             imgSpec = imgsToBuild.pop()
-            if imgSpec.parent is None:
-                # Base layer
-                self.writeBase(unpackDir, layersDir, imgSpec)
+            if excRaised is not None:
+                self.status('Build failed', jobstatus.FAILED,
+                    forJobData=imgSpec.jobData)
+                continue
+            try:
+                if imgSpec.parent is None:
+                    # Base layer
+                    self.writeBase(unpackDir, layersDir, imgSpec)
+                else:
+                    self.writeChild(unpackDir, layersDir, imgSpec)
+
+                tarball = self._package(outputDir, layersDir, imgSpec)
+
+                self.postOutput(((tarball, 'Tar File'),),
+                        attributes={'docker_image_id' : imgSpec.dockerImageId,
+                            'installed_size' : imgSpec.computedSize,
+                            'manifest' : json.dumps(imgSpec._manifest,
+                                sort_keys=True)},
+                        forJobData=imgSpec.jobData)
+            except:
+                excRaised = sys.exc_info()
+                self.status('Build failed', jobstatus.FAILED,
+                        forJobData=imgSpec.jobData)
             else:
-                self.writeChild(unpackDir, layersDir, imgSpec)
-
-            tarball = self._package(outputDir, layersDir, imgSpec)
-
-            self.postOutput(((tarball, 'Tar File'),),
-                    attributes={'docker_image_id' : imgSpec.dockerImageId},
-                    forJobData=imgSpec.jobData)
-            self.status('Build done', jobstatus.FINISHED,
-                    forJobData=imgSpec.jobData)
+                self.status('Build done', jobstatus.FINISHED,
+                        forJobData=imgSpec.jobData)
+        if excRaised is not None:
+            raise excRaised[0], excRaised[1], excRaised[2]
 
     def _package(self, outputDir, layersDir, imgSpec):
         reposData = {}
@@ -159,11 +205,10 @@ class DockerImage(bootable_image.BootableImage):
             else:
                 imgSpec.parent._unpackDir = os.path.join(unpackDir, pImageId)
                 assert os.path.isdir(imgSpec.parent._unpackDir)
+                self._setLayerSize(imgSpec.parent, layersDir)
         # At this point, the parent layer should be on the filesystem, and
         # should have been unpacked
 
-#        if imgSpec.name == 'docker-demo-baseconsul':
-#            from conary.lib import epdb; epdb.st()
         dockerImageId = imgSpec.dockerImageId = self.getImageId(imgSpec.nvf)
         log.debug("Building child image %s, layer %s", imgSpec.name,
                 imgSpec.dockerImageId)
@@ -220,6 +265,15 @@ class DockerImage(bootable_image.BootableImage):
         thisLayerDir = os.path.join(unpackDir, imgSpec.dockerImageId)
         self.writeLayer(thisLayerDir, layersDir, imgSpec, withDeletions=True)
 
+    def _setLayerSize(self, imgSpec, layersDir):
+        img = imgSpec
+        while img:
+            if img.layerSize is not None:
+                break
+            layerTarFile = os.path.join(layersDir, img.dockerImageId, "layer.tar")
+            img.layerSize = os.stat(layerTarFile).st_size
+            img = img.parent
+
     def _downloadParentImage(self, imgSpec, unpackDir, layersDir):
         log.debug('Downloading parent image %s', imgSpec.dockerImageId)
         self.status('Downloading parent image')
@@ -244,7 +298,9 @@ class DockerImage(bootable_image.BootableImage):
             layer._unpackDir = parentImageDir
             layerFilesStack.append(
                     (layerId, os.path.join(layersDir, layerId, "layer.tar")))
+            layer.layerSize = os.stat(layerFilesStack[-1][1]).st_size
             layer._manifest = mf = Manifest(json.load(file(os.path.join(layersDir, layerId, 'json'))))
+            mf = json.load(file(os.path.join(layersDir, layerId, 'json')))
             parent = mf.get('parent')
             if parent is not None and not layer.parent:
                 layer.parent = ImageSpec(dockerImageId=parent)
@@ -305,7 +361,7 @@ class DockerImage(bootable_image.BootableImage):
         # XXX for some reason the layer sizes reported by docker are smaller
         # than the tar file
         st = os.stat(tarball)
-        layerSize = st.st_size
+        imgSpec.layerSize = layerSize = st.st_size
         layerCtime = datetime.datetime.utcfromtimestamp(st.st_ctime).isoformat() + 'Z'
         if imgSpec.nvf.flavor.satisfies(deps.parseFlavor('is: x86_64')):
             arch = 'amd64'
@@ -455,6 +511,7 @@ class TarSum(object):
 class ImageSpec(object):
     __slots__ = [ 'name', 'nvf', 'url', 'dockerImageId', 'jobData', 'children',
             'parent', 'repository', 'dockerfile', '_parsedDockerfile',
+            'layerSize',
             '_manifest', '_unpackDir', '_lastChild',
             '_nameToTags', '__weakref__', ]
     def __init__(self, **kwargs):
@@ -531,6 +588,13 @@ class ImageSpec(object):
 
     def updateNamesAndTags(self, namesToTags):
         self._nameToTags.update(namesToTags or [])
+
+    @property
+    def computedSize(self):
+        size = self.layerSize
+        if self.parent:
+            size += self.parent.computedSize
+        return size
 
 class QuotedString(str):
     pass
@@ -714,7 +778,9 @@ def ovlfs2docker(dirName):
         for fileName in fileNames:
             fPath = os.path.join(dirPath, fileName)
             st = os.lstat(fPath)
-            if (st.st_mode & stat.S_IFCHR) == stat.S_IFCHR and st.st_rdev == 0:
+            if stat.S_ISCHR(st.st_mode) and st.st_rdev == 0:
                 newName = os.path.join(dirPath, '.wh.' + fileName)
+                log.debug("Renaming %s to %s", fPath, newName)
                 os.unlink(fPath)
-                os.open(newName, os.O_CREAT | os.O_WRONLY, 0)
+                fd = os.open(newName, os.O_CREAT | os.O_WRONLY, 0)
+                os.close(fd)
