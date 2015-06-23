@@ -25,8 +25,8 @@ import zlib
 
 log = logging.getLogger(__name__)
 
-class VMDK(object):
-    __slots__ = ['_streamIn', '_streamOut', 'header', 'descriptor', ]
+class VMDKReader(object):
+    __slots__ = ['_streamIn', '_streamOut', 'header', 'descriptor', 'callback' ]
     _SECT = 512
     _HEADER = namedtuple('Header', 'magicNumber version flags capacity '
         'grainSize descriptorOffset descriptorSize numGTEsPerGT rgdOffset '
@@ -80,7 +80,7 @@ class VMDK(object):
         BLOCK_SIZE = 65536
 
         def __init__(self):
-            VMDK.BaseGrainTable.__init__(self)
+            VMDKReader.BaseGrainTable.__init__(self)
             self.offset = 0
             self.lba = -1
 
@@ -126,19 +126,22 @@ class VMDK(object):
 
         @classmethod
         def decode(cls, marker, data):
-            sformat = "<%sI" % (marker.val * VMDK._SECT / 4)
+            sformat = "<%sI" % (marker.val * VMDKReader._SECT / 4)
             metadata = struct.unpack(sformat, data)
             return metadata
 
         def empty(self):
             return []
 
-    def __init__(self, fobj, outputStream):
+    def __init__(self, fobj, outputStream, callback=None):
         self._streamIn = fobj
         self._streamOut = outputStream
         self._streamOut.seek(0)
+        if callback is None:
+            callback = lambda *args, **kwargs: None
+        self.callback = callback
 
-    def inspect(self):
+    def process(self):
         fout = self._streamOut
 
         headerData = self._streamIn.read(self._SECT)
@@ -181,6 +184,7 @@ class VMDK(object):
             fout.seek(marker.lba * self._SECT)
             fout.write(zlib.decompress(marker.data))
             grainTable.add(marker)
+            self.callback(self._streamIn.tell(), fout.tell())
 
         footerMarker = self._readMarker()
         self.assertEquals(footerMarker.type, self.Marker.FOOTER)
@@ -292,14 +296,22 @@ class VMDK(object):
             self._streamIn.seek(self._SECT - padding, os.SEEK_CUR)
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     if len(sys.argv) < 2:
         print "Usage: %s <file-in> <file-out>" % sys.argv[0]
         return 1
     vmdkFile = file(sys.argv[1])
     fileOut = file(sys.argv[2], "w")
-    vmdk = VMDK(vmdkFile, fileOut)
-    vmdk.inspect()
+    cb = Callback(os.fstat(vmdkFile.fileno()).st_size)
+    vmdk = VMDKReader(vmdkFile, fileOut, callback=cb.callback)
+    vmdk.process()
+
+class Callback(namedtuple("Callback", "size")):
+    MB = 1024 * 1024.0
+    def callback(self, current, output):
+        log.info("CB: %.1f/%.1f MB, %.1f%%, %s",
+                current/self.MB, self.size/self.MB, current*100/self.size,
+                output)
 
 if __name__ == '__main__':
     sys.exit(main())
