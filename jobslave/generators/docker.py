@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 class DockerImage(bootable_image.BootableImage):
     fileType = buildtypes.typeNames[buildtypes.DOCKER_IMAGE]
-    Repository = 'appeng-test'
+    Repository = 'appeng'
 
     def preInstallScripts(self):
         pass

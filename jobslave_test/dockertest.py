@@ -330,11 +330,11 @@ class DockerTest(JobSlaveHelper):
         repos = json.load(file(img.workDir + '/docker-image/layers/repositories'))
         self.assertEquals(repos, {
             'my-super-repo/img-0': {'latest': 'dockerImageIdFakeParent-0'},
-            'appeng-test/foo': {'1-1-1': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'},
+            'appeng/foo': {'1-1-1': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'},
             'my-super-repo/img-1': {'latest': 'dockerImageIdFakeParent-1'},
-            'appeng-test/baz': {'3-1-1': '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313'},
+            'appeng/baz': {'3-1-1': '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313'},
             'my-super-repo/img-2': {'latest': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'},
-            'appeng-test/bar': {'2-1-1': '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972'},
+            'appeng/bar': {'2-1-1': '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972'},
             'my-lame-repo/img-102': {'tag-02': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800'},
             'my-lame-repo/img-101': {'tag-01': 'dockerImageIdFakeParent-1'},
             'my-lame-repo/img-100': {'tag-00': 'dockerImageIdFakeParent-0'},
@@ -585,7 +585,7 @@ CMD [ "-d" ]""",)
             'repository-for-bar/bar': {
                 '2-1-1': '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972',
                 },
-            'appeng-test/foo': {
+            'appeng/foo': {
                 '1-1-1': '131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800',
                 },
             'repository-for-baz/baz': {
