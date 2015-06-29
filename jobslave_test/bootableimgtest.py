@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-
 import os
+import subprocess
 import tempfile
 import time
 from StringIO import StringIO
@@ -177,42 +177,32 @@ class BootableImageHelperTest(jobslave_helper.JobSlaveHelper):
 
     def testFormatSwap(self):
         fsm = bootable_image.Filesystem('/dev/null', 'swap', 104857600)
-        def DummyLogCall(cmd):
-            # this is the line that actually tests the format call
-            assert 'mkswap' in cmd
-        logCall = bootable_image.logCall
-        loopDetach = jobslave.loophelpers.loopDetach
-        loopAttach = jobslave.loophelpers.loopAttach
-        try:
-            bootable_image.logCall = DummyLogCall
-            jobslave.loophelpers.loopDetach = lambda *args, **kwargs: None
-            jobslave.loophelpers.loopAttach = lambda *args, **kwargs: '/dev/loop0'
-            fsm.format()
-        finally:
-            bootable_image.logCall = logCall
-            jobslave.loophelpers.loopDetach = loopDetach
-            jobslave.loophelpers.loopAttach = loopAttach
+        mock.mock(bootable_image, 'logCall')
+        mock.mockFunction(jobslave.loophelpers.loopDetach)
+        mock.mockFunction(jobslave.loophelpers.loopAttach)
+        jobslave.loophelpers.loopAttach._mock.setDefaultReturn('/dev/loop0')
+        mock.mock(subprocess, 'Popen')
+        subprocess.Popen()._mock.set(stdout=StringIO('abc123'))
+        subprocess.Popen().wait._mock.setDefaultReturn(0)
+        fsm.format()
+        self.assertEqual(fsm.uuid, 'abc123')
+        self.assertEqual(bootable_image.logCall._mock.calls[0][0][0][0], 'mkswap')
+        self.assertEqual(len(jobslave.loophelpers.loopDetach._mock.calls), 1)
 
-    def testFormatExt3(self):
-        fsm = bootable_image.Filesystem('/dev/null', 'ext3', 104857600,
+    def testFormatExt4(self):
+        fsm = bootable_image.Filesystem('/dev/null', 'ext4', 104857600,
                 offset = 512)
-        def DummyLoopDetach(*args, **kwargs):
-            self.detachCalled = True
-        self.detachCalled = False
-        logCall = bootable_image.logCall
-        loopDetach = jobslave.loophelpers.loopDetach
-        loopAttach = jobslave.loophelpers.loopAttach
-        try:
-            bootable_image.logCall = lambda *args, **kwargs: None
-            jobslave.loophelpers.loopDetach = DummyLoopDetach
-            jobslave.loophelpers.loopAttach = lambda *args, **kwargs: '/dev/loop0'
-            fsm.format()
-        finally:
-            bootable_image.logCall = logCall
-            jobslave.loophelpers.loopDetach = loopDetach
-            jobslave.loophelpers.loopAttach = loopAttach
-        self.failIf(not self.detachCalled,
-                "ext3 format did not reach completion")
+        mock.mock(bootable_image, 'logCall')
+        mock.mockFunction(jobslave.loophelpers.loopDetach)
+        mock.mockFunction(jobslave.loophelpers.loopAttach)
+        jobslave.loophelpers.loopAttach._mock.setDefaultReturn('/dev/loop0')
+        mock.mock(subprocess, 'Popen')
+        subprocess.Popen()._mock.set(stdout=StringIO('abc123'))
+        subprocess.Popen().wait._mock.setDefaultReturn(0)
+        fsm.format()
+        self.assertEqual(fsm.uuid, 'abc123')
+        self.assertEqual(bootable_image.logCall._mock.calls[0][0][0][0], 'mkfs.ext4')
+        self.assertEqual(len(jobslave.loophelpers.loopDetach._mock.calls), 1)
 
 
 class StubFilesystem(object):

@@ -285,15 +285,20 @@ class Filesystem(object):
                 pass
             else:
                 raise RuntimeError, "Invalid filesystem type: %s" % self.fsType
-
-            proc = subprocess.Popen(['/sbin/blkid', '-p',
-                    '-s', 'UUID', '-o', 'value', self.devPath],
-                    stdout=subprocess.PIPE)
-            self.uuid = proc.stdout.read().split()[0]
-            if proc.wait():
-                raise RuntimeError("blkid failed to get filesystem UUID")
+            self._get_uuid()
         finally:
             self.detach()
+
+    def _get_uuid(self):
+        proc = subprocess.Popen(['/sbin/blkid', '-p',
+                '-s', 'UUID', '-o', 'value', self.devPath],
+                stdout=subprocess.PIPE)
+        uuid = proc.stdout.read().strip()
+        if uuid:
+            uuid = uuid.split()[0]
+        self.uuid = uuid
+        if proc.wait():
+            raise RuntimeError("blkid failed to get filesystem UUID")
 
 
 class StubFilesystem(object):

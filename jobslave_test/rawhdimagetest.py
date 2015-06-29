@@ -85,5 +85,7 @@ NOZEROCONF=yes
         mock.mockMethod(img.downloadChangesets)
         mock.mockMethod(img.postOutput)
         mock.mockMethod(img.loadRPM)
+        mock.mock(bootable_image.Filesystem, '_get_uuid')
+        bootable_image.Filesystem._get_uuid()._mock.setDefaultReturn('abc123')
         self.mock(img, 'updateGroupChangeSet', lambda x: None)
         img.write()
