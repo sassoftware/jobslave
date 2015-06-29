@@ -23,6 +23,7 @@ from conary.lib import util
 from jobslave.bootloader import DummyInstaller
 from jobslave.bootloader.extlinux_installer import ExtLinuxInstaller
 from jobslave.bootloader.grub_installer import GrubInstaller
+from jobslave.bootloader.grub2_installer import Grub2Installer
 
 
 def get_bootloader(parent, image_root, geometry, override=None):
@@ -36,6 +37,9 @@ def get_bootloader(parent, image_root, geometry, override=None):
       os.path.exists(util.joinPaths(image_root, 'sbin/bootman')) and \
       os.path.exists(util.joinPaths(image_root, 'sbin/extlinux'))):
         return ExtLinuxInstaller(parent, image_root, geometry)
+    elif override == 'grub2' or (not override and
+            os.path.exists(util.joinPaths(image_root, 'usr/sbin/grub2-install'))):
+        return Grub2Installer(parent, image_root, geometry)
     elif override == 'grub' or (not override and grubpath):
         return GrubInstaller(parent, image_root, geometry,
                 grubpath.replace(image_root, ''))

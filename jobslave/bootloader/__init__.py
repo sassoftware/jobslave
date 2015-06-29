@@ -22,6 +22,7 @@ class BootloaderInstaller(object):
     def __init__(self, parent, image_root, geometry):
         self.jobData = parent.jobData
         self.arch = parent.arch
+        self.root_device = parent.filesystems['/']
         self.root_label = parent.filesystems['/'].fsLabel
         self.image_root = image_root
         self.geometry = geometry

@@ -1,0 +1,2 @@
+# Disable consistent network naming so that eth0 can be configured for DHCP by
+# default.

@@ -76,3 +76,25 @@ class InitrdGenerator(object):
                 continue
             kernels.append((kver, ipath))
         self.generate(kernels)
+
+    def generateFromGrub2(self):
+        path = os.path.join(self.image_root, 'boot', 'grub2', 'grub.cfg')
+        paths = []
+        kernel = initrd = None
+        for line in open(path):
+            line = line.strip()
+            if line.startswith('linux'):
+                kernel = line.split()[1]
+            elif line.startswith('initrd'):
+                initrd = line.split()[1]
+            elif line.endswith('}') and kernel and initrd:
+                paths.append((kernel, initrd))
+                kernel = initrd = None
+
+        kernels = set()
+        for kpath, ipath in paths:
+            kver = os.path.basename(kpath)[8:]
+            if not ipath.startswith('/boot/'):
+                ipath = '/boot' + ipath
+            kernels.add((kver, ipath))
+        self.generate(kernels)

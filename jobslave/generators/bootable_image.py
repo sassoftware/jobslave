@@ -195,6 +195,7 @@ class Filesystem(object):
         self.fsLabel = fsLabel
         self.fsType = fsType
         self.mountPoint = None
+        self.uuid = None
 
     def attach(self):
         if self.useLoop:
@@ -284,6 +285,13 @@ class Filesystem(object):
                 pass
             else:
                 raise RuntimeError, "Invalid filesystem type: %s" % self.fsType
+
+            proc = subprocess.Popen(['/sbin/blkid', '-p',
+                    '-s', 'UUID', '-o', 'value', self.devPath],
+                    stdout=subprocess.PIPE)
+            self.uuid = proc.stdout.read().split()[0]
+            if proc.wait():
+                raise RuntimeError("blkid failed to get filesystem UUID")
         finally:
             self.detach()
 
@@ -1072,10 +1080,6 @@ class BootableImage(ImageGenerator):
             util.rmtree(self.changesetDir)
 
             if not self.bootloader:
-                if (self.isDomU or 
-                    self.jobData['buildType'] == buildtypes.AMI):
-                    # pygrub requires that grub-install be run
-                    bootloader_override = 'grub'
                 self.bootloader = generators.get_bootloader(self, dest,
                         self.geometry, bootloader_override)
 
