@@ -439,6 +439,7 @@ class BootableImage(ImageGenerator):
         self.createDirectory('root')
         self.createDirectory('tmp')
         self.createDirectory('var')
+        self.createDirectory('var/lock/subsys')
         self.createDirectory('boot/grub')
         self.createDirectory('etc/sysconfig/network-scripts')
 
