@@ -84,7 +84,6 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
     templateName = 'vmwareplayer.vmx'
     productName = buildtypes.typeNamesShort[buildtypes.VMWARE_IMAGE]
-    raw2vmdk = '/usr/bin/raw2vmdk'
 
     platforms = {'' : ('other26xlinux', ''),
                  'Red Hat Enterprise Linux AS 4': ('rhel4', '4'),
@@ -130,24 +129,11 @@ class VMwareImage(raw_hd_image.RawHdImage):
 
         return (name, version)
 
-    def _createVMDK(self, hdImage, outfile, size, streaming=False):
-        args = [
-                self.raw2vmdk,
-                '-C', str(self.geometry.cylindersRequired(size)),
-                '-H', str(self.geometry.heads),
-                '-S', str(self.geometry.sectors),
-                '-A', self.adapter,
-                '-V', str(self.hwVersion),
-                ]
-        if streaming:
-            args += ['-s']
-        args += [hdImage, outfile]
-
-        logCall(args)
-
     @bootable_image.timeMe
     def createVMDK(self, hdImage, outfile, size):
-        self._createVMDK(hdImage, outfile, size, False)
+        createVMDK(hdImage, outfile, size, geometry=self.geometry,
+                adapter=self.adapter, hwVersion=self.hwVersion,
+                streaming=False)
 
     @bootable_image.timeMe
     def createVMX(self, outfile, type='vmx'):
@@ -361,16 +347,15 @@ class VMwareESXImage(VMwareImage):
 
     @bootable_image.timeMe
     def createOvfVMDK(self, hdImage, outfile, size):
-        self._createVMDK(hdImage, outfile, size, True)
+        createVMDK(hdImage, outfile, size, geometry=self.geometry,
+                adapter=self.adapter, hwVersion=self.hwVersion,
+                streaming=True)
 
     def writeMachine(self, disk, callback=None):
         """Create VMDK for the OVF processor, but no actual output images."""
         if not callback:
             callback = VMwareCallback()
-        ovfPath = os.path.join(self.workingDir, self.basefilename + '.ovf')
         vmdkPath = os.path.join(self.workingDir, self.basefilename + '.vmdk')
-        ovfOutputFile = os.path.join(self.outputDir, self.basefilename +
-                '-ovf.tar.gz')
         self.capacity = disk.totalSize
         # TODO: Add progress to raw2vmdk and pass it to creatingDisk()
         callback.creatingDisk(None, None)
@@ -386,3 +371,20 @@ class VMwareCallback(object):
 
     def creatingArchive(self, completed, total):
         pass
+
+
+def createVMDK(hdImage, outfile, size, geometry, adapter, hwVersion,
+        streaming=False):
+    args = [
+            '/usr/bin/raw2vmdk',
+            '-C', str(geometry.cylindersRequired(size)),
+            '-H', str(geometry.heads),
+            '-S', str(geometry.sectors),
+            '-A', adapter,
+            '-V', str(hwVersion),
+            ]
+    if streaming:
+        args += ['-s']
+    args += [hdImage, outfile]
+
+    logCall(args)

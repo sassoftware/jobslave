@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-
+import os
 import logging
 log = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ from jobslave import buildtypes
 from jobslave.generators import bootable_image
 from jobslave.generators import raw_hd_image
 from jobslave.generators import tarball
+from jobslave.generators import vmware_image
 
 class AMIImage(raw_hd_image.RawHdImage):
     fileType = buildtypes.typeNames[buildtypes.AMI]
@@ -31,7 +32,20 @@ class AMIImage(raw_hd_image.RawHdImage):
             obj = tarball.Tarball(self.cfg, self.jobData)
             return obj.write()
 
-        return super(AMIImage, self).write()
+        image = os.path.join(self.workDir, self.basefilename + '.hdd')
+        disk = self.makeHDImage(image)
+
+        self.status('Compressing hard disk image')
+        vmdkImage = os.path.join(self.workDir, self.basefilename + '.vmdk')
+        vmware_image.createVMDK(image, vmdkImage, disk.totalSize,
+                geometry=self.geometry, adapter='lsilogic', hwVersion=10,
+                streaming=True)
+
+        self.outputFileList.append((vmdkImage, 'VMDK Disk Image'),)
+        self.postOutput(self.outputFileList, attributes={
+            'uncompressed_size': disk.totalSize,
+            'disk_format': 'vmdk',
+            })
 
     def getFilesystems(self):
         mountPoints = super(AMIImage, self).getFilesystems()
@@ -43,7 +57,7 @@ class AMIImage(raw_hd_image.RawHdImage):
         freeSpace = (self.getBuildData("freespace") or 256) * 1024 * 1024
         fsList = [
                 F('boot', '/boot', 'ext4', minSize=1024*1024,
-                    freeSpace=50*1024*1024),
+                    freeSpace=200*1024*1024),
                 F('root', '/', 'ext4', minSize=1024*1024,
                     freeSpace=freeSpace),
                 ]
