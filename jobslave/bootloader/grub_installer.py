@@ -50,6 +50,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
         'rootDev'   : 'hd0,0',
         'root_label': root_label,
         'extra_args': '',
+        'extra_global' : '',
         }
 
     if grubConfMacros:
@@ -81,6 +82,7 @@ def getGrubConf(name, hasInitrd = True, xen = False, dom0 = False, clock = "",
 default=0
 timeout=%(timeOut)s
 hiddenmenu
+%(extra_global)s
 """.lstrip()
 
     template = """
