@@ -28,6 +28,8 @@ class GeneratorStub(object):
     ovfClass = None
     def __init__(self, jobData, parent, *args, **kwargs):
         self.jobData = jobData
+        self.original_basefilename = 'a b'
+        self.basefilename = 'a_b'
 
     def postOutput(self, fileList):
         self.posted_output = fileList
@@ -44,7 +46,7 @@ class GeneratorStub(object):
     def status(self, status, statusMessage = None):
         pass
 
-    def createOvf(self, imageName, imageDescription, diskFormat,
+    def createOvf(self, imageDescription, diskFormat,
                   diskFilePath, diskCapacity, diskCompressed,
                   workingDir, outputDir):
         from jobslave.generators import ovf_image
@@ -54,9 +56,9 @@ class GeneratorStub(object):
             self.ovfClass = ovf_image.OvfImage
 
         self.ovfImage = self.ovfClass(
-            imageName, imageDescription, diskFormat,
+            self.basefilename, self.jobData.get('description'), imageDescription, diskFormat,
             diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-            256, workingDir, outputDir)
+            256, workingDir, outputDir, imageName=self.original_basefilename)
 
         self.ovfImage.createOvf()
         self.ovfImage.writeOvf()

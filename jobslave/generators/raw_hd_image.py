@@ -199,9 +199,9 @@ class RawHdImage(bootable_image.BootableImage):
         outFile = self.gzip(image, finalImage)
 
         if self.buildOVF10:
-            self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.RAWHD, finalImage,
-                self.capacity, True, self.workingDir, 
+            self.ovaPath = self.createOvf(
+                constants.RAWHD, finalImage,
+                self.capacity, True, self.workingDir,
                 self.outputDir)
             self.outputFileList.append((self.ovaPath,
                 'Raw Hard Disk %s' % constants.OVFIMAGETAG))

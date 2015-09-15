@@ -267,7 +267,8 @@ class VMwareImageTest(BaseVmwareImageTest):
         img = self.img
         img.write()
 
-        et = etree.fromstring(self.OVF_XML)
+        xmlBlob = file(img.ovfImage.ovfPath).read()
+        et = etree.fromstring(xmlBlob)
         nsmap = dict(ovf='http://schemas.dmtf.org/ovf/envelope/1',
                 vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData",
                 rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData",
@@ -300,7 +301,8 @@ class VMwareImageTest(BaseVmwareImageTest):
         img.configure()
 
         img.write()
-        et = etree.fromstring(self.OVF_XML)
+        xmlBlob = file(img.ovfImage.ovfPath).read()
+        et = etree.fromstring(xmlBlob)
         virtHwSect = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/ovf:VirtualHardwareSection')[0]
         vsystype = self._xpath(virtHwSect, 'ovf:System/vssd:VirtualSystemType')[0]
         vsystype.text = 'vmx-10'
@@ -347,6 +349,23 @@ class VMwareImageTest(BaseVmwareImageTest):
         self.assertIn('displayName = "%s"' % baseFileName, vmx)
         # other uses of basefilename have spaces replaced by underscores
         self.assertIn('nvram = "%s.nvram"' % baseFileNameUnderscores, vmx)
+
+    def testNameInVboxWithSpaces(self):
+        # VAPPEN-1796, APPENG-3740
+        baseFileName = "obfuscated orangutan"
+        baseFileNameUnderscores = baseFileName.replace(' ', '_')
+        self._mock(data=dict(description='Blabbedy'),
+                buildData=dict(baseFileName=baseFileName, buildOVF10=True))
+        img = self.img
+        img.write()
+        self.assertEquals(os.path.basename(img.ovfImage.ovfPath),
+                baseFileNameUnderscores + '.ovf')
+        xmlBlob = file(img.ovfImage.ovfPath).read()
+        et = etree.fromstring(xmlBlob)
+        virtSystemId = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/@ovf:id')[0]
+        self.assertEquals(virtSystemId, baseFileName)
+        vboxMachineName = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/vbox:Machine/@name')[0]
+        self.assertEquals(vboxMachineName, baseFileName)
 
     def testNatNetworking(self):
         baseFileName = "obfuscated-orangutan"

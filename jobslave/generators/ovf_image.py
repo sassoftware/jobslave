@@ -73,10 +73,12 @@ class CdRom(ovf.Item):
 
 class OvfImage(object):
 
-    def __init__(self, imageName, imageDescription, diskFormat,
+    def __init__(self, sanitizedImageName, imageDescription, diskFormat,
                  diskFilePath, diskFileSize, diskCapacity, diskCompressed,
-                 memorySize, cpuCount, workingDir, outputDir, hwVersion=7):
-        self.imageName = imageName
+                 memorySize, cpuCount, workingDir, outputDir, hwVersion=7,
+                 imageName=None):
+        self.sanitizedImageName = sanitizedImageName
+        self.imageName = imageName or sanitizedImageName
         self.imageDescription = imageDescription
         self.diskFormat = diskFormat
         self.diskFilePath = diskFilePath
@@ -188,7 +190,7 @@ class OvfImage(object):
     def writeOvf(self):
         # Write the xml to disk.
         self.ovfXml = self.ovf.toxml()
-        self.ovfFileName = self.imageName + '.' + constants.OVF_EXTENSION
+        self.ovfFileName = self.sanitizedImageName + '.' + constants.OVF_EXTENSION
         self.ovfPath = os.path.join(self.workingDir, self.ovfFileName)
         out = open(self.ovfPath, 'w')
         out.write(self.ovfXml)
@@ -198,7 +200,7 @@ class OvfImage(object):
 
     def createManifest(self):
         sha1Line = 'SHA1(%s)= %s\n'
-        self.manifestFileName = self.imageName + '.' + constants.MF_EXTENSION
+        self.manifestFileName = self.sanitizedImageName + '.' + constants.MF_EXTENSION
         self.manifestPath = os.path.join(self.workingDir, self.manifestFileName)
 
         mfFile = open(self.manifestPath, 'w')
@@ -217,7 +219,7 @@ class OvfImage(object):
 
         The ova is a tar consisting of the ovf and the disk file(s).
         """
-        self.ovaFileName = self.imageName + '.' + constants.OVA_EXTENSION
+        self.ovaFileName = self.sanitizedImageName + '.' + constants.OVA_EXTENSION
         self.ovaPath = os.path.join(self.outputDir, self.ovaFileName)
 
         # Add the ovf as the first file to the ova tar.

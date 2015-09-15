@@ -239,8 +239,8 @@ class VMwareImage(raw_hd_image.RawHdImage):
         # Insert hardware version
         self.ovfClass.hwVersion = self.hwVersion
 
-        self.ovaPath = self.createOvf(self.basefilename,
-                self.jobData['description'], constants.VMDK, vmdkPath,
+        self.ovaPath = self.createOvf(
+                constants.VMDK, vmdkPath,
                 capacity, diskCompressed=self.WithCompressedDisks,
                 workingDir=self.workingDir, outputDir=self.outputDir,
                 hwVersion=self.hwVersion)

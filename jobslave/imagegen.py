@@ -272,7 +272,7 @@ class ImageGenerator(Generator):
         print >> conaryrcFile, "includeConfigFile /etc/conary/config.d/*"
         conaryrcFile.close()
 
-    def createOvf(self, imageName, imageDescription, diskFormat,
+    def createOvf(self, diskFormat,
                   diskFilePath, diskCapacity, diskCompressed,
                   workingDir, outputDir, hwVersion=7):
 
@@ -282,8 +282,9 @@ class ImageGenerator(Generator):
         diskFileSize = getFileSize(diskFilePath)
 
         self.ovfImage = self.ovfClass(
-            imageName=imageName,
-            imageDescription=imageDescription,
+            imageName=self.original_basefilename,
+            sanitizedImageName=self.basefilename,
+            imageDescription=self.jobData['description'],
             diskFormat=diskFormat,
             diskFilePath=diskFilePath,
             diskFileSize=diskFileSize,
