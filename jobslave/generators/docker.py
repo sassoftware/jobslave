@@ -377,8 +377,10 @@ class DockerImage(bootable_image.BootableImage):
                 created=layerCtime,
                 config=config,
                 os='linux',
-                docker_version='1.3.2',
-                checksum=TarSum.checksum(tarball, formatted=True),
+                docker_version='1.8.1',
+                # The checksum isn't used by docker 1.7+, so let's not
+                # generate it anymore
+#                checksum=TarSum.checksum(tarball, formatted=True),
                 Architecture=arch,
                 comment="Created by the SAS App Engine",
                 container_config=dict(),
@@ -454,15 +456,13 @@ class Manifest(CaselessDict):
             else:
                 cmd = self.cmd or other.cmd
         else:
-            # The parent image has defined an entrypoint. If different from the
-            # child entrypoint, then invalidate otherCmd
-            if self.entrypoint is not None and (self.entrypoint != other.entrypoint):
-                cmd = None
+            if self.entrypoint is not None:
+                # The child's entrypoint invalidates the parent's cmd
                 entrypoint = self.entrypoint
+                cmd = self.cmd if self.cmd else None
             else:
-                entrypoint = self.entrypoint or other.entrypoint
-                cmd = list(other.cmd or [])
-                cmd.extend(self.cmd or [])
+                entrypoint = other.entrypoint
+                cmd = self.cmd if self.cmd else other.cmd
         if entrypoint is not None:
             thisConfig['Entrypoint'] = entrypoint
         if cmd:

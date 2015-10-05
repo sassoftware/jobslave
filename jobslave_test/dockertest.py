@@ -287,20 +287,18 @@ class DockerTest(JobSlaveHelper):
         for call in calls:
             manif = json.loads(call[1][0][1]['manifest'])
             del manif['created']
-            # File ownership makes this unpredictable too
-            del manif['checksum']
             call[1][0][1]['manifest'] = json.dumps(manif, sort_keys=True)
         self.assertEquals(
                 [x[1] for x in img.postOutput._mock.calls],
                 [
                     (
                         ('attributes', {'docker_image_id': '5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972', 'installed_size': 40960,
-                            'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-bar=/my.example.com@ns:1/2-1-1[is: x86_64]\'", "Size": 10240, "config": {"Cmd": ["-", "x"], "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.3.2", "id": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972", "os": "linux", "parent": "131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800"}'}),
+                            'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-bar=/my.example.com@ns:1/2-1-1[is: x86_64]\'", "Size": 10240, "config": {"Cmd": "-x", "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.8.1", "id": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972", "os": "linux", "parent": "131ae464fe41edbb2cea58d9b67245482b7ac5d06fd72e44a9d62f6e49bac800"}'}),
                         ('forJobData', dockerBuildTree['children'][0]['buildData']),
                         ),
                     (
                         ('attributes', {'docker_image_id': '18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313', 'installed_size': 51200,
-                        'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-baz=/my.example.com@ns:1/3-1-1[is: x86_64]\'", "Size": 10240, "config": {"Cmd": ["-", "x"], "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.3.2", "id": "18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313", "os": "linux", "parent": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972"}'}),
+                        'manifest' : '{"Architecture": "amd64", "Comment": "Created by Conary command: conary update \'group-baz=/my.example.com@ns:1/3-1-1[is: x86_64]\'", "Size": 10240, "config": {"Cmd": "-x", "Entrypoint": ["/bin/bash"], "Env": ["FP1=1", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"], "ExposedPorts": {"22/ssh": {}}}, "container_config": {}, "docker_version": "1.8.1", "id": "18723084021be3ea9dd7cc38b91714d34fb9faa464ea19c77294adc8f8453313", "os": "linux", "parent": "5414b567e26c01f2032e41e62a449fd2781f26011721b2b7cb947434c080c972"}'}),
                         ('forJobData', dockerBuildTree['children'][0]['children'][0]['buildData']),
                         ),
                     ])
@@ -768,13 +766,95 @@ ENV b=3 c=4
                 ('CMD [ "/bin/bash" ]', 'ENTRYPOINT [ "/bin/echo", "foo" ]',
                     [ "/bin/echo", "foo" ], None),
                 ('ENTRYPOINT [ "/bin/echo" ]\nCMD ["foo"]', 'CMD [ "/bin/bash" ]',
-                    [ "/bin/echo" ], [ "foo", "/bin/bash" ]),
+                    [ "/bin/echo" ], [ "/bin/bash" ]),
                 ('ENTRYPOINT [ "/bin/echo" ]\nCMD ["foo"]',
                     'ENTRYPOINT [ "/bin/echo" ]\nCMD [ "/bin/bash" ]',
-                    [ "/bin/echo" ], [ "foo", "/bin/bash" ]),
+                    [ "/bin/echo" ], ["/bin/bash" ]),
                 ('ENTRYPOINT [ "/bin/echo" ]\nCMD ["foo"]',
                     'ENTRYPOINT [ "/bin/bash" ]\nCMD [ "-x" ]',
                     [ "/bin/bash" ], [ "-x" ]),
+                # c-
+                ('CMD [ "cparent" ]', '',
+                    None, ["cparent" ]),
+                # c-c
+                ('CMD [ "c" ]', 'CMD ["c"]',
+                    None, ["c"]),
+                # c-C
+                ('CMD [ "cparent" ]', 'CMD ["cchild"]',
+                    None, ["cchild"]),
+                # c-E
+                ('CMD [ "cparent" ]', 'ENTRYPOINT ["echild"]',
+                    ["echild"], None),
+                # c-Ec
+                ('CMD [ "c" ]', 'ENTRYPOINT ["echild"]\nCMD ["c"]',
+                    ["echild"], ["c"]),
+
+                # c-EC
+                ('CMD [ "cparent" ]', 'ENTRYPOINT ["echild"]\nCMD ["cchild"]',
+                    ["echild"], ["cchild"]),
+
+                # -
+                ('', '',
+                    None, None),
+                # -C
+                ('', 'CMD ["cchild"]',
+                    None, ["cchild"]),
+                # -E
+                ('', 'ENTRYPOINT ["echild"]',
+                    ["echild"], None),
+                # -EC
+                ('', 'ENTRYPOINT ["echild"]\nCMD ["cchild"]',
+                    ["echild"], ["cchild"]),
+
+                # e-
+                ('ENTRYPOINT [ "eparent" ]', '',
+                    ["eparent"], None),
+                # e-C
+                ('ENTRYPOINT [ "eparent" ]', 'CMD ["cchild"]',
+                    ["eparent"], ["cchild"]),
+                # e-e
+                ('ENTRYPOINT [ "e" ]', 'ENTRYPOINT ["e"]',
+                    ["e"], None),
+                # e-E
+                ('ENTRYPOINT [ "eparent" ]', 'ENTRYPOINT ["echild"]',
+                    ["echild"], None),
+                # e-EC
+                ('ENTRYPOINT [ "eparent" ]', 'ENTRYPOINT ["echild"]\nCMD ["cchild"]',
+                    ["echild"], ["cchild"]),
+                # e-eC
+                ('ENTRYPOINT [ "e" ]', 'ENTRYPOINT ["e"]\nCMD ["cchild"]',
+                    ["e"], ["cchild"]),
+
+                # ec-
+                ('ENTRYPOINT [ "eparent" ]\nCMD["cparent"]', '',
+                    ["eparent"], ["cparent"]),
+                # ec-c
+                ('ENTRYPOINT [ "eparent" ]\nCMD["c"]', 'CMD ["c"]',
+                    ["eparent"], ["c"]),
+                # ec-C
+                ('ENTRYPOINT [ "eparent" ]\nCMD["cparent"]', 'CMD ["cchild"]',
+                    ["eparent"], ["cchild"]),
+                # ec-e
+                ('ENTRYPOINT [ "e" ]\nCMD["cparent"]', 'ENTRYPOINT ["e"]',
+                    ["e"], None),
+                # ec-E
+                ('ENTRYPOINT [ "eparent" ]\nCMD["cparent"]', 'ENTRYPOINT ["echild"]',
+                    ["echild"], None),
+                # ec-Ec
+                ('ENTRYPOINT [ "eparent" ]\nCMD["c"]', 'ENTRYPOINT ["echild"]\nCMD ["c"]',
+                    ["echild"], ["c"]),
+
+                # ec-eC
+                ('ENTRYPOINT [ "e" ]\nCMD["cparent"]', 'ENTRYPOINT ["e"]\nCMD ["cchild"]',
+                    ["e"], ["cchild"]),
+
+                # ec-EC
+                ('ENTRYPOINT [ "eparent" ]\nCMD["cparent"]', 'ENTRYPOINT ["echild"]\nCMD ["cchild"]',
+                    ["echild"], ["cchild"]),
+                # ec-ec
+                ('ENTRYPOINT [ "e" ]\nCMD["c"]', 'ENTRYPOINT ["e"]\nCMD ["c"]',
+                    ["e"], ["c"]),
+
                 ]
         for parentDF, childDF, expEntrypoint, expCmd in combinations:
             parent = docker.Dockerfile()
