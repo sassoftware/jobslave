@@ -232,6 +232,7 @@ class VMwareImageTest(BaseVmwareImageTest):
               <Alias logging="false" proxy-only="false" use-same-ports="false"/>
               <Forwarding name="HTTP" proto="1" hostip="127.0.0.1" hostport="10080" guestport="80"/>
               <Forwarding name="HTTPS" proto="1" hostip="127.0.0.1" hostport="10443" guestport="443"/>
+              <Forwarding name="8888" proto="1" hostip="127.0.0.1" hostport="18888" guestport="8888"/>
             </NAT>
           </Adapter>
         </Network>
