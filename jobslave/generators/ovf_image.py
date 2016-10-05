@@ -429,11 +429,13 @@ class VBoxMachine(object):
     _xobj = ovf.xobj.XObjMetadata(
             elements = [ "ovf_Info", "Hardware", "StorageControllers" ],
             attributes=dict(ovf_required=str,
-                uuid=str, name=str))
+                uuid=str, name=str, version=str))
     def __init__(self, name, cpuCount, memory, diskCount):
         self.ovf_required = "false"
         self.uuid = "{00000000-0000-4000-8000-000000000000}"
         self.ovf_Info = "VirtualBox machine configuration in VirtualBox format"
+        # BAREOS-1727
+        self.version = "1.15"
         self.name = name
         self.Hardware = VboxHardware(cpuCount, memory)
         self.StorageControllers = VboxStorageControllers

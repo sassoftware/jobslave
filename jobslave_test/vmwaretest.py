@@ -209,7 +209,7 @@ class VMwareImageTest(BaseVmwareImageTest):
         <rasd:ResourceType>6</rasd:ResourceType>
       </ovf:Item>
     </ovf:VirtualHardwareSection>
-    <vbox:Machine ovf:required="false" uuid="{00000000-0000-4000-8000-000000000000}" name="foo-1.0.1-x86">
+    <vbox:Machine ovf:required="false" uuid="{00000000-0000-4000-8000-000000000000}" name="foo-1.0.1-x86" version="1.15">
       <ovf:Info>VirtualBox machine configuration in VirtualBox format</ovf:Info>
       <Hardware version="2">
         <CPU count="1" hotplug="false"/>
@@ -284,6 +284,8 @@ class VMwareImageTest(BaseVmwareImageTest):
         self._xpath(item, 'rasd:VirtualQuantity')[0].text = "12"
 
         vboxMachine = self._xpath(et, '/ovf:Envelope/ovf:VirtualSystem/vbox:Machine')[0]
+        # BAREOS-1727
+        vboxMachine.attrib['version'] = '1.15'
         vboxMachine.xpath('Hardware/CPU')[0].attrib['count'] = '12'
 
         xml = etree.tostring(et)
